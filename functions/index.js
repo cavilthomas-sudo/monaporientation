@@ -4,11 +4,9 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 
-// La fonction récupère la clé API stockée de manière sécurisée
 const geminiApiKey = functions.config().gemini.key;
 
 exports.generateContent = functions.https.onCall(async (data, context) => {
-  // Le SDK vérifie automatiquement que l'utilisateur est authentifié
   if (!context.auth) {
     throw new functions.https.HttpsError(
         "unauthenticated",
