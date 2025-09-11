@@ -3116,11 +3116,11 @@ async function createPublicShareView(userId, token) {
         if (docSnap.exists()) {
             const data = docSnap.data();
             
-            if (data.journal.share_token !== token) {
+            if (!data.journal || data.journal.share_token !== token) {
                 throw new Error("Lien de partage invalide ou désactivé.");
             }
 
-            const publicJournalData = data.journal; // Utiliser un nom de variable distinct
+            const publicJournalData = data.journal;
             const userInfo = {
                 firstName: data.firstName || 'L\'élève',
                 lastName: data.lastName || '',
@@ -3128,7 +3128,7 @@ async function createPublicShareView(userId, token) {
                 gradeLevel: data.gradeLevel || 'sa classe'
             };
             
-            let contentHTML = `
+            let pageHTML = `
                 <div class="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200">
                     <h1 class="text-2xl font-bold text-indigo-700 mb-2">Journal de Bord de ${userInfo.firstName}</h1>
                     <p class="text-slate-500 mb-8">Élève en ${userInfo.gradeLevel} à ${userInfo.schoolName}.</p>
@@ -3141,23 +3141,17 @@ async function createPublicShareView(userId, token) {
                     }
                 `;
 
-            // Logique pour afficher les badges
-            const earnedBadges = publicJournalData.earned_badges || [];
-            if (earnedBadges.length > 0) {
-                 let badgesItemsHTML = Object.keys(badgesConfig)
-                    .filter(key => earnedBadges.includes(key))
-                    .map(key => {
-                        const badge = badgesConfig[key];
-                        return `<div class="text-center p-2"><div class="badge earned" title="${badge.description}"><span class="text-4xl">${badge.icon}</span><p class="text-sm font-semibold mt-1 text-slate-800">${badge.title}</p></div></div>`;
-                    }).join('');
-                
-                contentHTML += `<div class="mb-8"><h2 class="text-xl font-bold text-slate-800 text-center mb-4">Badges Obtenus</h2><div class="grid grid-cols-3 gap-4">${badgesItemsHTML}</div></div>`;
-            }
+            // On utilise la fonction createBadgesDisplay pour afficher les badges
+            // en lui passant les données du journal public
+            const tempJournalData = journalData; // Sauvegarde temporaire
+            journalData = publicJournalData; // On utilise les données publiques
+            pageHTML += createBadgesDisplay('journal');
+            journalData = tempJournalData; // On restaure les données de l'utilisateur courant
 
-            // Logique pour afficher l'infographie et les détails des étapes
-            let journalDetailsHTML = '';
+            // --- Logique complète pour afficher le contenu détaillé du journal ---
+            let contentHTML = '';
             if (publicJournalData.step0 && publicJournalData.step0.analysis) {
-                journalDetailsHTML += createProfileInfographic(publicJournalData.step0);
+                contentHTML += createProfileInfographic(publicJournalData.step0);
             }
 
             const stepTitles = {
@@ -3169,37 +3163,39 @@ async function createPublicShareView(userId, token) {
                 step10: '💼 Mon Portfolio de Compétences',
                 step11: '🌍 Rencontres sur mon Territoire'
             };
-
+            
             for (const stepKey in stepTitles) {
                 const stepData = publicJournalData[stepKey];
                 if (!stepData) continue;
                 let stepContent = '';
                 let hasContent = false;
-                
-                // (Copie de la logique d'affichage de createJournalView)
+
                 if (stepKey === 'step11') {
-                    // Logique pour l'étape 11
                     if (stepData.location) { hasContent = true; stepContent += `<div class="mb-3"><p class="font-semibold text-slate-700">Lieu de recherche</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${stepData.location}</p></div>`; }
-                    if (stepData.evenements && Array.isArray(stepData.evenements) && stepData.evenements.length > 0) { hasContent = true; /* ... */ }
-                    if (stepData.structures && Array.isArray(stepData.structures) && stepData.structures.length > 0) { hasContent = true; /* ... */ }
+                    if (stepData.evenements && Array.isArray(stepData.evenements) && stepData.evenements.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Événements sauvegardés :</h4>`; stepData.evenements.forEach(event => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-bold text-indigo-700">${event.nom || ''}</p><p class="text-sm text-slate-600">${event.date || ''} - ${event.lieu || ''}</p></div>`; }); }
+                    if (stepData.structures && Array.isArray(stepData.structures) && stepData.structures.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Structures sauvegardées :</h4>`; stepData.structures.forEach(struct => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-bold text-indigo-700">${struct.nom || ''}</p><p class="text-sm text-slate-600">${struct.adresse || ''}</p></div>`; }); }
                 } else if (stepKey === 'step10') {
-                    // Logique pour l'étape 10
-                    if (stepData.experiences && stepData.experiences.length > 0) { hasContent = true; /* ... */ }
-                    if (stepData.soft_skills_profile) { hasContent = true; /* ... */ }
+                    if (stepData.experiences && stepData.experiences.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mb-2">Expériences Significatives :</h4>`; stepData.experiences.forEach((exp, index) => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`; }); }
+                    if (stepData.soft_skills_profile) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Profil de Compétences Transversales :</h4>`; stepContent += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>`; }
                 } else {
                     for (const [key, value] of Object.entries(stepData)) {
-                        if (value && typeof value === 'string' && value.trim() !== '' && !key.startsWith('q')) { hasContent = true; /* ... */ }
+                        if (value && typeof value === 'string' && value.trim() !== '' && !key.startsWith('q')) {
+                            hasContent = true;
+                            const config = Object.values(stepsConfig).find(c => c.stepKey === stepKey);
+                            let label = key;
+                            if (config && config.fields) { const field = config.fields.find(f => f.id === key); if (field) label = field.label; }
+                            stepContent += `<div class="mb-3"><p class="font-semibold text-slate-700">${label}</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${value}</p></div>`;
+                        }
                     }
                 }
-                
                 if (hasContent) {
-                    journalDetailsHTML += `<div class="mb-8"><h3 class="text-xl font-bold border-b pb-2 mb-4 text-indigo-700">${stepTitles[stepKey]}</h3>${stepContent}</div>`;
+                    contentHTML += `<div class="mb-8"><h3 class="text-xl font-bold border-b pb-2 mb-4 text-indigo-700">${stepTitles[stepKey]}</h3>${stepContent}</div>`;
                 }
             }
-
-            contentHTML += journalDetailsHTML;
-            contentHTML += `</div>`; // Fin de la carte principale
-            mainApp.innerHTML = contentHTML;
+            
+            pageHTML += contentHTML;
+            pageHTML += `</div>`;
+            mainApp.innerHTML = pageHTML;
 
         } else {
             throw new Error("Utilisateur non trouvé.");
