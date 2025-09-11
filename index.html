@@ -421,18 +421,14 @@ window.showView = showView;
         }
 
         async function callGeminiAPI(prompt, useGrounding = false, isJson = false) {
-    // Prépare l'appel à notre fonction Cloud sécurisée "generateContent"
     const generateContent = httpsCallable(functions, 'generateContent');
     try {
-        const response = await generateContent({ 
+        const response = await generateContent({
             prompt: prompt,
             useGrounding: useGrounding,
-            isJson: isJson 
+            isJson: isJson
         });
-        
-        // Le résultat est dans response.data.result
         return response.data.result;
-
     } catch (error) {
         console.error("Error calling Cloud Function:", error);
         return `Impossible de contacter le service d'IA. (${error.message})`;
