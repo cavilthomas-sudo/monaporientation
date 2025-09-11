@@ -1056,7 +1056,7 @@ const stepsConfig = {
         resultDiv.value = '';
         loader.style.display = 'block';
 
-        const prompt = `Agis en tant que psychologue spécialisé en orientation. Voici les réponses d'un lycéen à un questionnaire de personnalité :\n${answersText}\n\nRédige une analyse bienveillante et structurée en 3 parties :\n1. Tes 3 forces principales : Identifie 3 traits de caractère ou compétences clés qui ressortent.\n2. Ton environnement idéal : Décris le type d'environnement d'études ou de travail qui semble te correspondre le mieux (ex: collaboratif, structuré, créatif, etc.).\n3. Pistes à explorer : Suggère 2 ou 3 grands domaines ou types de métiers qui pourraient matcher avec ce profil, sans donner de métier précis.`;
+        const prompt = `Agis en tant que psychologue spécialisé en orientation. Voici les réponses d'un lycéen à un questionnaire de personnalité :\n${answersText}\n\nRédige une analyse bienveillante et structurée en 3 parties :\n1. Tes 3 forces principales : Identifie 3 traits de caractère ou compétences clés qui ressortent.\n2. Ton environnement idéal : Décris le type d'environnement d'études ou de travail qui semble te correspondre le mieux (ex: collaboratif, structuré, créatif, etc.).\n3. Pistes à explorer : Suggère 2 ou 3 grands domaines ou types de métiers qui pourraient matcher avec ce profil, sans donner de métier précis. Ta réponse doit être naturelle sans formatage de type # et * .`;
 
         const result = await callGeminiAPI(prompt);
         loader.style.display = 'none';
@@ -2831,7 +2831,7 @@ Ta mission est la suivante :
 
 2.  **Planification Stratégique Mensuelle :**
     Élabore un planning détaillé de septembre 2025 à juillet 2026. Chaque mois doit comporter des tâches équilibrées entre **trois axes majeurs** :
-    * **Axe 1 - Préparation au Bac :** Actions pour les révisions (français, maths). Inclure des conseils sur la gestion du temps et les techniques de révision.
+    * **Axe 1 - Intégration des connaissances :** Actions pour renforcer les acquis (français, maths). Inclure des conseils sur la gestion du temps et les techniques de révision.
     * **Axe 2 - Intègre les étapes de l'application "Mon Explor'Orientation" que je te demande d'utiliser plus bas.
 
 3.  **Conseils d'Expert (Obligatoire) :**
