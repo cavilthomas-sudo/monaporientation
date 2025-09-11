@@ -245,7 +245,7 @@ function showLoginView() {
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 fade-in">
             
-            <img src="logo.png" alt="Logo Mon Explor'Orientation" class="mx-auto h-48 w-auto mb-6">
+            <img src="logo.png" alt="Logo Mon Explor'Orientation" class="mx-auto h-56 w-auto mb-6">
 
             <div class="text-center mb-6">
                  <button onclick="window.showGuideFromLogin()" class="font-semibold text-indigo-600 hover:underline">Consultez le guide d'utilisation</button>
@@ -1502,7 +1502,7 @@ function createGuideView() {
             .guide-container h3 { color: #334155; font-size: 1.3em; margin-top: 40px; font-weight: 600; }
             .guide-container .centered-subtitle { text-align: center; margin-bottom: 30px; }
             .guide-container h4 { margin-top: 0; font-size: 1.1em; font-weight: 600; display: flex; align-items: center; gap: 0.75rem; }
-            .guide-container .logo { display: block; margin: 0 auto 20px auto; width: 250px; }
+            .guide-container .logo { display: block; margin: 0 auto 20px auto; width: 350px; }
             .guide-container .info-box { padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid; }
             .guide-container .info-box-parents { background-color: #F0FDF4; border-color: #22C55E; }
             .guide-container .info-box-parents h4 { color: #166534; display: block; }
@@ -1517,7 +1517,6 @@ function createGuideView() {
         </style>
         <div class="guide-container">
             <img src="logo.png" alt="Logo Mon Explor'Orientation" class="logo">
-            <h1 style="text-align:center; color:#4338CA; font-size:28px; margin-bottom:20px;">Guide d'Utilisation Détaillé</h1>
             
             <h2>Introduction : Qu'est-ce que "Mon Explor'Orientation" ?</h2>
             <p>"Mon Explor'Orientation" est un <strong>carnet de bord numérique interactif</strong>, conçu pour accompagner chaque lycéen dans la construction de son projet d'avenir. Son objectif est de rendre l'élève acteur de son orientation en lui proposant une méthode structurée et des outils intelligents pour l'aider à chaque étape de sa réflexion.</p>
@@ -3117,12 +3116,11 @@ async function createPublicShareView(userId, token) {
         if (docSnap.exists()) {
             const data = docSnap.data();
             
-            // Sécurité : on vérifie que le token correspond
             if (data.journal.share_token !== token) {
-                throw new Error("Token invalide ou partage désactivé.");
+                throw new Error("Lien de partage invalide ou désactivé.");
             }
 
-            const journalData = data.journal;
+            const publicJournalData = data.journal; // Utiliser un nom de variable distinct
             const userInfo = {
                 firstName: data.firstName || 'L\'élève',
                 lastName: data.lastName || '',
@@ -3135,35 +3133,81 @@ async function createPublicShareView(userId, token) {
                     <h1 class="text-2xl font-bold text-indigo-700 mb-2">Journal de Bord de ${userInfo.firstName}</h1>
                     <p class="text-slate-500 mb-8">Élève en ${userInfo.gradeLevel} à ${userInfo.schoolName}.</p>
                     
-                    ${journalData.fil_rouge ? `
+                    ${publicJournalData.fil_rouge ? `
                         <div class="mb-8 p-6 bg-violet-50 border-l-4 border-violet-500 rounded-r-lg">
                             <h2 class="text-xl font-bold text-violet-800 mb-4">✨ Son Fil Rouge</h2>
-                            <p class="text-slate-700 whitespace-pre-wrap">${journalData.fil_rouge}</p>
+                            <p class="text-slate-700 whitespace-pre-wrap">${publicJournalData.fil_rouge}</p>
                         </div>` : ''
                     }
                 `;
 
-            // Logique pour afficher les sections du journal comme dans createJournalView
-            // (Cette partie est une version simplifiée de celle de createJournalView)
-            const stepTitles = { /* ... copiez l'objet stepTitles de createJournalView ... */ };
+            // Logique pour afficher les badges
+            const earnedBadges = publicJournalData.earned_badges || [];
+            if (earnedBadges.length > 0) {
+                 let badgesItemsHTML = Object.keys(badgesConfig)
+                    .filter(key => earnedBadges.includes(key))
+                    .map(key => {
+                        const badge = badgesConfig[key];
+                        return `<div class="text-center p-2"><div class="badge earned" title="${badge.description}"><span class="text-4xl">${badge.icon}</span><p class="text-sm font-semibold mt-1 text-slate-800">${badge.title}</p></div></div>`;
+                    }).join('');
+                
+                contentHTML += `<div class="mb-8"><h2 class="text-xl font-bold text-slate-800 text-center mb-4">Badges Obtenus</h2><div class="grid grid-cols-3 gap-4">${badgesItemsHTML}</div></div>`;
+            }
+
+            // Logique pour afficher l'infographie et les détails des étapes
+            let journalDetailsHTML = '';
+            if (publicJournalData.step0 && publicJournalData.step0.analysis) {
+                journalDetailsHTML += createProfileInfographic(publicJournalData.step0);
+            }
+
+            const stepTitles = {
+                step0: '👤 Mieux se connaître (Analyse)',
+                step1: '📚 Les Fondations',
+                step2: '🧭 Le simulateur de spécialités',
+                step3: '🎓 Le Catalogue',
+                step5: '📰 L\'Actu & Tests',
+                step10: '💼 Mon Portfolio de Compétences',
+                step11: '🌍 Rencontres sur mon Territoire'
+            };
+
             for (const stepKey in stepTitles) {
-                if (journalData[stepKey] && Object.values(journalData[stepKey]).some(v => v)) {
-                    contentHTML += `<div class="mb-6"><h3 class="text-lg font-bold border-b pb-2 mb-3 text-indigo-600">${stepTitles[stepKey]}</h3>...</div>`;
-                    // Ici, vous ajouteriez la logique pour afficher joliment chaque section
+                const stepData = publicJournalData[stepKey];
+                if (!stepData) continue;
+                let stepContent = '';
+                let hasContent = false;
+                
+                // (Copie de la logique d'affichage de createJournalView)
+                if (stepKey === 'step11') {
+                    // Logique pour l'étape 11
+                    if (stepData.location) { hasContent = true; stepContent += `<div class="mb-3"><p class="font-semibold text-slate-700">Lieu de recherche</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${stepData.location}</p></div>`; }
+                    if (stepData.evenements && Array.isArray(stepData.evenements) && stepData.evenements.length > 0) { hasContent = true; /* ... */ }
+                    if (stepData.structures && Array.isArray(stepData.structures) && stepData.structures.length > 0) { hasContent = true; /* ... */ }
+                } else if (stepKey === 'step10') {
+                    // Logique pour l'étape 10
+                    if (stepData.experiences && stepData.experiences.length > 0) { hasContent = true; /* ... */ }
+                    if (stepData.soft_skills_profile) { hasContent = true; /* ... */ }
+                } else {
+                    for (const [key, value] of Object.entries(stepData)) {
+                        if (value && typeof value === 'string' && value.trim() !== '' && !key.startsWith('q')) { hasContent = true; /* ... */ }
+                    }
+                }
+                
+                if (hasContent) {
+                    journalDetailsHTML += `<div class="mb-8"><h3 class="text-xl font-bold border-b pb-2 mb-4 text-indigo-700">${stepTitles[stepKey]}</h3>${stepContent}</div>`;
                 }
             }
-                
-            contentHTML += `</div>`;
+
+            contentHTML += journalDetailsHTML;
+            contentHTML += `</div>`; // Fin de la carte principale
             mainApp.innerHTML = contentHTML;
 
         } else {
             throw new Error("Utilisateur non trouvé.");
         }
     } catch (error) {
-        mainApp.innerHTML = `<p class="text-center text-red-500">${error.message}</p>`;
+        mainApp.innerHTML = `<div class="text-center p-8 bg-white rounded-lg shadow-md"><h2 class="text-xl font-bold text-red-600">Erreur</h2><p class="text-slate-600 mt-2">${error.message}</p></div>`;
     }
 }
-
         function getProfileSummaryText(step0Data) {
             if (!step0Data) return "";
 
