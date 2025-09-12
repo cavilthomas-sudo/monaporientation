@@ -800,6 +800,8 @@ function createMenuView() {
         
         // REMPLACEZ VOTRE FONCTION createProfileInfographic EXISTANTE PAR CELLE-CI :
 
+// REMPLACEZ VOTRE FONCTION createProfileInfographic EXISTANTE PAR CELLE-CI :
+
 function createProfileInfographic(step0Data) {
     if (!step0Data || !step0Data.analysis) {
         return document.createElement('div'); // Retourne un élément vide si pas de données
@@ -3332,20 +3334,23 @@ async function createPublicShareView(userId, token) {
 
 // REMPLACEZ VOTRE FONCTION exportPDF EXISTANTE PAR CELLE-CI :
 
+// REMPLACEZ VOTRE FONCTION exportPDF EXISTANTE PAR CELLE-CI :
+
 async function exportPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
     const FONT_NORMAL = 'Helvetica';
 
+    // --- Constantes et couleurs ---
     const MARGIN = 15;
     const PAGE_WIDTH = doc.internal.pageSize.getWidth();
     const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
     const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
     let y = MARGIN;
 
-    const COLOR_PRIMARY = '#4f46e5'; // Indigo-600
-    const COLOR_SECONDARY = '#475569'; // Slate-600
-    const COLOR_TEXT = '#334155'; // Slate-700
+    const COLOR_PRIMARY = '#4f46e5'; // Indigo
+    const COLOR_SECONDARY = '#475569'; // Slate
+    const COLOR_TEXT = '#334155';
     
     // --- Fonctions utilitaires ---
     const checkPageBreak = (heightNeeded) => {
@@ -3405,16 +3410,14 @@ async function exportPDF() {
 
     // --- CONTENU DU RAPPORT ---
 
-    // Fil Rouge
     if (journalData.fil_rouge) {
         addSectionTitle("Mon Fil Rouge", "✨");
         addBodyText(journalData.fil_rouge);
     }
+
+    const reportSteps = ['step0', 'step10', 'step1', 'step2', 'step3', 'step5', 'step11', 'step4', 'step8', 'step6', 'step9', 'retroplanning'];
     
-    // --- BOUCLE COMPLÈTE POUR TOUTES LES ÉTAPES DU JOURNAL ---
-    const stepOrderForReport = ['step0', 'step10', 'step1', 'step2', 'step3', 'step5', 'step11', 'step4', 'step8', 'step6', 'step9', 'retroplanning'];
-    
-    for (const stepKey of stepOrderForReport) {
+    for (const stepKey of reportSteps) {
         const stepData = journalData[stepKey];
         const stepInfo = Object.values(stepsConfig).find(s => s.stepKey === stepKey) || { title: 'Rétroplanning', icon: '🗓️' };
         if (!stepData || Object.values(stepData).every(v => !v || (Array.isArray(v) && v.length === 0))) continue;
@@ -3422,15 +3425,28 @@ async function exportPDF() {
         addSectionTitle(stepInfo.title, stepInfo.icon);
 
         if (stepKey === 'step0' && stepData.analysis) {
-            const infographicElement = createProfileInfographic(stepData).querySelector('.bg-slate-50');
-            if (infographicElement) {
-                const canvas = await html2canvas(infographicElement, { scale: 3, backgroundColor: '#f8fafc' });
+            // CORRECTION : Logique de capture de l'infographie
+            const infographicContainer = createProfileInfographic(stepData);
+            const elementToCapture = infographicContainer.querySelector('.bg-slate-50');
+
+            if (elementToCapture) {
+                // On attache temporairement et invisiblement l'élément à la page
+                infographicContainer.style.position = 'fixed';
+                infographicContainer.style.left = '-9999px';
+                document.body.appendChild(infographicContainer);
+
+                const canvas = await html2canvas(elementToCapture, { scale: 3, backgroundColor: '#f8fafc' });
+                
+                // On retire l'élément une fois la capture faite
+                document.body.removeChild(infographicContainer);
+
                 const imgData = canvas.toDataURL('image/png');
                 const imgHeight = (canvas.height * CONTENT_WIDTH) / canvas.width;
                 checkPageBreak(imgHeight + 5);
                 doc.addImage(imgData, 'PNG', MARGIN, y, CONTENT_WIDTH, imgHeight);
                 y += imgHeight + 8;
             }
+            
             addSubHeader("Analyse de l'IA :");
             addBodyText(stepData.analysis);
         } else if (stepKey === 'step10') {
@@ -3441,16 +3457,6 @@ async function exportPDF() {
             if (stepData.soft_skills_profile) {
                 addSubHeader("Profil de Compétences Transversales :");
                 addBodyText(stepData.soft_skills_profile, { indent: 5 });
-            }
-        } else if (stepKey === 'step11') {
-            if (stepData.location) addBodyText(`Lieu de recherche : ${stepData.location}`);
-            if (stepData.evenements && stepData.evenements.length > 0) {
-                addSubHeader("Événements :");
-                stepData.evenements.forEach(e => addBodyText(`- ${e.nom} (${e.date}, ${e.lieu})`, { indent: 5 }));
-            }
-            if (stepData.structures && stepData.structures.length > 0) {
-                addSubHeader("Structures :");
-                stepData.structures.forEach(s => addBodyText(`- ${s.nom} (${s.adresse})`, { indent: 5 }));
             }
         } else if (stepKey === 'retroplanning' && stepData.tasks) {
             stepData.tasks.forEach(month => {
@@ -3481,7 +3487,7 @@ async function exportPDF() {
         doc.setFontSize(9);
         doc.setTextColor(156, 163, 175);
         if (i > 1) doc.text("Rapport d'Orientation | Mon Explor'Orientation", MARGIN, 10);
-        doc.text(`Page ${i} sur ${pageCount}`, PAGE_WIDTH / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+        doc.text(`Page ${i} sur ${pageCount}`, PAGE_WIDTH / 2, PAGE_HEIGHT - 10, { align: 'center' });
     }
 
     doc.save(`Rapport_Orientation_${currentUserInfo.firstName}_${currentUserInfo.lastName}.pdf`);
