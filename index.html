@@ -2642,6 +2642,56 @@ function createStep10View() {
 
     return div;
 }
+function createOrientationMapView() {
+    let mapHTML = '<div class="mb-8"><h2 class="text-xl font-bold text-slate-800 text-center mb-4">🗺️ Ma Carte d\'Orientation Personnelle</h2>';
+    mapHTML += '<div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">';
+
+    // Colonne Centrale : Le Profil
+    const profileAnalysis = journalData.step0 ? journalData.step0.analysis : '';
+    if (profileAnalysis) {
+        mapHTML += `<div class="lg:col-span-1 bg-violet-50 p-4 rounded-lg border border-violet-200">
+                        <h3 class="font-bold text-violet-800 text-center">👤 Mon Profil</h3>
+                        <p class="text-sm text-slate-600 whitespace-pre-wrap mt-2">${profileAnalysis.split('\n')[0]}</p>
+                    </div>`;
+    } else {
+        mapHTML += `<div class="lg:col-span-1 bg-slate-50 p-4 rounded-lg border text-center">
+                        <h3 class="font-bold text-slate-500">👤 Mon Profil</h3>
+                        <p class="text-sm text-slate-500 mt-2">Complète l'étape "Mieux se connaître" pour révéler ton profil.</p>
+                    </div>`;
+    }
+
+    // Colonne de Droite : L'Exploration
+    mapHTML += '<div class="lg:col-span-2 space-y-4">';
+    
+    // Métiers explorés (Les Fondations)
+    const metiers = [journalData.step1.metier1, journalData.step1.metier2, journalData.step1.metier3].filter(m => m);
+    if (metiers.length > 0) {
+        mapHTML += `<div class="bg-sky-50 p-3 rounded-lg border border-sky-200">
+                        <h4 class="font-semibold text-sky-800">📚 Métiers explorés</h4>
+                        <p class="text-sm text-slate-600">${metiers.join(', ')}</p>
+                    </div>`;
+    }
+
+    // Formations envisagées (Le Catalogue)
+    const formations = [journalData.step3.formation1, journalData.step3.formation2, journalData.step3.formation3].filter(f => f);
+    if (formations.length > 0) {
+        mapHTML += `<div class="bg-lime-50 p-3 rounded-lg border border-lime-200">
+                        <h4 class="font-semibold text-lime-800">🎓 Formations envisagées</h4>
+                        <p class="text-sm text-slate-600">${formations.join(', ')}</p>
+                    </div>`;
+    }
+
+    // Compétences (Portfolio)
+    if (journalData.step10 && journalData.step10.experiences && journalData.step10.experiences.length > 0) {
+        mapHTML += `<div class="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                        <h4 class="font-semibold text-amber-800">💼 Compétences identifiées</h4>
+                        <p class="text-sm text-slate-600">À travers ${journalData.step10.experiences.length} expérience(s) valorisée(s).</p>
+                    </div>`;
+    }
+    
+    mapHTML += '</div></div></div>'; // Fin de la grille et de la section
+    return mapHTML;
+}
 
 function createStep11View() {
     const config = stepsConfig.step11;
@@ -3004,15 +3054,20 @@ Ta mission est la suivante :
     `;
 
     div.innerHTML = `
-        <div class="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
+        <div class="flex flex-col sm:flex-row items-start justify-between mb-6 gap-4">
             <div class="flex items-center">
-                <button onclick="window.showView('menu')" class="text-indigo-600 hover:text-indigo-800 font-bold mr-4">← Retour</button>
-                <h1 class="text-2xl font-bold">📓 Mon Journal de Bord</h1>
-                <p class="text-slate-500">Pour ${currentUserInfo.firstName} ${currentUserInfo.lastName}, élève de ${userGradeLevel}.</p>
+                <button onclick="window.showView('menu')" class="text-indigo-600 hover:text-indigo-800 font-bold mr-4 self-start mt-1">← Retour</button>
+                <div>
+                    <h1 class="text-2xl font-bold">📓 Mon Journal de Bord</h1>
+                    <p class="text-slate-500">Pour ${currentUserInfo.firstName} ${currentUserInfo.lastName}, élève de ${userGradeLevel}.</p>
+                </div>
             </div>
             <button id="exportPdfBtn" class="w-full sm:w-auto bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition">Exporter en PDF</button>
         </div>
         ${sharePanelHTML}
+        
+        <div id="orientation-map-wrapper"></div>
+
         <div id="filRougeContainer" class="mb-8 p-6 bg-violet-50 border-l-4 border-violet-500 rounded-r-lg">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold text-violet-800">✨ Mon Fil Rouge</h2>
@@ -3030,7 +3085,9 @@ Ta mission est la suivante :
         <div id="geminiShareResult" class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg text-slate-700 whitespace-pre-wrap"></div>
     `;
 
+    div.querySelector('#orientation-map-wrapper').innerHTML = createOrientationMapView();
     div.querySelector('#badges-wrapper').innerHTML = createBadgesDisplay('journal');
+
     const journalContentDiv = div.querySelector('#journalContent');
     let contentHTML = '';
 
@@ -3055,47 +3112,19 @@ Ta mission est la suivante :
         let hasContent = false;
 
         if (stepKey === 'step11') {
-            if (stepData.location) {
-                hasContent = true;
-                stepContent += `<div class="mb-3"><p class="font-semibold text-slate-700">Lieu de recherche</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${stepData.location}</p></div>`;
-            }
-            if (stepData.evenements && Array.isArray(stepData.evenements) && stepData.evenements.length > 0) {
-                hasContent = true;
-                stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Événements sauvegardés :</h4>`;
-                stepData.evenements.forEach(event => {
-                    stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-bold text-indigo-700">${event.nom || ''}</p><p class="text-sm text-slate-600">${event.date || ''} - ${event.lieu || ''}</p></div>`;
-                });
-            }
-            if (stepData.structures && Array.isArray(stepData.structures) && stepData.structures.length > 0) {
-                hasContent = true;
-                stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Structures sauvegardées :</h4>`;
-                stepData.structures.forEach(struct => {
-                    stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-bold text-indigo-700">${struct.nom || ''}</p><p class="text-sm text-slate-600">${struct.adresse || ''}</p></div>`;
-                });
-            }
+            if (stepData.location) { hasContent = true; stepContent += `<div class="mb-3"><p class="font-semibold text-slate-700">Lieu de recherche</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${stepData.location}</p></div>`; }
+            if (stepData.evenements && Array.isArray(stepData.evenements) && stepData.evenements.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Événements sauvegardés :</h4>`; stepData.evenements.forEach(event => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-bold text-indigo-700">${event.nom || ''}</p><p class="text-sm text-slate-600">${event.date || ''} - ${event.lieu || ''}</p></div>`; }); }
+            if (stepData.structures && Array.isArray(stepData.structures) && stepData.structures.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Structures sauvegardées :</h4>`; stepData.structures.forEach(struct => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-bold text-indigo-700">${struct.nom || ''}</p><p class="text-sm text-slate-600">${struct.adresse || ''}</p></div>`; }); }
         } else if (stepKey === 'step10') {
-            if (stepData.experiences && stepData.experiences.length > 0) {
-                hasContent = true;
-                stepContent += `<h4 class="font-semibold text-slate-700 mb-2">Expériences Significatives :</h4>`;
-                stepData.experiences.forEach((exp, index) => {
-                    stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`;
-                });
-            }
-            if (stepData.soft_skills_profile) {
-                hasContent = true;
-                stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Profil de Compétences Transversales :</h4>`;
-                stepContent += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>`;
-            }
+            if (stepData.experiences && Array.isArray(stepData.experiences) && stepData.experiences.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mb-2">Expériences Significatives :</h4>`; stepData.experiences.forEach((exp, index) => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`; }); }
+            if (stepData.soft_skills_profile && stepData.soft_skills_profile.trim() !== '') { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Profil de Compétences Transversales :</h4>`; stepContent += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>`; }
         } else {
             for (const [key, value] of Object.entries(stepData)) {
                 if (value && typeof value === 'string' && value.trim() !== '' && !key.startsWith('q')) {
                     hasContent = true;
                     const config = Object.values(stepsConfig).find(c => c.stepKey === stepKey);
-                    let label = key;
-                    if (config && config.fields) {
-                        const field = config.fields.find(f => f.id === key);
-                        if (field) label = field.label;
-                    }
+                    let label = key.replace(/([A-Z0-9])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                    if (config && config.fields) { const field = config.fields.find(f => f.id === key); if (field) label = field.label; }
                     stepContent += `<div class="mb-3"><p class="font-semibold text-slate-700">${label}</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${value}</p></div>`;
                 }
             }
@@ -3282,63 +3311,86 @@ async function createPublicShareView(userId, token) {
                 document.head.appendChild(script);
                 await new Promise(resolve => script.onload = resolve);
             }
+            
+            // 1. Créer un conteneur temporaire pour l'impression
+            const printContainer = document.createElement('div');
+            printContainer.style.position = 'absolute';
+            printContainer.style.left = '-9999px';
+            printContainer.style.width = '794px'; // Largeur A4 en pixels (approx)
+            printContainer.style.padding = '20px';
+            printContainer.style.fontFamily = 'Helvetica, sans-serif';
+            printContainer.style.backgroundColor = '#ffffff';
+            document.body.appendChild(printContainer);
 
-            const pdfWidth = doc.internal.pageSize.getWidth();
-            const margin = 15;
-            let y = margin;
-
-            // --- En-tête ---
-            doc.setFontSize(22);
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(49, 46, 129); // Indigo-800
-            doc.text("Rapport d'Orientation Personnalisé", pdfWidth / 2, y, { align: 'center' });
-            y += 12;
-            doc.setFontSize(11);
-            doc.setFont(undefined, 'normal');
-            doc.setTextColor(100, 116, 139); // Slate-500
-            doc.text(`${currentUserInfo.firstName} ${currentUserInfo.lastName}`, pdfWidth / 2, y, { align: 'center' });
-            y += 6;
-            doc.text(`Élève de ${userGradeLevel.charAt(0).toUpperCase() + userGradeLevel.slice(1)} à ${capitalizeWords(currentUserInfo.schoolName)}`, pdfWidth / 2, y, { align: 'center' });
-            y += 15;
-
-            // --- Fonction pour ajouter une section au PDF ---
-            const addSectionToPdf = async (element) => {
-                if (!element) return;
-                
-                const canvas = await html2canvas(element, { 
-                    scale: 3, // Augmente la résolution pour une meilleure qualité
-                    useCORS: true,
-                    backgroundColor: '#f8fafc' // Couleur de fond similaire à l'app
-                });
-
-                const imgData = canvas.toDataURL('image/png', 0.95); // Légère compression
-                const imgProps = doc.getImageProperties(imgData);
-                const imgHeight = (imgProps.height * (pdfWidth - margin * 2)) / imgProps.width;
-
-                if (y + imgHeight > doc.internal.pageSize.getHeight() - margin) {
-                    doc.addPage();
-                    y = margin;
-                }
-                
-                doc.addImage(imgData, 'PNG', margin, y, pdfWidth - margin * 2, imgHeight);
-                y += imgHeight + 10; // Espace après la section
+            // 2. Construire le HTML du rapport dans ce conteneur
+            let reportHTML = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h1 style="font-size: 24px; font-weight: bold; color: #312e81;">Rapport d'Orientation Personnalisé</h1>
+                    <p style="font-size: 12px; color: #64748b;">${currentUserInfo.firstName} ${currentUserInfo.lastName}</p>
+                    <p style="font-size: 12px; color: #64748b;">Élève de ${userGradeLevel.charAt(0).toUpperCase() + userGradeLevel.slice(1)} à ${capitalizeWords(currentUserInfo.schoolName)}</p>
+                </div>
+            `;
+            
+            const stepTitles = {
+                fil_rouge: '✨ Mon Fil Rouge', earned_badges: '🏆 Mes Succès', step0: '👤 Mieux se connaître',
+                retroplanning: '🗓️ Mon Rétroplanning', step1: '📚 Les Fondations (Onisep)', step2: '🧭 Le simulateur de spécialités',
+                step3: '🎓 Le Catalogue (Parcoursup)', step4: '💬 L\'Expérience (Inspire)', step5: '📰 L\'Actu & Tests',
+                step7: '👻 Quiz : Chasse aux Mythes', step8: '🚀 Passer à l\'action', step10: '💼 Mon Portfolio de Compétences',
+                step11: '🌍 Rencontres sur mon Territoire', step6: '✍️ Préparer sa candidature', step9: '🔮 Anticiper la suite'
             };
 
-            // --- Capture et ajout des sections visibles de la page du journal ---
-            const filRougeElement = document.getElementById('filRougeContainer');
-            const badgesElement = document.getElementById('badgesContainer');
-            const journalContentElement = document.getElementById('journalContent');
-            
-            if (filRougeElement) await addSectionToPdf(filRougeElement);
-            if (badgesElement) await addSectionToPdf(badgesElement);
+            for (const key in stepTitles) {
+                if (journalData[key] && (typeof journalData[key] === 'string' && journalData[key].trim() !== '' || Array.isArray(journalData[key]) && journalData[key].length > 0 || typeof journalData[key] === 'object' && Object.values(journalData[key]).some(v => v))) {
+                    reportHTML += `<div style="margin-bottom: 15px; border-top: 1px solid #e2e8f0; padding-top: 10px;">`;
+                    reportHTML += `<h2 style="font-size: 16px; font-weight: bold; color: #4f46e5; margin-bottom: 8px;">${stepTitles[key]}</h2>`;
 
-            if (journalContentElement) {
-                 for (const child of journalContentElement.children) {
-                     await addSectionToPdf(child);
-                 }
+                    if (key === 'fil_rouge' || key === 'retroplanning') {
+                       reportHTML += `<p style="font-size: 11px; white-space: pre-wrap; color: #334155; line-height: 1.6;">${journalData[key]}</p>`;
+                    } else if (key === 'earned_badges' && journalData.earned_badges.length > 0) {
+                        const earned = journalData.earned_badges.map(bKey => `${badgesConfig[bKey].icon} ${badgesConfig[bKey].title}`).join(' &nbsp; • &nbsp; ');
+                        reportHTML += `<p style="font-size: 12px;">${earned}</p>`;
+                    } else if (key === 'step0') {
+                        reportHTML += `<p style="font-size: 11px; white-space: pre-wrap; color: #334155; font-family: monospace; line-height: 1.6;">${getProfileSummaryText(journalData.step0)}</p>`;
+                        reportHTML += `<h3 style="font-size: 12px; font-weight: bold; margin-top: 8px; margin-bottom: 4px;">Analyse de l'IA :</h3>`;
+                        reportHTML += `<p style="font-size: 11px; white-space: pre-wrap; color: #334155; line-height: 1.6;">${journalData.step0.analysis}</p>`;
+                    } else if (typeof journalData[key] === 'object') {
+                         const config = Object.values(stepsConfig).find(c => c.stepKey === key);
+                         if (config && config.fields) {
+                             config.fields.forEach(field => {
+                                 if (journalData[key][field.id] && journalData[key][field.id].trim() !== '') {
+                                     reportHTML += `<h3 style="font-size: 12px; font-weight: bold; margin-top: 8px; margin-bottom: 4px;">${field.label}</h3>`;
+                                     reportHTML += `<p style="font-size: 11px; white-space: pre-wrap; color: #334155; line-height: 1.6;">${journalData[key][field.id]}</p>`;
+                                 }
+                             });
+                         }
+                    }
+                    reportHTML += `</div>`;
+                }
             }
 
-            // --- Pied de page numéroté ---
+            printContainer.innerHTML = reportHTML;
+
+            // 3. Capturer le conteneur avec html2canvas
+            const canvas = await html2canvas(printContainer, { scale: 2, useCORS: true });
+            const imgData = canvas.toDataURL('image/png');
+            const imgProps = doc.getImageProperties(imgData);
+            const pdfWidth = doc.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            
+            // 4. Ajouter l'image au PDF avec pagination
+            let heightLeft = pdfHeight;
+            let position = 0;
+            doc.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+            heightLeft -= doc.internal.pageSize.getHeight();
+
+            while (heightLeft >= 0) {
+                position = heightLeft - pdfHeight;
+                doc.addPage();
+                doc.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                heightLeft -= doc.internal.pageSize.getHeight();
+            }
+
+            // 5. Ajouter la numérotation des pages
             const pageCount = doc.internal.getNumberOfPages();
             for(let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
@@ -3347,7 +3399,9 @@ async function createPublicShareView(userId, token) {
                 doc.text(`Page ${i} sur ${pageCount}`, pdfWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
             }
 
+            // 6. Sauvegarder le PDF et nettoyer
             doc.save(`Rapport_Orientation_${currentUserInfo.firstName}_${currentUserInfo.lastName}.pdf`);
+            document.body.removeChild(printContainer);
         }
         
         // --- Badge Logic ---
@@ -3383,27 +3437,40 @@ async function createPublicShareView(userId, token) {
             }
         };
 
-        function isStepComplete(stepKey) {
-            const config = Object.values(stepsConfig).find(s => s.stepKey === stepKey);
-            const data = journalData[stepKey];
-            if (!config || !data) return false;
-            
-            // Special case for step0, which has no `fields` but many questions
-            if(stepKey === 'step0') {
-                 // Check if all 25 questions are answered
-                for(let i=1; i<=25; i++) {
-                    if(!data[`q${i}`] || data[`q${i}`].trim() === '') return false;
-                }
-                return true;
-            }
+       // REMPLACEZ VOTRE FONCTION isStepComplete EXISTANTE PAR CELLE-CI :
 
-            if (!config.fields) return false;
-
-            const userFields = config.fields.filter(f => !f.isReadonly);
-            if (userFields.length === 0) return false;
-
-            return userFields.every(field => data[field.id] && data[field.id].toString().trim() !== '');
+function isStepComplete(stepKey) {
+    const config = Object.values(stepsConfig).find(s => s.stepKey === stepKey);
+    const data = journalData[stepKey];
+    if (!config || !data) return false;
+    
+    // Cas spécial pour l'étape "Mieux se connaître"
+    if(stepKey === 'step0') {
+         // Vérifie si toutes les 26 questions ont une réponse
+        for(let i=1; i<=26; i++) {
+            if(!data[`q${i}`] || data[`q${i}`].trim() === '') return false;
         }
+        return true;
+    }
+
+    // --- NOUVEAU BLOC DE CODE POUR LE PORTFOLIO ---
+    // Cas spécial pour l'étape "Portfolio de Compétences"
+    if (stepKey === 'step10') {
+        const hasExperience = data.experiences && Array.isArray(data.experiences) && data.experiences.length > 0;
+        const hasProfile = data.soft_skills_profile && data.soft_skills_profile.trim() !== '';
+        // L'étape est considérée comme complète si l'une des deux parties est remplie
+        return hasExperience || hasProfile;
+    }
+    // --- FIN DU NOUVEAU BLOC ---
+
+    // Logique générale pour les autres étapes basées sur des champs de formulaire
+    if (!config.fields || config.fields.length === 0) return false;
+
+    const userFields = config.fields.filter(f => !f.isReadonly);
+    if (userFields.length === 0) return false;
+
+    return userFields.every(field => data[field.id] && data[field.id].toString().trim() !== '');
+}
 
         function checkBadges() {
             if (!journalData.earned_badges) {
