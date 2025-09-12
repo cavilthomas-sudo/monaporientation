@@ -187,62 +187,57 @@ const shareId = urlParams.get('share_id');
 const shareToken = urlParams.get('token');
 
 if (shareId && shareToken) {
-    // Si c'est un lien de partage, on affiche la vue publique
+    // C'EST UN LIEN DE PARTAGE
+    // On cache l'authentification et on affiche directement la vue publique
     authContainer.style.display = 'none';
     mainApp.style.display = 'block';
     document.querySelector('footer').style.display = 'none';
     document.querySelector('#chatbot-toggle').style.display = 'none';
     createPublicShareView(shareId, shareToken);
 } else {
-    // Comportement normal de l'application
-   // D'abord, on déplace les deux fonctions pour qu'elles soient indépendantes
-window.showGuideFromLogin = function() {
-    cameFromLogin = true;
-    document.getElementById('authContainer').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'block';
-    document.querySelector('footer').style.display = 'none'; 
-    showView('guide');
-}
+    // CE N'EST PAS UN LIEN DE PARTAGE : COMPORTEMENT NORMAL DE L'APP
+    
+    // On rend les fonctions de navigation globale accessibles
+    window.showGuideFromLogin = function() {
+        cameFromLogin = true;
+        document.getElementById('authContainer').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        document.querySelector('footer').style.display = 'none'; 
+        showView('guide');
+    }
 
-window.showLoginViewFromGuide = function() {
-    cameFromLogin = false;
-    document.getElementById('mainApp').style.display = 'none';
-    document.getElementById('authContainer').style.display = 'block';
-    document.querySelector('footer').style.display = 'block';
-    showLoginView();
-}
-journalData = {}; 
+    window.showLoginViewFromGuide = function() {
+        cameFromLogin = false;
+        document.getElementById('mainApp').style.display = 'none';
+        document.getElementById('authContainer').style.display = 'block';
+        document.querySelector('footer').style.display = 'block';
+        showLoginView();
+    }
+    
+    // La logique de connexion/déconnexion est maintenant ICI, à l'intérieur du "else"
+    onAuthStateChanged(auth, user => {
+        const chatbotToggle = document.getElementById('chatbot-toggle');
 
+        if (user) {
+            // Un utilisateur est connecté
+            chatbotToggle.style.display = 'flex';
+            currentUserId = user.uid;
+            authContainer.style.display = 'none';
+            mainApp.style.display = 'block';
+            loadData();
+        } else {
+            // Personne n'est connecté
+            chatbotToggle.style.display = 'none';
+            currentUserId = null;
+            userGradeLevel = null;
+            currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
+            journalData = {}; 
             authContainer.style.display = 'block';
             mainApp.style.display = 'none';
             showLoginView();
         }
-
-// Ensuite, on met à jour la logique de connexion/déconnexion
-onAuthStateChanged(auth, user => {
-    const chatbotToggle = document.getElementById('chatbot-toggle');
-
-    if (user) {
-        // Un utilisateur est connecté
-        chatbotToggle.style.display = 'flex'; // <-- LIGNE AJOUTÉE ICI
-        
-        currentUserId = user.uid;
-        authContainer.style.display = 'none';
-        mainApp.style.display = 'block';
-        loadData();
-    } else {
-        // Personne n'est connecté, on réinitialise tout
-        chatbotToggle.style.display = 'none'; // <-- LIGNE AJOUTÉE ICI
-        
-        currentUserId = null;
-        userGradeLevel = null;
-        currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
-        journalData = {}; 
-        authContainer.style.display = 'block';
-        mainApp.style.display = 'none';
-        showLoginView();
-    }
-});
+    });
+}
             
 
         
