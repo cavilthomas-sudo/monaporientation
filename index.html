@@ -3330,169 +3330,125 @@ async function createPublicShareView(userId, token) {
             return summary;
         }
 
-       
+    
 
-// REMPLACEZ VOTRE FONCTION exportPDF EXISTANTE PAR CELLE-CI :
-
-// REMPLACEZ VOTRE FONCTION exportPDF EXISTANTE PAR CELLE-CI :
+// REMPLACEZ VOTRE FONCTION exportPDF EXISTANTE PAR CETTE VERSION FINALE :
 
 async function exportPDF() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-    const FONT_NORMAL = 'Helvetica';
-
-    // --- Constantes et couleurs ---
-    const MARGIN = 15;
-    const PAGE_WIDTH = doc.internal.pageSize.getWidth();
-    const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
-    const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
-    let y = MARGIN;
-
-    const COLOR_PRIMARY = '#4f46e5'; // Indigo
-    const COLOR_SECONDARY = '#475569'; // Slate
-    const COLOR_TEXT = '#334155';
+    const printContainer = document.createElement('div');
+    printContainer.style.position = 'fixed';
+    printContainer.style.left = '-9999px'; // On le cache hors de l'écran
+    printContainer.style.width = '210mm'; // Format A4
+    printContainer.style.padding = '15mm';
+    printContainer.style.backgroundColor = 'white';
     
-    // --- Fonctions utilitaires ---
-    const checkPageBreak = (heightNeeded) => {
-        if (y + heightNeeded > PAGE_HEIGHT - MARGIN) {
-            doc.addPage();
-            y = MARGIN;
-        }
-    };
+    // --- Styles pour le PDF ---
+    const styles = `
+        <style>
+            body { font-family: 'Inter', sans-serif; color: #334155; }
+            h1 { font-size: 24px; font-weight: 700; color: #4338ca; text-align: center; margin-bottom: 10px; }
+            h2 { font-size: 18px; font-weight: 600; color: #4f46e5; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-top: 20px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+            h3 { font-size: 14px; font-weight: 600; color: #334155; margin-top: 15px; margin-bottom: 5px; }
+            p, li { font-size: 11px; line-height: 1.6; }
+            .cover-page { text-align: center; padding-top: 80mm; }
+            .cover-page p { font-size: 12px; color: #64748b; }
+            .fil-rouge { background-color: #f5f3ff; border-left: 3px solid #7c3aed; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
+            .section-block { margin-bottom: 20px; }
+            .badge-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center; }
+            .badge-item span { font-size: 36px; }
+            .badge-item p { font-size: 10px; font-weight: 500; }
+            .portfolio-exp { background-color: #f8fafc; padding: 10px; border-radius: 4px; margin-bottom: 10px; }
+            .retro-month { margin-top: 10px; }
+            .retro-task { margin-left: 20px; }
+        </style>
+    `;
 
-    const addSectionTitle = (title, icon) => {
-        checkPageBreak(20);
-        doc.setFontSize(16);
-        doc.setFont(FONT_NORMAL, 'bold');
-        doc.setTextColor(COLOR_PRIMARY);
-        doc.text(`${icon} ${title}`, MARGIN, y);
-        y += 6;
-        doc.setDrawColor('#cbd5e1');
-        doc.line(MARGIN, y, PAGE_WIDTH - MARGIN, y);
-        y += 10;
-    };
+    // --- Contenu HTML du PDF ---
 
-    const addBodyText = (text, options = {}) => {
-        const { indent = 0 } = options;
-        doc.setFontSize(11);
-        doc.setFont(FONT_NORMAL, 'normal');
-        doc.setTextColor(COLOR_TEXT);
-        const textLines = doc.splitTextToSize(text, CONTENT_WIDTH - indent);
-        checkPageBreak(textLines.length * 5);
-        doc.text(textLines, MARGIN + indent, y);
-        y += textLines.length * 5 + 4;
-    };
+    // 1. Page de Garde
+    let html = `
+        <div class="cover-page">
+            <h1>Rapport d'Orientation Personnalisé</h1>
+            <p style="font-size: 16px;">${currentUserInfo.firstName} ${currentUserInfo.lastName}</p>
+            <p>Élève de ${userGradeLevel}</p>
+            <p>${capitalizeWords(currentUserInfo.schoolName)}</p>
+        </div>
+        <div style="page-break-after: always;"></div>
+    `;
 
-    const addSubHeader = (text) => {
-        checkPageBreak(8);
-        doc.setFontSize(12);
-        doc.setFont(FONT_NORMAL, 'bold');
-        doc.setTextColor(COLOR_SECONDARY);
-        doc.text(text, MARGIN, y);
-        y += 7;
-    };
-
-    // --- PAGE DE GARDE ---
-    doc.setFontSize(24);
-    doc.setFont(FONT_NORMAL, 'bold');
-    doc.setTextColor(COLOR_PRIMARY);
-    doc.text("Rapport d'Orientation Personnalisé", PAGE_WIDTH / 2, 120, { align: 'center' });
-    doc.setFontSize(16);
-    doc.setFont(FONT_NORMAL, 'normal');
-    doc.setTextColor(COLOR_SECONDARY);
-    doc.text(`${currentUserInfo.firstName} ${currentUserInfo.lastName}`, PAGE_WIDTH / 2, 135, { align: 'center' });
-    doc.setFontSize(12);
-    doc.text(`Élève de ${userGradeLevel}`, PAGE_WIDTH / 2, 145, { align: 'center' });
-    doc.text(capitalizeWords(currentUserInfo.schoolName), PAGE_WIDTH / 2, 152, { align: 'center' });
-    
-    doc.addPage();
-    y = MARGIN;
-
-    // --- CONTENU DU RAPPORT ---
-
+    // 2. Fil Rouge
     if (journalData.fil_rouge) {
-        addSectionTitle("Mon Fil Rouge", "✨");
-        addBodyText(journalData.fil_rouge);
+        html += `<div class="section-block fil-rouge"><h2>✨ Mon Fil Rouge</h2>${linkify(journalData.fil_rouge)}</div>`;
     }
 
-    const reportSteps = ['step0', 'step10', 'step1', 'step2', 'step3', 'step5', 'step11', 'step4', 'step8', 'step6', 'step9', 'retroplanning'];
+    // 3. Badges
+    const earnedBadges = journalData.earned_badges || [];
+    if (earnedBadges.length > 0) {
+        let badgesHTML = '';
+        earnedBadges.forEach(key => {
+            const badge = badgesConfig[key];
+            if(badge) badgesHTML += `<div class="badge-item"><span title="${badge.description}">${badge.icon}</span><p>${badge.title}</p></div>`;
+        });
+        html += `<div class="section-block"><h2>🏆 Mes Badges</h2><div class="badge-container">${badgesHTML}</div></div>`;
+    }
+
+    // 4. Mieux se connaître (Infographie + Analyse)
+    if (journalData.step0 && journalData.step0.analysis) {
+        const infographicElement = createProfileInfographic(journalData.step0);
+        html += `<div class="section-block">
+                    <h2>👤 Mieux se connaître</h2>
+                    ${infographicElement.querySelector('.bg-slate-50').innerHTML}
+                    <h3>Analyse de l'IA :</h3>
+                    <p>${linkify(journalData.step0.analysis)}</p>
+                 </div>`;
+    }
     
-    for (const stepKey of reportSteps) {
-        const stepData = journalData[stepKey];
-        const stepInfo = Object.values(stepsConfig).find(s => s.stepKey === stepKey) || { title: 'Rétroplanning', icon: '🗓️' };
-        if (!stepData || Object.values(stepData).every(v => !v || (Array.isArray(v) && v.length === 0))) continue;
-
-        addSectionTitle(stepInfo.title, stepInfo.icon);
-
-        if (stepKey === 'step0' && stepData.analysis) {
-            // CORRECTION : Logique de capture de l'infographie
-            const infographicContainer = createProfileInfographic(stepData);
-            const elementToCapture = infographicContainer.querySelector('.bg-slate-50');
-
-            if (elementToCapture) {
-                // On attache temporairement et invisiblement l'élément à la page
-                infographicContainer.style.position = 'fixed';
-                infographicContainer.style.left = '-9999px';
-                document.body.appendChild(infographicContainer);
-
-                const canvas = await html2canvas(elementToCapture, { scale: 3, backgroundColor: '#f8fafc' });
-                
-                // On retire l'élément une fois la capture faite
-                document.body.removeChild(infographicContainer);
-
-                const imgData = canvas.toDataURL('image/png');
-                const imgHeight = (canvas.height * CONTENT_WIDTH) / canvas.width;
-                checkPageBreak(imgHeight + 5);
-                doc.addImage(imgData, 'PNG', MARGIN, y, CONTENT_WIDTH, imgHeight);
-                y += imgHeight + 8;
-            }
-            
-            addSubHeader("Analyse de l'IA :");
-            addBodyText(stepData.analysis);
-        } else if (stepKey === 'step10') {
-            if (stepData.experiences && stepData.experiences.length > 0) {
-                addSubHeader("Expériences Significatives :");
-                stepData.experiences.forEach((exp, i) => addBodyText(`Expérience #${i + 1}: ${exp.analysis}`, { indent: 5 }));
-            }
-            if (stepData.soft_skills_profile) {
-                addSubHeader("Profil de Compétences Transversales :");
-                addBodyText(stepData.soft_skills_profile, { indent: 5 });
-            }
-        } else if (stepKey === 'retroplanning' && stepData.tasks) {
-            stepData.tasks.forEach(month => {
-                checkPageBreak(8);
-                addSubHeader(month.month);
-                month.tasks.forEach(task => addBodyText((task.completed ? `[x] ` : `[ ] `) + task.text, { indent: 5 }));
+    // 5. Portfolio
+    if (journalData.step10 && (journalData.step10.experiences.length > 0 || journalData.step10.soft_skills_profile)) {
+        let portfolioContent = '';
+        if (journalData.step10.experiences.length > 0) {
+            portfolioContent += `<h3>Expériences Significatives :</h3>`;
+            journalData.step10.experiences.forEach((exp, i) => {
+                portfolioContent += `<div class="portfolio-exp"><h4>Expérience #${i + 1}</h4><p>${linkify(exp.analysis)}</p></div>`;
             });
-        } else {
-            const config = Object.values(stepsConfig).find(c => c.stepKey === stepKey);
-            for (const [key, value] of Object.entries(stepData)) {
-                if (value && typeof value === 'string' && value.trim() !== '' && !key.startsWith('q')) {
-                    let label = key;
-                    if (config?.fields) {
-                        const field = config.fields.find(f => f.id === key);
-                        if (field) label = field.label;
-                    }
-                    addSubHeader(label + " :");
-                    addBodyText(value, { indent: 5 });
-                }
-            }
         }
+        if (journalData.step10.soft_skills_profile) {
+            portfolioContent += `<h3>Profil de Compétences Transversales :</h3><p>${linkify(journalData.step10.soft_skills_profile)}</p>`;
+        }
+        html += `<div class="section-block"><h2>💼 Mon Portfolio de Compétences</h2>${portfolioContent}</div>`;
     }
 
-    // --- FINALISATION DU PDF ---
-    const pageCount = doc.internal.getNumberOfPages();
-    for(let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(9);
-        doc.setTextColor(156, 163, 175);
-        if (i > 1) doc.text("Rapport d'Orientation | Mon Explor'Orientation", MARGIN, 10);
-        doc.text(`Page ${i} sur ${pageCount}`, PAGE_WIDTH / 2, PAGE_HEIGHT - 10, { align: 'center' });
+    // 6. Rétroplanning
+    if (journalData.retroplanning && journalData.retroplanning.tasks) {
+        let retroContent = '';
+        journalData.retroplanning.tasks.forEach(month => {
+            retroContent += `<h3 class="retro-month">${month.month}</h3>`;
+            month.tasks.forEach(task => {
+                retroContent += `<p class="retro-task">${task.completed ? '✅' : '⬜️'} ${task.text}</p>`;
+            });
+        });
+        html += `<div class="section-block"><h2>🗓️ Mon Rétroplanning</h2>${retroContent}</div>`;
     }
+    
+    printContainer.innerHTML = styles + html;
+    document.body.appendChild(printContainer);
 
-    doc.save(`Rapport_Orientation_${currentUserInfo.firstName}_${currentUserInfo.lastName}.pdf`);
+    // --- Génération du PDF ---
+    const { jsPDF } = window.jspdf;
+    const canvas = await html2canvas(printContainer, { scale: 2 });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    
+    // Nettoyage
+    document.body.removeChild(printContainer);
+
+    pdf.save(`Rapport_Orientation_${currentUserInfo.firstName}_${currentUserInfo.lastName}.pdf`);
 }
-
 function isStepComplete(stepKey) {
     const config = Object.values(stepsConfig).find(s => s.stepKey === stepKey);
     const data = journalData[stepKey];
