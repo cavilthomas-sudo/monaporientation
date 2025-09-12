@@ -3546,7 +3546,37 @@ function isStepComplete(stepKey) {
 
     return userFields.every(field => data[field.id] && data[field.id].toString().trim() !== '');
 }
-
+const badgesConfig = {
+    explorateur: {
+        icon: '🏅',
+        title: "Badge de l'Explorateur",
+        description: "Décerné pour avoir complété les premières étapes fondamentales de ton exploration.",
+        criteria: (level) => {
+            const step0Complete = isStepComplete('step0');
+            const step1Complete = isStepComplete('step1');
+            const step2or3Complete = level === 'seconde' ? isStepComplete('step2') : isStepComplete('step3');
+            return step0Complete && step1Complete && step2or3Complete;
+        }
+    },
+    stratege: {
+        icon: '🧠',
+        title: "Badge du Stratège",
+        description: "Décerné pour avoir planifié ton année et anticipé l'avenir avec un plan B.",
+        criteria: () => {
+            const retroplanningComplete = journalData.retroplanning && journalData.retroplanning.rawText && journalData.retroplanning.rawText.trim() !== '';
+            const step9Complete = isStepComplete('step9');
+            return retroplanningComplete && step9Complete;
+        }
+    },
+    connecteur: {
+        icon: '🤝',
+        title: "Badge du Connecteur",
+        description: "Décerné pour avoir pris contact avec le monde réel en contactant un professionnel.",
+        criteria: () => {
+            return (journalData.step8.pro_reseau_personnel && journalData.step8.pro_reseau_personnel.trim() !== '') || (journalData.step8.pro_contacts && journalData.step8.pro_contacts.trim() !== '');
+        }
+    }
+};
         function checkBadges() {
             if (!journalData.earned_badges) {
                 journalData.earned_badges = [];
