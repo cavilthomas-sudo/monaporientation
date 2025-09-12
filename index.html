@@ -3300,142 +3300,217 @@ async function createPublicShareView(userId, token) {
             return summary;
         }
 
-        async function exportPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-            
-            // S'assurer que html2canvas est chargé
-            if (typeof html2canvas === 'undefined') {
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-                document.head.appendChild(script);
-                await new Promise(resolve => script.onload = resolve);
-            }
-            
-            // 1. Créer un conteneur temporaire pour l'impression
-            const printContainer = document.createElement('div');
-            printContainer.style.position = 'absolute';
-            printContainer.style.left = '-9999px';
-            printContainer.style.width = '794px'; // Largeur A4 en pixels (approx)
-            printContainer.style.padding = '20px';
-            printContainer.style.fontFamily = 'Helvetica, sans-serif';
-            printContainer.style.backgroundColor = '#ffffff';
-            document.body.appendChild(printContainer);
+        // REMPLACEZ VOTRE FONCTION exportPDF EXISTANTE PAR CELLE-CI :
 
-            // 2. Construire le HTML du rapport dans ce conteneur
-            let reportHTML = `
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <h1 style="font-size: 24px; font-weight: bold; color: #312e81;">Rapport d'Orientation Personnalisé</h1>
-                    <p style="font-size: 12px; color: #64748b;">${currentUserInfo.firstName} ${currentUserInfo.lastName}</p>
-                    <p style="font-size: 12px; color: #64748b;">Élève de ${userGradeLevel.charAt(0).toUpperCase() + userGradeLevel.slice(1)} à ${capitalizeWords(currentUserInfo.schoolName)}</p>
-                </div>
-            `;
-            
-            const stepTitles = {
-                fil_rouge: '✨ Mon Fil Rouge', earned_badges: '🏆 Mes Succès', step0: '👤 Mieux se connaître',
-                retroplanning: '🗓️ Mon Rétroplanning', step1: '📚 Les Fondations (Onisep)', step2: '🧭 Le simulateur de spécialités',
-                step3: '🎓 Le Catalogue (Parcoursup)', step4: '💬 L\'Expérience (Inspire)', step5: '📰 L\'Actu & Tests',
-                step7: '👻 Quiz : Chasse aux Mythes', step8: '🚀 Passer à l\'action', step10: '💼 Mon Portfolio de Compétences',
-                step11: '🌍 Rencontres sur mon Territoire', step6: '✍️ Préparer sa candidature', step9: '🔮 Anticiper la suite'
-            };
+async function exportPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    const FONT_NORMAL = 'Helvetica';
 
-            for (const key in stepTitles) {
-                if (journalData[key] && (typeof journalData[key] === 'string' && journalData[key].trim() !== '' || Array.isArray(journalData[key]) && journalData[key].length > 0 || typeof journalData[key] === 'object' && Object.values(journalData[key]).some(v => v))) {
-                    reportHTML += `<div style="margin-bottom: 15px; border-top: 1px solid #e2e8f0; padding-top: 10px;">`;
-                    reportHTML += `<h2 style="font-size: 16px; font-weight: bold; color: #4f46e5; margin-bottom: 8px;">${stepTitles[key]}</h2>`;
+    // --- Constantes pour la mise en page ---
+    const MARGIN = 15;
+    const PAGE_WIDTH = doc.internal.pageSize.getWidth();
+    const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
+    const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+    let y = MARGIN;
 
-                    if (key === 'fil_rouge' || key === 'retroplanning') {
-                       reportHTML += `<p style="font-size: 11px; white-space: pre-wrap; color: #334155; line-height: 1.6;">${journalData[key]}</p>`;
-                    } else if (key === 'earned_badges' && journalData.earned_badges.length > 0) {
-                        const earned = journalData.earned_badges.map(bKey => `${badgesConfig[bKey].icon} ${badgesConfig[bKey].title}`).join(' &nbsp; • &nbsp; ');
-                        reportHTML += `<p style="font-size: 12px;">${earned}</p>`;
-                    } else if (key === 'step0') {
-                        reportHTML += `<p style="font-size: 11px; white-space: pre-wrap; color: #334155; font-family: monospace; line-height: 1.6;">${getProfileSummaryText(journalData.step0)}</p>`;
-                        reportHTML += `<h3 style="font-size: 12px; font-weight: bold; margin-top: 8px; margin-bottom: 4px;">Analyse de l'IA :</h3>`;
-                        reportHTML += `<p style="font-size: 11px; white-space: pre-wrap; color: #334155; line-height: 1.6;">${journalData.step0.analysis}</p>`;
-                    } else if (typeof journalData[key] === 'object') {
-                         const config = Object.values(stepsConfig).find(c => c.stepKey === key);
-                         if (config && config.fields) {
-                             config.fields.forEach(field => {
-                                 if (journalData[key][field.id] && journalData[key][field.id].trim() !== '') {
-                                     reportHTML += `<h3 style="font-size: 12px; font-weight: bold; margin-top: 8px; margin-bottom: 4px;">${field.label}</h3>`;
-                                     reportHTML += `<p style="font-size: 11px; white-space: pre-wrap; color: #334155; line-height: 1.6;">${journalData[key][field.id]}</p>`;
-                                 }
-                             });
-                         }
-                    }
-                    reportHTML += `</div>`;
-                }
-            }
+    // --- Couleurs (inspirées de la nouvelle charte) ---
+    const COLOR_PRIMARY = '#0891b2'; // Cyan-600
+    const COLOR_SECONDARY = '#475569'; // Slate-600
+    const COLOR_TEXT = '#334155'; // Slate-700
+    const COLOR_BG_HEADER = '#f0f9ff'; // Cyan-50
 
-            printContainer.innerHTML = reportHTML;
-
-            // 3. Capturer le conteneur avec html2canvas
-            const canvas = await html2canvas(printContainer, { scale: 2, useCORS: true });
-            const imgData = canvas.toDataURL('image/png');
-            const imgProps = doc.getImageProperties(imgData);
-            const pdfWidth = doc.internal.pageSize.getWidth();
-            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-            
-            // 4. Ajouter l'image au PDF avec pagination
-            let heightLeft = pdfHeight;
-            let position = 0;
-            doc.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-            heightLeft -= doc.internal.pageSize.getHeight();
-
-            while (heightLeft >= 0) {
-                position = heightLeft - pdfHeight;
-                doc.addPage();
-                doc.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-                heightLeft -= doc.internal.pageSize.getHeight();
-            }
-
-            // 5. Ajouter la numérotation des pages
-            const pageCount = doc.internal.getNumberOfPages();
-            for(let i = 1; i <= pageCount; i++) {
-                doc.setPage(i);
-                doc.setFontSize(9);
-                doc.setTextColor(156, 163, 175); // Slate-400
-                doc.text(`Page ${i} sur ${pageCount}`, pdfWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
-            }
-
-            // 6. Sauvegarder le PDF et nettoyer
-            doc.save(`Rapport_Orientation_${currentUserInfo.firstName}_${currentUserInfo.lastName}.pdf`);
-            document.body.removeChild(printContainer);
+    // --- Fonctions utilitaires pour le PDF ---
+    
+    // Ajoute un en-tête à chaque nouvelle page (sauf la première)
+    const addHeader = (pageNumber) => {
+        if (pageNumber > 1) {
+            doc.setFontSize(9);
+            doc.setTextColor(COLOR_SECONDARY);
+            doc.text("Rapport d'Orientation | Mon Explor'Orientation", MARGIN, 10);
         }
+    };
+
+    // Ajoute un pied de page numéroté à chaque page
+    const addFooter = () => {
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            addHeader(i); // Ajoute l'en-tête sur toutes les pages sauf la première
+            doc.setFontSize(9);
+            doc.setTextColor(COLOR_SECONDARY);
+            doc.text(`Page ${i} sur ${pageCount}`, PAGE_WIDTH / 2, PAGE_HEIGHT - 10, { align: 'center' });
+        }
+    };
+
+    // Gère le saut de page si le contenu est trop long
+    const checkPageBreak = (heightNeeded) => {
+        if (y + heightNeeded > PAGE_HEIGHT - MARGIN) {
+            doc.addPage();
+            y = MARGIN;
+        }
+    };
+    
+    // Fonction principale pour ajouter une section
+    const addSection = (title, icon, contentFn) => {
+        checkPageBreak(20); // Espace pour le titre
+        doc.setFontSize(16);
+        doc.setFont(FONT_NORMAL, 'bold');
+        doc.setTextColor(COLOR_PRIMARY);
+        doc.text(`${icon} ${title}`, MARGIN, y);
+        y += 8;
+        doc.setDrawColor(COLOR_PRIMARY);
+        doc.line(MARGIN, y, MARGIN + 40, y); // Ligne sous le titre
+        y += 8;
         
-        // --- Badge Logic ---
-        const badgesConfig = {
-            explorateur: {
-                icon: '🏅',
-                title: "Badge de l'Explorateur",
-                description: "Décerné pour avoir complété les premières étapes fondamentales de ton exploration.",
-                criteria: (level) => {
-                    const step0Complete = isStepComplete('step0');
-                    const step1Complete = isStepComplete('step1');
-                    const step2or3Complete = level === 'seconde' ? isStepComplete('step2') : isStepComplete('step3');
-                    return step0Complete && step1Complete && step2or3Complete;
+        doc.setFontSize(11);
+        doc.setFont(FONT_NORMAL, 'normal');
+        doc.setTextColor(COLOR_TEXT);
+        
+        contentFn(); // Exécute la fonction qui dessine le contenu de la section
+        y += 15; // Espace après chaque section
+    };
+
+    // --- 1. CRÉATION DE LA PAGE DE GARDE ---
+    doc.setFillColor('#f8fafc'); // Slate-50
+    doc.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, 'F');
+    // Ici, vous pourriez ajouter votre logo si vous l'avez chargé
+    // doc.addImage(logoDataUrl, 'PNG', PAGE_WIDTH / 2 - 25, 40, 50, 50);
+    doc.setFontSize(24);
+    doc.setFont(FONT_NORMAL, 'bold');
+    doc.setTextColor(COLOR_PRIMARY);
+    doc.text("Rapport d'Orientation", PAGE_WIDTH / 2, 120, { align: 'center' });
+    doc.setFontSize(16);
+    doc.setFont(FONT_NORMAL, 'normal');
+    doc.setTextColor(COLOR_SECONDARY);
+    doc.text(`${currentUserInfo.firstName} ${currentUserInfo.lastName}`, PAGE_WIDTH / 2, 135, { align: 'center' });
+    doc.setFontSize(12);
+    doc.text(`Élève de ${userGradeLevel}`, PAGE_WIDTH / 2, 145, { align: 'center' });
+    doc.text(capitalizeWords(currentUserInfo.schoolName), PAGE_WIDTH / 2, 152, { align: 'center' });
+    
+    doc.addPage();
+    y = MARGIN;
+
+    // --- 2. GÉNÉRATION DU CONTENU DU RAPPORT ---
+
+    // Section Fil Rouge
+    if (journalData.fil_rouge) {
+        addSection("Mon Fil Rouge", "✨", () => {
+            doc.setFillColor(COLOR_BG_HEADER);
+            doc.rect(MARGIN, y, CONTENT_WIDTH, 10, 'F');
+            doc.setFont(FONT_NORMAL, 'bold');
+            doc.text("Synthèse du projet d'orientation", MARGIN + 5, y + 7);
+            y += 10;
+            const textLines = doc.splitTextToSize(journalData.fil_rouge, CONTENT_WIDTH - 10);
+            checkPageBreak(textLines.length * 5 + 10);
+            doc.setFillColor('#FFFFFF');
+            doc.rect(MARGIN, y, CONTENT_WIDTH, textLines.length * 5 + 10, 'F');
+            doc.text(textLines, MARGIN + 5, y + 7);
+            y += textLines.length * 5 + 10;
+        });
+    }
+
+    // Section Badges
+    if (journalData.earned_badges && journalData.earned_badges.length > 0) {
+        addSection("Mes Badges", "🏆", () => {
+            let x = MARGIN;
+            const badgeWidth = CONTENT_WIDTH / 3;
+            journalData.earned_badges.forEach((badgeKey, index) => {
+                const badge = badgesConfig[badgeKey];
+                if (badge) {
+                    if (index > 0 && index % 3 === 0) {
+                        y += 25;
+                        x = MARGIN;
+                    }
+                    checkPageBreak(25);
+                    doc.setFontSize(20);
+                    doc.text(badge.icon, x + badgeWidth / 2, y + 5, { align: 'center' });
+                    doc.setFontSize(9);
+                    doc.setFont(FONT_NORMAL, 'bold');
+                    const titleLines = doc.splitTextToSize(badge.title, badgeWidth - 10);
+                    doc.text(titleLines, x + badgeWidth / 2, y + 15, { align: 'center' });
+                    x += badgeWidth;
                 }
-            },
-            stratege: {
-                icon: '🧠',
-                title: "Badge du Stratège",
-                description: "Décerné pour avoir planifié ton année et anticipé l'avenir avec un plan B.",
-                criteria: () => {
-                    const retroplanningComplete = journalData.retroplanning && journalData.retroplanning.rawText && journalData.retroplanning.rawText.trim() !== '';
-                    const step9Complete = isStepComplete('step9');
-                    return retroplanningComplete && step9Complete;
-                }
-            },
-            connecteur: {
-                icon: '🤝',
-                title: "Badge du Connecteur",
-                description: "Décerné pour avoir pris contact avec le monde réel en contactant un professionnel.",
-                criteria: () => {
-                    return (journalData.step8.pro_reseau_personnel && journalData.step8.pro_reseau_personnel.trim() !== '') || (journalData.step8.pro_contacts && journalData.step8.pro_contacts.trim() !== '');
-                }
+            });
+            y += 25;
+        });
+    }
+
+    // Section "Mieux se connaître" (Infographie + Analyse)
+    if (journalData.step0 && journalData.step0.analysis) {
+        addSection("Mieux se connaître", "👤", async () => {
+            const infographicElement = createProfileInfographic(journalData.step0);
+            const canvas = await html2canvas(infographicElement.querySelector('.bg-slate-50'), { scale: 2, backgroundColor: null });
+            const imgData = canvas.toDataURL('image/png');
+            const imgHeight = (canvas.height * CONTENT_WIDTH) / canvas.width;
+            checkPageBreak(imgHeight + 10);
+            doc.addImage(imgData, 'PNG', MARGIN, y, CONTENT_WIDTH, imgHeight);
+            y += imgHeight + 8;
+            
+            const textLines = doc.splitTextToSize(journalData.step0.analysis, CONTENT_WIDTH);
+            checkPageBreak(textLines.length * 5 + 5);
+            doc.setFont(FONT_NORMAL, 'bold');
+            doc.text("Analyse de l'IA :", MARGIN, y);
+            y += 6;
+            doc.setFont(FONT_NORMAL, 'normal');
+            doc.text(textLines, MARGIN, y);
+            y += textLines.length * 5;
+        });
+    }
+
+    // Section Portfolio de Compétences
+    if (journalData.step10 && (journalData.step10.experiences.length > 0 || journalData.step10.soft_skills_profile)) {
+        addSection("Mon Portfolio de Compétences", "💼", () => {
+            if (journalData.step10.experiences.length > 0) {
+                doc.setFont(FONT_NORMAL, 'bold');
+                doc.text("Expériences Significatives :", MARGIN, y);
+                y += 6;
+                doc.setFont(FONT_NORMAL, 'normal');
+                journalData.step10.experiences.forEach((exp, i) => {
+                    const textLines = doc.splitTextToSize(`Expérience #${i + 1}: ${exp.analysis}`, CONTENT_WIDTH);
+                    checkPageBreak(textLines.length * 5 + 4);
+                    doc.text(textLines, MARGIN, y);
+                    y += textLines.length * 5 + 4;
+                });
             }
-        };
+            if (journalData.step10.soft_skills_profile) {
+                doc.setFont(FONT_NORMAL, 'bold');
+                doc.text("Profil de Compétences Transversales :", MARGIN, y);
+                y += 6;
+                doc.setFont(FONT_NORMAL, 'normal');
+                const textLines = doc.splitTextToSize(journalData.step10.soft_skills_profile, CONTENT_WIDTH);
+                checkPageBreak(textLines.length * 5);
+                doc.text(textLines, MARGIN, y);
+                y += textLines.length * 5;
+            }
+        });
+    }
+
+    // Section Rétroplanning
+    if (journalData.retroplanning && journalData.retroplanning.tasks) {
+        addSection("Mon Rétroplanning", "🗓️", () => {
+            journalData.retroplanning.tasks.forEach(month => {
+                checkPageBreak(10);
+                doc.setFont(FONT_NORMAL, 'bold');
+                doc.text(month.month, MARGIN, y);
+                y += 6;
+                doc.setFont(FONT_NORMAL, 'normal');
+                month.tasks.forEach(task => {
+                    const prefix = task.completed ? `[x] ` : `[ ] `;
+                    const textLines = doc.splitTextToSize(prefix + task.text, CONTENT_WIDTH - 5);
+                    checkPageBreak(textLines.length * 5);
+                    doc.text(textLines, MARGIN + 5, y);
+                    y += textLines.length * 5;
+                });
+                y += 4;
+            });
+        });
+    }
+
+    // --- 3. FINALISATION DU PDF ---
+    addFooter();
+    doc.save(`Rapport_Orientation_${currentUserInfo.firstName}_${currentUserInfo.lastName}.pdf`);
+} 
 
        // REMPLACEZ VOTRE FONCTION isStepComplete EXISTANTE PAR CELLE-CI :
 
