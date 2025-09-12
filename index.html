@@ -3066,8 +3066,10 @@ Ta mission est la suivante :
     
     const shareToken = journalData.share_token || null;
     const shareLink = shareToken ? `${window.location.origin}${window.location.pathname}?share_id=${currentUserId}&token=${shareToken}` : '';
+    
+    // AJOUT D'UN ID ICI
     const sharePanelHTML = `
-        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-8">
+        <div id="journal-section-share" class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-8">
             <h2 class="text-xl font-bold text-slate-800 mb-2">🤝 Espace Partage</h2>
             <p class="text-slate-600 text-sm mb-4">Partage une version "lecture seule" de ton journal avec tes parents ou ton professeur principal pour faciliter la discussion.</p>
             <div id="share-link-container" class="${shareToken ? '' : 'hidden'}">
@@ -3108,11 +3110,11 @@ Ta mission est la suivante :
         </div>
         <div id="badges-wrapper"></div>
         <div id="journalContent" class="mt-8"></div>
-        <div class="mt-8 border-t pt-6 text-center">
+        <div id="journal-section-discussion" class="mt-8 border-t pt-6 text-center">
             <button id="shareBtn" class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">🤝 Préparer une discussion</button>
+            <div id="geminiShareLoader" class="hidden"><div class="loader"></div></div>
+            <div id="geminiShareResult" class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg text-slate-700 whitespace-pre-wrap"></div>
         </div>
-        <div id="geminiShareLoader" class="hidden"><div class="loader"></div></div>
-        <div id="geminiShareResult" class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg text-slate-700 whitespace-pre-wrap"></div>
     `;
 
     div.querySelector('#orientation-map-wrapper').innerHTML = createOrientationMapView();
@@ -3122,11 +3124,12 @@ Ta mission est la suivante :
     let contentHTML = '';
 
     if (journalData.step0 && journalData.step0.analysis) {
-        contentHTML += createProfileInfographic(journalData.step0).outerHTML;
+        // AJOUT D'UN ID ICI
+        contentHTML += `<div id="journal-section-step0">${createProfileInfographic(journalData.step0).outerHTML}</div>`;
     }
     
     const stepTitles = {
-        step0: '👤 Mieux se connaître (Analyse)',
+        //step0: '👤 Mieux se connaître (Analyse)', // Déjà géré au-dessus
         step1: '📚 Les Fondations',
         step2: '🧭 Le simulateur de spécialités',
         step3: '🎓 Le Catalogue',
@@ -3160,7 +3163,8 @@ Ta mission est la suivante :
             }
         }
         if (hasContent) {
-            contentHTML += `<div class="mb-8"><h3 class="text-xl font-bold border-b pb-2 mb-4 text-indigo-700">${stepTitles[stepKey]}</h3>${stepContent}</div>`;
+            // AJOUT D'UN ID ICI
+            contentHTML += `<div id="journal-section-${stepKey}" class="mb-8"><h3 class="text-xl font-bold border-b pb-2 mb-4 text-indigo-700">${stepTitles[stepKey]}</h3>${stepContent}</div>`;
         }
     }
 
@@ -3334,153 +3338,72 @@ async function createPublicShareView(userId, token) {
 // REMPLACEZ VOTRE FONCTION exportPDF EXISTANTE PAR CETTE VERSION FINALE :
 
 async function exportPDF() {
+    const exportButton = document.getElementById('exportPdfBtn');
+    exportButton.disabled = true;
+    exportButton.textContent = 'Génération en cours...';
+
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-    const FONT_NORMAL = 'Helvetica';
 
-    // --- Constantes et couleurs ---
     const MARGIN = 15;
     const PAGE_WIDTH = doc.internal.pageSize.getWidth();
     const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
     const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
     let y = MARGIN;
 
-    const COLOR_PRIMARY = '#4f46e5'; // Indigo
-    const COLOR_SECONDARY = '#475569'; // Slate
-    const COLOR_TEXT = '#334155';
-    
-    // --- Fonctions utilitaires ---
-    const checkPageBreak = (heightNeeded) => {
-        if (y + heightNeeded > PAGE_HEIGHT - MARGIN) {
-            doc.addPage();
-            y = MARGIN;
-        }
-    };
-
-    const addSectionTitle = (title, icon) => {
-        checkPageBreak(20);
-        doc.setFontSize(16);
-        doc.setFont(FONT_NORMAL, 'bold');
-        doc.setTextColor(COLOR_PRIMARY);
-        doc.text(`${icon} ${title}`, MARGIN, y);
-        y += 6;
-        doc.setDrawColor('#cbd5e1');
-        doc.line(MARGIN, y, PAGE_WIDTH - MARGIN, y);
-        y += 10;
-    };
-
-    const addBodyText = (text, options = {}) => {
-        const { indent = 0, isHTML = false } = options;
-        doc.setFontSize(11);
-        doc.setFont(FONT_NORMAL, 'normal');
-        doc.setTextColor(COLOR_TEXT);
-        const cleanText = isHTML ? text.replace(/<br>/g, '\n').replace(/<[^>]*>/g, '') : text;
-        const textLines = doc.splitTextToSize(cleanText, CONTENT_WIDTH - indent);
-        checkPageBreak(textLines.length * 5);
-        doc.text(textLines, MARGIN + indent, y);
-        y += textLines.length * 5 + 4;
-    };
-
-    const addSubHeader = (text) => {
-        checkPageBreak(8);
-        doc.setFontSize(12);
-        doc.setFont(FONT_NORMAL, 'bold');
-        doc.setTextColor(COLOR_SECONDARY);
-        doc.text(text, MARGIN, y);
-        y += 7;
-    };
-
     // --- PAGE DE GARDE ---
     doc.setFontSize(24);
-    doc.setFont(FONT_NORMAL, 'bold');
-    doc.setTextColor(COLOR_PRIMARY);
-    doc.text("Rapport d'Orientation Personnalisé", PAGE_WIDTH / 2, 120, { align: 'center' });
+    doc.setFont('Helvetica', 'bold');
+    doc.setTextColor('#4f46e5'); // Indigo
+    doc.text("Journal de Bord d'Orientation", PAGE_WIDTH / 2, 120, { align: 'center' });
     doc.setFontSize(16);
-    doc.setFont(FONT_NORMAL, 'normal');
-    doc.setTextColor(COLOR_SECONDARY);
+    doc.setFont('Helvetica', 'normal');
+    doc.setTextColor('#475569'); // Slate
     doc.text(`${currentUserInfo.firstName} ${currentUserInfo.lastName}`, PAGE_WIDTH / 2, 135, { align: 'center' });
     doc.setFontSize(12);
     doc.text(`Élève de ${userGradeLevel}`, PAGE_WIDTH / 2, 145, { align: 'center' });
     doc.text(capitalizeWords(currentUserInfo.schoolName), PAGE_WIDTH / 2, 152, { align: 'center' });
     
-    doc.addPage();
-    y = MARGIN;
+    // Liste de toutes les sections à capturer, dans l'ordre
+    const sectionsToCapture = [
+        '#orientation-map-wrapper',
+        '#filRougeContainer',
+        '#badges-wrapper',
+        '#journal-section-step0',
+        '#journal-section-step10',
+        '#journal-section-step1',
+        '#journal-section-step2',
+        '#journal-section-step3',
+        '#journal-section-step5',
+        '#journal-section-step11',
+        '#journal-section-discussion',
+    ];
 
-    // --- CONTENU DU RAPPORT ---
-    const reportOrder = ['fil_rouge', 'badges', 'step0', 'step10', 'step1', 'step2', 'step3', 'step5', 'step4', 'step8', 'step11', 'step6', 'step9', 'retroplanning'];
-    
-    for (const key of reportOrder) {
-        const stepData = journalData[key];
-        const stepInfo = Object.values(stepsConfig).find(s => s.stepKey === key) || { title: 'Rétroplanning', icon: '🗓️' };
-        if (!stepData || Object.values(stepData).every(v => !v || (Array.isArray(v) && v.length === 0))) continue;
-
-        // Cas spécial pour les badges qui ne sont pas une "section" avec titre
-        if (key === 'badges') {
-            const earnedBadges = journalData.earned_badges || [];
-            if(earnedBadges.length > 0) {
-                addSectionTitle("Mes Badges", "🏆");
-                let badgeText = earnedBadges.map(badgeKey => {
-                    const badge = badgesConfig[badgeKey];
-                    return badge ? `${badge.icon} ${badge.title}` : '';
-                }).filter(Boolean).join('  |  ');
-                addBodyText(badgeText);
-            }
-            continue; // On passe à la section suivante
-        }
-
-        addSectionTitle(stepInfo.title, stepInfo.icon);
-
-        if (key === 'fil_rouge') {
-            addBodyText(stepData);
-        } else if (key === 'step0' && stepData.analysis) {
-            const infographicContainer = createProfileInfographic(stepData);
-            const elementToCapture = infographicContainer.querySelector('.bg-slate-50');
-
-            if (elementToCapture) {
-                // CORRECTION DÉFINITIVE : On attache, on capture, on retire.
-                infographicContainer.style.position = 'fixed';
-                infographicContainer.style.left = '-9999px';
-                infographicContainer.style.width = '700px'; // Force a width for consistent capture
-                document.body.appendChild(infographicContainer);
-
-                try {
-                    const canvas = await html2canvas(elementToCapture, { scale: 3, backgroundColor: '#f8fafc' });
-                    const imgData = canvas.toDataURL('image/png');
-                    const imgHeight = (canvas.height * CONTENT_WIDTH) / canvas.width;
-                    checkPageBreak(imgHeight + 5);
-                    doc.addImage(imgData, 'PNG', MARGIN, y, CONTENT_WIDTH, imgHeight);
-                    y += imgHeight + 8;
-                } catch (e) {
-                    console.error("html2canvas failed:", e);
-                    addBodyText("[Erreur lors de la génération de l'infographie]");
-                } finally {
-                    document.body.removeChild(infographicContainer);
+    for (const selector of sectionsToCapture) {
+        const element = document.querySelector(selector);
+        
+        // On ne capture que les sections qui existent et sont visibles
+        if (element && element.offsetHeight > 0) {
+            doc.addPage();
+            y = MARGIN;
+            
+            try {
+                const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                const imgData = canvas.toDataURL('image/png');
+                
+                const imgHeight = (canvas.height * CONTENT_WIDTH) / canvas.width;
+                
+                // Vérification si l'image est plus grande que la page
+                if (imgHeight > PAGE_HEIGHT - (MARGIN * 2)) {
+                    doc.addImage(imgData, 'PNG', MARGIN, y, CONTENT_WIDTH, PAGE_HEIGHT - (MARGIN * 2), undefined, 'FAST');
+                } else {
+                    doc.addImage(imgData, 'PNG', MARGIN, y, CONTENT_WIDTH, imgHeight, undefined, 'FAST');
                 }
+
+            } catch (e) {
+                console.error(`Erreur lors de la capture de ${selector}:`, e);
+                doc.text(`Erreur lors de la génération de la section: ${selector}`, MARGIN, y);
             }
-            addSubHeader("Analyse de l'IA :");
-            addBodyText(stepData.analysis);
-        } else if (key === 'step10') {
-            if (stepData.experiences && stepData.experiences.length > 0) {
-                addSubHeader("Expériences Significatives :");
-                stepData.experiences.forEach((exp, i) => addBodyText(`Expérience #${i + 1}: ${exp.analysis}`, { indent: 5 }));
-            }
-            if (stepData.soft_skills_profile) {
-                addSubHeader("Profil de Compétences Transversales :");
-                addBodyText(stepData.soft_skills_profile, { indent: 5 });
-            }
-        } else if (key === 'retroplanning' && stepData.tasks) {
-            stepData.tasks.forEach(month => {
-                checkPageBreak(8);
-                addSubHeader(month.month);
-                month.tasks.forEach(task => addBodyText((task.completed ? `[x] ` : `[ ] `) + task.text, { indent: 5 }));
-            });
-        } else if (stepInfo.fields) {
-            stepInfo.fields.forEach(field => {
-                if (stepData[field.id] && String(stepData[field.id]).trim()) {
-                    addSubHeader(field.label + " :");
-                    addBodyText(String(stepData[field.id]), { indent: 5, isHTML: true });
-                }
-            });
         }
     }
 
@@ -3490,11 +3413,16 @@ async function exportPDF() {
         doc.setPage(i);
         doc.setFontSize(9);
         doc.setTextColor(156, 163, 175);
-        if (i > 1) doc.text("Rapport d'Orientation | Mon Explor'Orientation", MARGIN, 10);
+        if (i > 1) {
+             doc.text("Journal de Bord | Mon Explor'Orientation", MARGIN, 10);
+        }
         doc.text(`Page ${i} sur ${pageCount}`, PAGE_WIDTH / 2, PAGE_HEIGHT - 10, { align: 'center' });
     }
 
-    doc.save(`Rapport_Orientation_${currentUserInfo.firstName}_${currentUserInfo.lastName}.pdf`);
+    doc.save(`Journal_Orientation_${currentUserInfo.firstName}_${currentUserInfo.lastName}.pdf`);
+    
+    exportButton.disabled = false;
+    exportButton.textContent = 'Exporter en PDF';
 }
 function isStepComplete(stepKey) {
     const config = Object.values(stepsConfig).find(s => s.stepKey === stepKey);
