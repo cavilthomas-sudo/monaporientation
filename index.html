@@ -797,55 +797,54 @@ function createMenuView() {
             return div;
         }
         
-        function createProfileInfographic(step0Data) {
-            if (!step0Data || !step0Data.analysis) {
-                return '';
-            }
+        // REMPLACEZ VOTRE FONCTION createProfileInfographic EXISTANTE PAR CELLE-CI :
 
-            const profiles = [
-                { title: 'Source d\'énergie', q: 'q20', left: { key: 'seul', label: 'Introverti' }, right: { key: 'amis', label: 'Extraverti' } },
-                { title: 'Prise de décision', q: 'q11', left: { key: 'analyse', label: 'Analyse' }, right: { key: 'intuition', label: 'Intuition' } },
-                { title: 'Mode de travail', q: 'q1', left: { key: 'seul', label: 'Individuel' }, right: { key: 'equipe', label: 'Collaboratif' } },
-                { title: 'Approche des problèmes', q: 'q3', left: { key: 'logique', label: 'Méthodique' }, right: { key: 'creatif', label: 'Créatif' } },
-                { title: 'Zone de confort', q: 'q19', left: { key: 'claires', label: 'Cadre clair' }, right: { key: 'generales', label: 'Autonomie' } },
-                { title: 'Moteur principal', q: 'q25', left: { key: 'competence', label: 'Maîtrise' }, right: { key: 'sens', label: 'Quête de sens' } }
-            ];
+function createProfileInfographic(step0Data) {
+    if (!step0Data || !step0Data.analysis) {
+        return document.createElement('div'); // Retourne un élément vide si pas de données
+    }
 
-            let infographicHTML = '<div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mb-8">';
+    const profiles = [
+        { title: 'Source d\'énergie', q: 'q20', left: { key: 'seul', label: 'Introverti' }, right: { key: 'amis', label: 'Extraverti' } },
+        { title: 'Prise de décision', q: 'q11', left: { key: 'analyse', label: 'Analyse' }, right: { key: 'intuition', label: 'Intuition' } },
+        { title: 'Mode de travail', q: 'q1', left: { key: 'seul', label: 'Individuel' }, right: { key: 'equipe', label: 'Collaboratif' } },
+        { title: 'Approche des problèmes', q: 'q3', left: { key: 'logique', label: 'Méthodique' }, right: { key: 'creatif', label: 'Créatif' } },
+        { title: 'Zone de confort', q: 'q19', left: { key: 'claires', label: 'Cadre clair' }, right: { key: 'generales', label: 'Autonomie' } },
+        { title: 'Moteur principal', q: 'q25', left: { key: 'competence', label: 'Maîtrise' }, right: { key: 'sens', label: 'Quête de sens' } }
+    ];
 
-            profiles.forEach(p => {
-                const answer = step0Data[p.q];
-                let leftColor = 'bg-slate-200';
-                let rightColor = 'bg-slate-200';
-                if (answer === p.left.key) leftColor = 'bg-indigo-600';
-                if (answer === p.right.key) rightColor = 'bg-violet-600';
-
-                infographicHTML += `
-                    <div>
-                        <h3 class="font-semibold text-slate-700 mb-1">${p.title}</h3>
-                        <div class="flex items-center justify-between text-sm text-slate-600 mb-1">
-                            <span class="font-medium ${answer === p.left.key ? 'text-indigo-700' : ''}">${p.left.label}</span>
-                            <span class="font-medium ${answer === p.right.key ? 'text-violet-700' : ''}">${p.right.label}</span>
-                        </div>
-                        <div class="w-full flex h-2 rounded-full overflow-hidden">
-                            <div class="w-1/2 ${leftColor} transition-colors duration-300"></div>
-                            <div class="w-1/2 ${rightColor} transition-colors duration-300"></div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            infographicHTML += '</div>';
-
-            return `
-                <div class="mb-8">
-                     <h2 class="text-xl font-bold border-b pb-2 mb-4 text-indigo-700">👤 Synthèse de ton Profil</h2>
-                    <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mt-4">
-                       ${infographicHTML}
-                    </div>
+    let infographicHTML = '<div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mb-8">';
+    profiles.forEach(p => {
+        const answer = step0Data[p.q];
+        let leftColor = 'bg-slate-200';
+        let rightColor = 'bg-slate-200';
+        if (answer === p.left.key) leftColor = 'bg-indigo-600';
+        if (answer === p.right.key) rightColor = 'bg-violet-600';
+        infographicHTML += `
+            <div>
+                <h3 class="font-semibold text-slate-700 mb-1">${p.title}</h3>
+                <div class="flex items-center justify-between text-sm text-slate-600 mb-1">
+                    <span class="font-medium ${answer === p.left.key ? 'text-indigo-700' : ''}">${p.left.label}</span>
+                    <span class="font-medium ${answer === p.right.key ? 'text-violet-700' : ''}">${p.right.label}</span>
                 </div>
-            `;
-        }
+                <div class="w-full flex h-2 rounded-full overflow-hidden">
+                    <div class="w-1/2 ${leftColor}"></div>
+                    <div class="w-1/2 ${rightColor}"></div>
+                </div>
+            </div>`;
+    });
+    infographicHTML += '</div>';
+
+    const container = document.createElement('div');
+    container.className = 'mb-8';
+    container.innerHTML = `
+        <h2 class="text-xl font-bold border-b pb-2 mb-4 text-indigo-700">👤 Synthèse de ton Profil</h2>
+        <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mt-4">
+           ${infographicHTML}
+        </div>
+    `;
+    return container;
+}
 
 const stepsConfig = {
     step0: { 
@@ -3204,7 +3203,7 @@ Ta mission est la suivante :
         journalData.discussion_points = result; await saveData();
     });
 
-    div.querySelector('#exportPdfBtn').addEventListener('click', exportPDF);
+    div.querySelector('#exportPdfBtn').addEventListener('click', );
 
     return div;
 }
@@ -3330,9 +3329,7 @@ async function createPublicShareView(userId, token) {
             return summary;
         }
 
-        // REMPLACEZ VOTRE FONCTION exportPDF EXISTANTE PAR CELLE-CI :
-
-// REMPLACEZ VOTRE FONCTION exportPDF EXISTANTE PAR CELLE-CI :
+       
 
 // REMPLACEZ VOTRE FONCTION exportPDF EXISTANTE PAR CELLE-CI :
 
@@ -3341,16 +3338,15 @@ async function exportPDF() {
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
     const FONT_NORMAL = 'Helvetica';
 
-    // --- Constantes et couleurs ---
     const MARGIN = 15;
     const PAGE_WIDTH = doc.internal.pageSize.getWidth();
     const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
     const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
     let y = MARGIN;
 
-    const COLOR_PRIMARY = '#4f46e5'; // Indigo
-    const COLOR_SECONDARY = '#475569'; // Slate
-    const COLOR_TEXT = '#334155';
+    const COLOR_PRIMARY = '#4f46e5'; // Indigo-600
+    const COLOR_SECONDARY = '#475569'; // Slate-600
+    const COLOR_TEXT = '#334155'; // Slate-700
     
     // --- Fonctions utilitaires ---
     const checkPageBreak = (heightNeeded) => {
@@ -3367,15 +3363,15 @@ async function exportPDF() {
         doc.setTextColor(COLOR_PRIMARY);
         doc.text(`${icon} ${title}`, MARGIN, y);
         y += 6;
-        doc.setDrawColor('#cbd5e1'); // Slate-300
+        doc.setDrawColor('#cbd5e1');
         doc.line(MARGIN, y, PAGE_WIDTH - MARGIN, y);
         y += 10;
     };
 
     const addBodyText = (text, options = {}) => {
-        const { isBold = false, indent = 0 } = options;
+        const { indent = 0 } = options;
         doc.setFontSize(11);
-        doc.setFont(FONT_NORMAL, isBold ? 'bold' : 'normal');
+        doc.setFont(FONT_NORMAL, 'normal');
         doc.setTextColor(COLOR_TEXT);
         const textLines = doc.splitTextToSize(text, CONTENT_WIDTH - indent);
         checkPageBreak(textLines.length * 5);
@@ -3410,84 +3406,63 @@ async function exportPDF() {
 
     // --- CONTENU DU RAPPORT ---
 
+    // Fil Rouge
     if (journalData.fil_rouge) {
         addSectionTitle("Mon Fil Rouge", "✨");
         addBodyText(journalData.fil_rouge);
     }
     
-    const earnedBadges = journalData.earned_badges || [];
-    if (earnedBadges.length > 0) {
-        addSectionTitle("Mes Badges", "🏆");
-        let x = MARGIN;
-        const badgeWidth = CONTENT_WIDTH / 3;
-        earnedBadges.forEach((badgeKey, index) => {
-            const badge = badgesConfig[badgeKey];
-            if (badge) {
-                if (index > 0 && index % 3 === 0) { y += 25; x = MARGIN; }
-                checkPageBreak(25);
-                doc.setFontSize(20); doc.text(badge.icon, x + badgeWidth / 2, y + 5, { align: 'center' });
-                doc.setFontSize(9); doc.setFont(FONT_NORMAL, 'bold');
-                const titleLines = doc.splitTextToSize(badge.title, badgeWidth - 10);
-                doc.text(titleLines, x + badgeWidth / 2, y + 15, { align: 'center' });
-                x += badgeWidth;
-            }
-        });
-        y += 25;
-    }
+    // --- BOUCLE COMPLÈTE POUR TOUTES LES ÉTAPES DU JOURNAL ---
+    const stepOrderForReport = ['step0', 'step10', 'step1', 'step2', 'step3', 'step5', 'step11', 'step4', 'step8', 'step6', 'step9', 'retroplanning'];
     
-    // --- SECTION "MIEUX SE CONNAÎTRE" ---
-    if (journalData.step0 && journalData.step0.analysis) {
-        addSectionTitle("Mieux se connaître", "👤");
-        
-        // --- CORRECTION APPLIQUÉE ICI ---
-        // 1. On récupère le code HTML de l'infographie sous forme de texte
-        const infographicHTMLString = createProfileInfographic(journalData.step0);
-        
-        // 2. On le transforme en un vrai élément HTML pour pouvoir le manipuler
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = infographicHTMLString;
-        const infographicElementToCapture = tempDiv.querySelector('.bg-slate-50');
-
-        // 3. On capture cet élément s'il existe
-        if (infographicElementToCapture) {
-            const canvas = await html2canvas(infographicElementToCapture, { scale: 3, backgroundColor: '#f8fafc' });
-            const imgData = canvas.toDataURL('image/png');
-            const imgHeight = (canvas.height * CONTENT_WIDTH) / canvas.width;
-            checkPageBreak(imgHeight + 5);
-            doc.addImage(imgData, 'PNG', MARGIN, y, CONTENT_WIDTH, imgHeight);
-            y += imgHeight + 8;
-        }
-        // --- FIN DE LA CORRECTION ---
-
-        addSubHeader("Analyse de l'IA :");
-        addBodyText(journalData.step0.analysis);
-    }
-    
-    // --- BOUCLE POUR LES AUTRES ÉTAPES ---
-    const reportSteps = {
-        step10: { title: "Mon Portfolio de Compétences", icon: "💼" },
-        step1: { title: "Les Fondations", icon: "📚" },
-        step3: { title: "Le Catalogue", icon: "🎓" },
-        retroplanning: { title: "Mon Rétroplanning", icon: "🗓️" },
-        // Ajoutez ici d'autres `stepKey` si vous voulez les inclure
-    };
-
-    for (const stepKey of Object.keys(reportSteps)) {
+    for (const stepKey of stepOrderForReport) {
         const stepData = journalData[stepKey];
-        const stepInfo = reportSteps[stepKey];
+        const stepInfo = Object.values(stepsConfig).find(s => s.stepKey === stepKey) || { title: 'Rétroplanning', icon: '🗓️' };
         if (!stepData || Object.values(stepData).every(v => !v || (Array.isArray(v) && v.length === 0))) continue;
 
         addSectionTitle(stepInfo.title, stepInfo.icon);
 
-        if (stepKey === 'step10') {
-            // ... (logique pour le portfolio)
+        if (stepKey === 'step0' && stepData.analysis) {
+            const infographicElement = createProfileInfographic(stepData).querySelector('.bg-slate-50');
+            if (infographicElement) {
+                const canvas = await html2canvas(infographicElement, { scale: 3, backgroundColor: '#f8fafc' });
+                const imgData = canvas.toDataURL('image/png');
+                const imgHeight = (canvas.height * CONTENT_WIDTH) / canvas.width;
+                checkPageBreak(imgHeight + 5);
+                doc.addImage(imgData, 'PNG', MARGIN, y, CONTENT_WIDTH, imgHeight);
+                y += imgHeight + 8;
+            }
+            addSubHeader("Analyse de l'IA :");
+            addBodyText(stepData.analysis);
+        } else if (stepKey === 'step10') {
+            if (stepData.experiences && stepData.experiences.length > 0) {
+                addSubHeader("Expériences Significatives :");
+                stepData.experiences.forEach((exp, i) => addBodyText(`Expérience #${i + 1}: ${exp.analysis}`, { indent: 5 }));
+            }
+            if (stepData.soft_skills_profile) {
+                addSubHeader("Profil de Compétences Transversales :");
+                addBodyText(stepData.soft_skills_profile, { indent: 5 });
+            }
+        } else if (stepKey === 'step11') {
+            if (stepData.location) addBodyText(`Lieu de recherche : ${stepData.location}`);
+            if (stepData.evenements && stepData.evenements.length > 0) {
+                addSubHeader("Événements :");
+                stepData.evenements.forEach(e => addBodyText(`- ${e.nom} (${e.date}, ${e.lieu})`, { indent: 5 }));
+            }
+            if (stepData.structures && stepData.structures.length > 0) {
+                addSubHeader("Structures :");
+                stepData.structures.forEach(s => addBodyText(`- ${s.nom} (${s.adresse})`, { indent: 5 }));
+            }
         } else if (stepKey === 'retroplanning' && stepData.tasks) {
-            // ... (logique pour le rétroplanning)
+            stepData.tasks.forEach(month => {
+                checkPageBreak(8);
+                addSubHeader(month.month);
+                month.tasks.forEach(task => addBodyText((task.completed ? `[x] ` : `[ ] `) + task.text, { indent: 5 }));
+            });
         } else {
-            // Rendu générique
             const config = Object.values(stepsConfig).find(c => c.stepKey === stepKey);
             for (const [key, value] of Object.entries(stepData)) {
-                if (value && typeof value === 'string' && value.trim() !== '') {
+                if (value && typeof value === 'string' && value.trim() !== '' && !key.startsWith('q')) {
                     let label = key;
                     if (config?.fields) {
                         const field = config.fields.find(f => f.id === key);
@@ -3507,13 +3482,11 @@ async function exportPDF() {
         doc.setFontSize(9);
         doc.setTextColor(156, 163, 175);
         if (i > 1) doc.text("Rapport d'Orientation | Mon Explor'Orientation", MARGIN, 10);
-        doc.text(`Page ${i} sur ${pageCount}`, PAGE_WIDTH / 2, PAGE_HEIGHT - 10, { align: 'center' });
+        doc.text(`Page ${i} sur ${pageCount}`, PAGE_WIDTH / 2, doc.internal.pageSize.height - 10, { align: 'center' });
     }
 
     doc.save(`Rapport_Orientation_${currentUserInfo.firstName}_${currentUserInfo.lastName}.pdf`);
 }
-
-       // REMPLACEZ VOTRE FONCTION isStepComplete EXISTANTE PAR CELLE-CI :
 
 function isStepComplete(stepKey) {
     const config = Object.values(stepsConfig).find(s => s.stepKey === stepKey);
