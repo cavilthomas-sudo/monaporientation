@@ -194,20 +194,7 @@ if (shareId && shareToken) {
     createPublicShareView(shareId, shareToken);
 } else {
     // Comportement normal de l'application
-    onAuthStateChanged(auth, user => {
-        if (user) {
-            // Un utilisateur est connecté
-            currentUserId = user.uid;
-            authContainer.style.display = 'none';
-            mainApp.style.display = 'block';
-            loadData();
-        } else {
-            // Personne n'est connecté, on réinitialise tout
-            currentUserId = null;
-            userGradeLevel = null;
-            currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
-
-
+   // D'abord, on déplace les deux fonctions pour qu'elles soient indépendantes
 window.showGuideFromLogin = function() {
     cameFromLogin = true;
     document.getElementById('authContainer').style.display = 'none';
@@ -223,16 +210,40 @@ window.showLoginViewFromGuide = function() {
     document.querySelector('footer').style.display = 'block';
     showLoginView();
 }
-            
-            // LIGNE DE CORRECTION CRUCIALE : On vide le journal de l'ancien utilisateur
-            journalData = {}; 
+journalData = {}; 
 
             authContainer.style.display = 'block';
             mainApp.style.display = 'none';
             showLoginView();
         }
-    });
-}
+
+// Ensuite, on met à jour la logique de connexion/déconnexion
+onAuthStateChanged(auth, user => {
+    const chatbotToggle = document.getElementById('chatbot-toggle');
+
+    if (user) {
+        // Un utilisateur est connecté
+        chatbotToggle.style.display = 'flex'; // <-- LIGNE AJOUTÉE ICI
+        
+        currentUserId = user.uid;
+        authContainer.style.display = 'none';
+        mainApp.style.display = 'block';
+        loadData();
+    } else {
+        // Personne n'est connecté, on réinitialise tout
+        chatbotToggle.style.display = 'none'; // <-- LIGNE AJOUTÉE ICI
+        
+        currentUserId = null;
+        userGradeLevel = null;
+        currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
+        journalData = {}; 
+        authContainer.style.display = 'block';
+        mainApp.style.display = 'none';
+        showLoginView();
+    }
+});
+            
+
         
         // 🔹 Fonction utilitaire
 function capitalizeWords(str) {
@@ -512,6 +523,9 @@ window.showView = showView;
         
 
 function createMenuView() {
+    // On s'assure que le chatbot est bien visible sur le menu principal
+    document.getElementById('chatbot-toggle').style.display = 'flex';
+    
     const div = document.createElement('div');
     div.className = 'fade-in';
 
@@ -1490,6 +1504,9 @@ function createStep12View() {
 }
 
 function createGuideView() {
+    // On s'assure que le chatbot est bien caché sur cette page
+    document.getElementById('chatbot-toggle').style.display = 'none';
+
     const div = document.createElement('div');
     div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200';
 
