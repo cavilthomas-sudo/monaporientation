@@ -3094,9 +3094,7 @@ Ta mission est la suivante :
             <button id="exportPdfBtn" class="w-full sm:w-auto bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition">Exporter en PDF</button>
         </div>
         ${sharePanelHTML}
-        
         <div id="orientation-map-wrapper"></div>
-
         <div id="filRougeContainer" class="mb-8 p-6 bg-violet-50 border-l-4 border-violet-500 rounded-r-lg">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold text-violet-800">✨ Mon Fil Rouge</h2>
@@ -3121,7 +3119,7 @@ Ta mission est la suivante :
     let contentHTML = '';
 
     if (journalData.step0 && journalData.step0.analysis) {
-        contentHTML += createProfileInfographic(journalData.step0);
+        contentHTML += createProfileInfographic(journalData.step0).outerHTML;
     }
     
     const stepTitles = {
@@ -3145,8 +3143,8 @@ Ta mission est la suivante :
             if (stepData.evenements && Array.isArray(stepData.evenements) && stepData.evenements.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Événements sauvegardés :</h4>`; stepData.evenements.forEach(event => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-bold text-indigo-700">${event.nom || ''}</p><p class="text-sm text-slate-600">${event.date || ''} - ${event.lieu || ''}</p></div>`; }); }
             if (stepData.structures && Array.isArray(stepData.structures) && stepData.structures.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Structures sauvegardées :</h4>`; stepData.structures.forEach(struct => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-bold text-indigo-700">${struct.nom || ''}</p><p class="text-sm text-slate-600">${struct.adresse || ''}</p></div>`; }); }
         } else if (stepKey === 'step10') {
-            if (stepData.experiences && Array.isArray(stepData.experiences) && stepData.experiences.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mb-2">Expériences Significatives :</h4>`; stepData.experiences.forEach((exp, index) => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`; }); }
-            if (stepData.soft_skills_profile && stepData.soft_skills_profile.trim() !== '') { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Profil de Compétences Transversales :</h4>`; stepContent += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>`; }
+            if (stepData.experiences && stepData.experiences.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mb-2">Expériences Significatives :</h4>`; stepData.experiences.forEach((exp, index) => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`; }); }
+            if (stepData.soft_skills_profile) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Profil de Compétences Transversales :</h4>`; stepContent += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>`; }
         } else {
             for (const [key, value] of Object.entries(stepData)) {
                 if (value && typeof value === 'string' && value.trim() !== '' && !key.startsWith('q')) {
@@ -3203,7 +3201,7 @@ Ta mission est la suivante :
         journalData.discussion_points = result; await saveData();
     });
 
-    div.querySelector('#exportPdfBtn').addEventListener('click', );
+    div.querySelector('#exportPdfBtn').addEventListener('click', exportPDF);
 
     return div;
 }
