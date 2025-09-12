@@ -135,8 +135,8 @@
     <!-- SDKs Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+// MODIFIEZ CETTE LIGNE
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
 
@@ -250,17 +250,11 @@ function capitalizeWords(str) {
     return str.replace(/\b\w/g, c => c.toUpperCase());
 }
 
-// 🔹 Vue de connexion
-// 🔹 Vue de connexion
 function showLoginView() {
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 fade-in">
             
-            <img src="logo.png" alt="Logo Mon Explor'Orientation" class="mx-auto h-56 w-auto mb-6">
-
-            <div class="text-center mb-6">
-                 <button onclick="window.showGuideFromLogin()" class="font-semibold text-indigo-600 hover:underline">Consultez le guide d'utilisation</button>
-            </div>
+            <img src="logo.png" alt="Logo Mon Explor'Orientation" class="mx-auto h-64 w-auto mb-6">
 
             <div class="p-4 bg-slate-50 rounded-lg text-center text-slate-700 mb-6">
                 <p>Bienvenue sur ton compagnon d'orientation personnel. Explore des métiers, simule tes choix et construis ton projet d'avenir grâce à des outils interactifs et une IA bienveillante. Ton exploration commence ici.</p>
@@ -269,32 +263,65 @@ function showLoginView() {
             <form id="loginForm" class="mb-4">
                 <input id="email" type="email" placeholder="Adresse e-mail" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
                 <input id="password" type="password" placeholder="Mot de passe" class="w-full p-3 mb-4 border border-slate-300 rounded-lg" required>
-                <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700">Se connecter</button>
+                <button type="submit" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700 transition">Se connecter</button>
             </form>
-            <p class="text-center text-sm text-slate-500">Pas encore de compte ? 
-                <button id="showSignupButton" class="font-semibold text-indigo-600 hover:underline">Inscrivez-vous</button>
-            </p>
-            
+            <div class="flex justify-between items-center text-sm">
+                <p class="text-slate-500">Pas encore de compte ? 
+                    <button id="showSignupButton" class="font-semibold text-cyan-600 hover:underline">Inscrivez-vous</button>
+                </p>
+                <button id="forgotPasswordButton" class="text-sm text-slate-500 hover:underline">Mot de passe oublié ?</button>
+            </div>
             <p id="authError" class="text-red-500 text-center mt-4"></p>
         </div>
     `;
 
-    const loginForm = document.getElementById('loginForm');
-    const showSignupButton = document.getElementById('showSignupButton');
-    const authError = document.getElementById('authError');
-
-    loginForm.addEventListener('submit', async (e) => {
+    authContainer.querySelector('#loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const emailInput = document.getElementById('email').value;
-        const passwordInput = document.getElementById('password').value;
         try {
-            await signInWithEmailAndPassword(auth, emailInput, passwordInput);
+            await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value);
         } catch (error) {
-            authError.textContent = "Erreur de connexion. Vérifiez vos identifiants.";
+            authContainer.querySelector('#authError').textContent = "Erreur de connexion. Vérifiez vos identifiants.";
         }
     });
 
-    showSignupButton.addEventListener('click', showSignupView);
+    authContainer.querySelector('#showSignupButton').addEventListener('click', showSignupView);
+    authContainer.querySelector('#forgotPasswordButton').addEventListener('click', showForgotPasswordView);
+}
+
+function showForgotPasswordView() {
+    authContainer.innerHTML = `
+        <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 fade-in">
+            <img src="logo.png" alt="Logo Mon Explor'Orientation" class="mx-auto h-48 w-auto mb-6">
+            <h2 class="text-2xl font-bold text-center text-slate-800 mb-2">Mot de passe oublié ?</h2>
+            <p class="text-center text-slate-500 mb-6">Pas de panique ! Entrez votre e-mail pour recevoir un lien de réinitialisation.</p>
+            <form id="forgotPasswordForm" class="mb-4">
+                <input id="email" type="email" placeholder="Adresse e-mail du compte" class="w-full p-3 mb-4 border border-slate-300 rounded-lg" required>
+                <button type="submit" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700 transition">Envoyer le lien</button>
+            </form>
+            <p class="text-center text-sm text-slate-500">
+                <button id="backToLoginButton" class="font-semibold text-cyan-600 hover:underline">Retour à la connexion</button>
+            </p>
+            <p id="authMessage" class="text-green-600 text-center mt-4"></p>
+        </div>
+    `;
+
+    const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+    const authMessage = document.getElementById('authMessage');
+
+    forgotPasswordForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        try {
+            await sendPasswordResetEmail(auth, email);
+            authMessage.textContent = "Si un compte existe pour cet e-mail, un lien de réinitialisation vient d'être envoyé.";
+            authMessage.className = 'text-green-600 text-center mt-4';
+        } catch (error) {
+            authMessage.textContent = "Une erreur est survenue. Veuillez réessayer.";
+            authMessage.className = 'text-red-500 text-center mt-4';
+        }
+    });
+
+    document.getElementById('backToLoginButton').addEventListener('click', showLoginView);
 }
 
 // 🔹 Vue d'inscription
