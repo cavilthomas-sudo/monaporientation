@@ -3330,29 +3330,26 @@ async function createPublicShareView(userId, token) {
             return summary;
         }
 
-    
 
 // REMPLACEZ VOTRE FONCTION exportPDF EXISTANTE PAR CETTE VERSION FINALE :
-
-// REMPLACEZ VOTRE FONCTION exportPDF EXISTANTE PAR CETTE VERSION FINALE ET COMPLÈTE :
 
 async function exportPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
     const FONT_NORMAL = 'Helvetica';
 
-    // --- Constantes de mise en page et couleurs ---
+    // --- Constantes et couleurs ---
     const MARGIN = 15;
     const PAGE_WIDTH = doc.internal.pageSize.getWidth();
     const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
     const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
     let y = MARGIN;
 
-    const COLOR_PRIMARY = '#4f46e5'; // Indigo-600
-    const COLOR_SECONDARY = '#475569'; // Slate-600
-    const COLOR_TEXT = '#334155'; // Slate-700
+    const COLOR_PRIMARY = '#4f46e5'; // Indigo
+    const COLOR_SECONDARY = '#475569'; // Slate
+    const COLOR_TEXT = '#334155';
     
-    // --- Fonctions utilitaires pour un code propre ---
+    // --- Fonctions utilitaires ---
     const checkPageBreak = (heightNeeded) => {
         if (y + heightNeeded > PAGE_HEIGHT - MARGIN) {
             doc.addPage();
@@ -3367,7 +3364,7 @@ async function exportPDF() {
         doc.setTextColor(COLOR_PRIMARY);
         doc.text(`${icon} ${title}`, MARGIN, y);
         y += 6;
-        doc.setDrawColor('#cbd5e1'); // Slate-300
+        doc.setDrawColor('#cbd5e1');
         doc.line(MARGIN, y, PAGE_WIDTH - MARGIN, y);
         y += 10;
     };
@@ -3377,18 +3374,11 @@ async function exportPDF() {
         doc.setFontSize(11);
         doc.setFont(FONT_NORMAL, 'normal');
         doc.setTextColor(COLOR_TEXT);
-        if (isHTML) { // Gère le texte HTML simple
-             const cleanText = text.replace(/<br>/g, '\n').replace(/<[^>]*>/g, '');
-             const textLines = doc.splitTextToSize(cleanText, CONTENT_WIDTH - indent);
-             checkPageBreak(textLines.length * 5);
-             doc.text(textLines, MARGIN + indent, y);
-             y += textLines.length * 5 + 4;
-        } else {
-            const textLines = doc.splitTextToSize(text, CONTENT_WIDTH - indent);
-            checkPageBreak(textLines.length * 5);
-            doc.text(textLines, MARGIN + indent, y);
-            y += textLines.length * 5 + 4;
-        }
+        const cleanText = isHTML ? text.replace(/<br>/g, '\n').replace(/<[^>]*>/g, '') : text;
+        const textLines = doc.splitTextToSize(cleanText, CONTENT_WIDTH - indent);
+        checkPageBreak(textLines.length * 5);
+        doc.text(textLines, MARGIN + indent, y);
+        y += textLines.length * 5 + 4;
     };
 
     const addSubHeader = (text) => {
@@ -3400,7 +3390,7 @@ async function exportPDF() {
         y += 7;
     };
 
-    // --- 1. PAGE DE GARDE ---
+    // --- PAGE DE GARDE ---
     doc.setFontSize(24);
     doc.setFont(FONT_NORMAL, 'bold');
     doc.setTextColor(COLOR_PRIMARY);
@@ -3416,77 +3406,85 @@ async function exportPDF() {
     doc.addPage();
     y = MARGIN;
 
-    // --- 2. GÉNÉRATION EXHAUSTIVE DU CONTENU DU RAPPORT ---
-
-    // Ordre d'affichage des sections dans le PDF
-    const reportOrder = [
-        'fil_rouge', 'badges', 'step0', 'step10', 'step1', 'step2', 'step3', 
-        'step5', 'step4', 'step8', 'step11', 'step6', 'step9', 'retroplanning'
-    ];
-
+    // --- CONTENU DU RAPPORT ---
+    const reportOrder = ['fil_rouge', 'badges', 'step0', 'step10', 'step1', 'step2', 'step3', 'step5', 'step4', 'step8', 'step11', 'step6', 'step9', 'retroplanning'];
+    
     for (const key of reportOrder) {
         const stepData = journalData[key];
+        const stepInfo = Object.values(stepsConfig).find(s => s.stepKey === key) || { title: 'Rétroplanning', icon: '🗓️' };
         if (!stepData || Object.values(stepData).every(v => !v || (Array.isArray(v) && v.length === 0))) continue;
 
-        if (key === 'fil_rouge') {
-            addSectionTitle("Mon Fil Rouge", "✨");
-            addBodyText(stepData);
-        } 
-        else if (key === 'badges') {
+        // Cas spécial pour les badges qui ne sont pas une "section" avec titre
+        if (key === 'badges') {
             const earnedBadges = journalData.earned_badges || [];
             if(earnedBadges.length > 0) {
                 addSectionTitle("Mes Badges", "🏆");
-                // (Affichage des badges, simplifié pour éviter les bugs d'image)
-                earnedBadges.forEach(badgeKey => {
+                let badgeText = earnedBadges.map(badgeKey => {
                     const badge = badgesConfig[badgeKey];
-                    if (badge) addBodyText(`${badge.icon} ${badge.title}`);
-                });
+                    return badge ? `${badge.icon} ${badge.title}` : '';
+                }).filter(Boolean).join('  |  ');
+                addBodyText(badgeText);
             }
+            continue; // On passe à la section suivante
         }
-        else {
-            const stepInfo = Object.values(stepsConfig).find(s => s.stepKey === key) || { title: 'Rétroplanning', icon: '🗓️' };
-            addSectionTitle(stepInfo.title, stepInfo.icon);
 
-            if (key === 'step0' && stepData.analysis) {
-                const infographicElement = createProfileInfographic(stepData).querySelector('.bg-slate-50');
-                if (infographicElement) {
-                    infographicElement.style.width = '700px'; // Force a width for better capture
-                    const canvas = await html2canvas(infographicElement, { scale: 3, backgroundColor: '#f8fafc' });
+        addSectionTitle(stepInfo.title, stepInfo.icon);
+
+        if (key === 'fil_rouge') {
+            addBodyText(stepData);
+        } else if (key === 'step0' && stepData.analysis) {
+            const infographicContainer = createProfileInfographic(stepData);
+            const elementToCapture = infographicContainer.querySelector('.bg-slate-50');
+
+            if (elementToCapture) {
+                // CORRECTION DÉFINITIVE : On attache, on capture, on retire.
+                infographicContainer.style.position = 'fixed';
+                infographicContainer.style.left = '-9999px';
+                infographicContainer.style.width = '700px'; // Force a width for consistent capture
+                document.body.appendChild(infographicContainer);
+
+                try {
+                    const canvas = await html2canvas(elementToCapture, { scale: 3, backgroundColor: '#f8fafc' });
                     const imgData = canvas.toDataURL('image/png');
                     const imgHeight = (canvas.height * CONTENT_WIDTH) / canvas.width;
                     checkPageBreak(imgHeight + 5);
                     doc.addImage(imgData, 'PNG', MARGIN, y, CONTENT_WIDTH, imgHeight);
                     y += imgHeight + 8;
+                } catch (e) {
+                    console.error("html2canvas failed:", e);
+                    addBodyText("[Erreur lors de la génération de l'infographie]");
+                } finally {
+                    document.body.removeChild(infographicContainer);
                 }
-                addSubHeader("Analyse de l'IA :");
-                addBodyText(stepData.analysis);
-            } else if (key === 'step10') {
-                if (stepData.experiences && stepData.experiences.length > 0) {
-                    addSubHeader("Expériences Significatives :");
-                    stepData.experiences.forEach((exp, i) => addBodyText(`Expérience #${i + 1}: ${exp.analysis}`, { indent: 5 }));
-                }
-                if (stepData.soft_skills_profile) {
-                    addSubHeader("Profil de Compétences Transversales :");
-                    addBodyText(stepData.soft_skills_profile, { indent: 5 });
-                }
-            } else if (key === 'retroplanning' && stepData.tasks) {
-                stepData.tasks.forEach(month => {
-                    checkPageBreak(8);
-                    addSubHeader(month.month);
-                    month.tasks.forEach(task => addBodyText((task.completed ? `[x] ` : `[ ] `) + task.text, { indent: 5 }));
-                });
-            } else if (stepInfo.fields) {
-                stepInfo.fields.forEach(field => {
-                    if (stepData[field.id] && String(stepData[field.id]).trim()) {
-                        addSubHeader(field.label + " :");
-                        addBodyText(String(stepData[field.id]), { indent: 5, isHTML: true });
-                    }
-                });
             }
+            addSubHeader("Analyse de l'IA :");
+            addBodyText(stepData.analysis);
+        } else if (key === 'step10') {
+            if (stepData.experiences && stepData.experiences.length > 0) {
+                addSubHeader("Expériences Significatives :");
+                stepData.experiences.forEach((exp, i) => addBodyText(`Expérience #${i + 1}: ${exp.analysis}`, { indent: 5 }));
+            }
+            if (stepData.soft_skills_profile) {
+                addSubHeader("Profil de Compétences Transversales :");
+                addBodyText(stepData.soft_skills_profile, { indent: 5 });
+            }
+        } else if (key === 'retroplanning' && stepData.tasks) {
+            stepData.tasks.forEach(month => {
+                checkPageBreak(8);
+                addSubHeader(month.month);
+                month.tasks.forEach(task => addBodyText((task.completed ? `[x] ` : `[ ] `) + task.text, { indent: 5 }));
+            });
+        } else if (stepInfo.fields) {
+            stepInfo.fields.forEach(field => {
+                if (stepData[field.id] && String(stepData[field.id]).trim()) {
+                    addSubHeader(field.label + " :");
+                    addBodyText(String(stepData[field.id]), { indent: 5, isHTML: true });
+                }
+            });
         }
     }
 
-    // --- 3. FINALISATION (Pied de page, etc.) ---
+    // --- FINALISATION DU PDF ---
     const pageCount = doc.internal.getNumberOfPages();
     for(let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
