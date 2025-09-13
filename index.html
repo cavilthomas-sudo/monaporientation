@@ -3679,7 +3679,7 @@ function isStepComplete(stepKey) {
             
             const loaderDiv = addMessage('', 'loader');
 
-            const prompt = `gis comme un coach d'orientation dont la seule et unique spécialité est la plateforme Parcoursup.fr. Tu es un expert absolu de son fonctionnement et de son catalogue de formations.
+            const prompt = `gis comme un coach d'orientation dont la spécialité est la plateforme Parcoursup.fr. Tu es un expert absolu de son fonctionnement et de son catalogue de formations.
 
 Ta mission est de répondre aux questions des lycéens en te basant **prioritairement et quasi exclusivement** sur les informations présentes sur le site officiel Parcoursup.fr.
 
@@ -3691,6 +3691,8 @@ Lorsque la question d'un lycéen porte sur une **formation spécifique** (ex: "B
 * **Chiffres clés :** Si possible, donne le taux d'accès de l'année précédente et le nombre de places disponibles.
 
 Si la question est plus **générale** sur le fonctionnement de Parcoursup (ex: "c'est quoi un vœu multiple ?" ou "comment fonctionne la phase complémentaire ?"), ta réponse doit être pédagogique, précise et toujours basée sur les règles officielles de la plateforme.
+
+Si la question porte sur un métier précis tu dois utliser comme source https://www.onisep.fr/, si la question porte sur les examens et les études au lycée tu dois utiliser comme source https://www.education.gouv.fr/ et https://www.letudiant.fr/. Tu dois toujours répondre en francais aux élèves
 
 Réponds maintenant à la question suivante : "${userInput}"`;
             const aiResponse = await callGeminiAPI(prompt, true);
