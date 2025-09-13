@@ -1562,52 +1562,63 @@ function createStep12View() {
         loader.style.display = 'block';
         resultDiv.innerHTML = '';
 
-        const prompt = `Agis comme un conseiller financier pour futurs étudiants. Pour la ville de "${city}", estime le budget mensuel moyen d'un étudiant qui s'y installe pour ses études. Utilise la recherche web pour trouver des données récentes. Ta réponse doit être **uniquement un objet JSON valide**. L'objet doit contenir les clés "loyer_crous", "loyer_prive_studio", "alimentation", "transport", "loisirs", et "resume" avec une phrase de synthèse.`;
+        const prompt = `Agis comme un conseiller financier pour futurs étudiants. Pour la ville de "${city}", estime le budget mensuel moyen d'un étudiant. Prends en compte que l'étudiant peut manger midi et soir en semaine au restaurant universitaire (Resto U), ce qui constitue le budget minimal pour l'alimentation. Le budget maximal inclut des courses plus conséquentes pour les week-ends et quelques extras. Utilise la recherche web pour trouver des données récentes. Ta réponse doit être **uniquement un objet JSON valide**. L'objet doit contenir les clés "loyer_crous", "loyer_prive_studio", "alimentation_min", "alimentation_max", "transport_collectif", et "transport_prive".`;
 
         const result = await callGeminiAPI(prompt, true, true);
         loader.style.display = 'none';
 
         try {
             const data = JSON.parse(result);
-            const totalMin = parseInt(data.loyer_crous) + parseInt(data.alimentation) + parseInt(data.transport) + parseInt(data.loisirs);
-            const totalMax = parseInt(data.loyer_prive_studio) + parseInt(data.alimentation) + parseInt(data.transport) + parseInt(data.loisirs);
+            const totalMin = parseInt(data.loyer_crous) + parseInt(data.alimentation_min) + parseInt(data.transport_collectif);
+            const totalMax = parseInt(data.loyer_prive_studio) + parseInt(data.alimentation_max) + parseInt(data.transport_prive);
             
             resultDiv.innerHTML = `
                 <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
                     <h3 class="text-xl font-bold text-slate-800 mb-4">Budget Mensuel Estimé pour un étudiant à ${city}</h3>
                     <div class="text-center mb-4">
-                        <p class="text-slate-600">Estimation totale</p>
+                        <p class="text-slate-600">Estimation totale (hors loisirs)</p>
                         <p class="text-3xl font-bold text-cyan-600">${totalMin}€ - ${totalMax}€ / mois</p>
                     </div>
-                    <div class="border-t pt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    
+                    <div class="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg my-4 border border-slate-200">
+                        <p><strong class="font-semibold text-slate-800">À quoi correspondent ces fourchettes ?</strong></p>
+                        <ul class="list-disc list-inside mt-2 space-y-1">
+                            <li>La <strong class="text-cyan-700">fourchette basse</strong> correspond à un mode de vie très économique : logement en résidence Crous, repas principalement au restaurant universitaire et utilisation des transports en commun.</li>
+                            <li>La <strong class="text-cyan-700">fourchette haute</strong> correspond à un budget plus confortable : logement dans un studio du parc privé, budget alimentation plus large et coût d'un transport individuel.</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="border-t pt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
                         <div><p class="text-lg font-semibold">🏠 Loyer</p><p class="text-slate-500">${data.loyer_crous}€ - ${data.loyer_prive_studio}€</p></div>
-                        <div><p class="text-lg font-semibold">🛒 Alimentation</p><p class="text-slate-500">~${data.alimentation}€</p></div>
-                        <div><p class="text-lg font-semibold">🚇 Transport</p><p class="text-slate-500">~${data.transport}€</p></div>
-                        <div><p class="text-lg font-semibold">🎉 Loisirs</p><p class="text-slate-500">~${data.loisirs}€</p></div>
+                        <div><p class="text-lg font-semibold">🛒 Alimentation</p><p class="text-slate-500">${data.alimentation_min}€ - ${data.alimentation_max}€</p></div>
+                        <div><p class="text-lg font-semibold">🚇 Transport</p><p class="text-slate-500">${data.transport_collectif}€ - ${data.transport_prive}€</p></div>
                     </div>
                 </div>
             `;
         } catch (e) {
-            resultDiv.innerHTML = `<p class="text-red-500 text-center">L'IA n'a pas pu générer une estimation structurée. Veuillez réessayer.</p>`;
+            resultDiv.innerHTML = `<p class="text-red-500 text-center">L'IA n'a pas pu générer une estimation structurée. Veuillez réessayer.</p><textarea class="w-full h-40 bg-slate-100 p-2 rounded mt-2" readonly>${result}</textarea>`;
         }
     });
 
     // Logique pour la recherche d'aides
     div.querySelector('#aides-btn').addEventListener('click', async () => {
+        const city = cityInput.value.trim();
+        if (!city) {
+            alert("Veuillez renseigner une ville pour rechercher des aides locales.");
+            return;
+        }
         const loader = div.querySelector('#loader-aides');
         const resultDiv = div.querySelector('#aides-result');
         loader.style.display = 'block';
         resultDiv.innerHTML = '';
         
-        // --- PROMPT AMÉLIORÉ AVEC DEMANDE DE LIEN ---
-        const prompt = `Agis comme un coach financier spécialisé dans la vie étudiante. Un futur étudiant prépare son budget et souhaite connaître les principales aides financières. Ta mission est de fournir une liste claire et structurée. Pour chaque aide, tu dois préciser : son nom officiel, le public cible, la démarche clé pour l'obtenir, et **un lien direct vers le site officiel d'information ou de simulation** (ex: etudiant.gouv.fr, service-public.fr, caf.fr). Organise ta réponse en catégories.`;
+        const prompt = `Agis comme un coach financier spécialisé dans la vie étudiante. Un futur étudiant prépare son budget et souhaite connaître les principales aides financières disponibles pour les étudiants en France, avec une attention particulière pour la ville de "${city}". Ta mission est de fournir une liste claire et structurée. Pour chaque aide, tu dois préciser : son nom officiel, le public cible, la démarche clé pour l'obtenir, et un lien direct vers le site officiel d'information ou de simulation (ex: etudiant.gouv.fr, service-public.fr, caf.fr). Organise ta réponse en catégories (aides nationales, aides régionales/locales pour ${city}).`;
 
         const result = await callGeminiAPI(prompt, true);
         loader.style.display = 'none';
 
-        // --- AFFICHAGE AMÉLIORÉ AVEC LIENS CLIQUABLES ---
         let formattedResult = result.replace(/\* (.*?):/g, '<strong class="text-cyan-700">$1:</strong>');
-        formattedResult = linkify(formattedResult); // Transforme les URL en liens
+        formattedResult = linkify(formattedResult); 
         resultDiv.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200">${formattedResult}</div>`;
     });
 
@@ -1715,7 +1726,7 @@ function createGuideView() {
                 <p><strong>Objectif :</strong> Visualiser votre projet d'orientation en un seul coup d'œil.</p>
                 <p><strong>Fonctionnement :</strong> Située en haut de votre Journal de Bord, cette carte se remplit automatiquement au fur et à mesure que vous complétez les étapes. Elle connecte votre profil, les métiers que vous explorez et les compétences que vous identifiez.</p>
                 <div class="conseil-prof"><strong>Conseil du Prof :</strong> C'est la synthèse la plus visuelle et la plus motivante de votre parcours. Regardez-la se construire !</div>
-            </div>
+            </div>cd 
             <div class="etape">
                 <h4>🤖 Ton Coach Orientation (Chatbot)</h4>
                 <p><strong>Objectif :</strong> Obtenir des réponses rapides et fiables sur le fonctionnement de Parcoursup.</p>
@@ -2977,7 +2988,7 @@ function createStep11View() {
                     case 'seconde':
                         prompt = `Agis en tant que conseiller d'orientation expert, spécialisé dans l'accompagnement des lycéens en classe de Seconde générale en France.
 
-Un élève de Seconde te demande de lui créer un rétroplanning d'orientation personnalisé et actionnable pour son année scolaire. Nous sommes le 9 septembre 2025.
+Un élève de Seconde te demande de lui créer un rétroplanning d'orientation personnalisé et actionnable pour son année scolaire. Nous sommes le ${date}.
 
 Ta mission se déroule en plusieurs étapes :
 
@@ -2987,9 +2998,19 @@ Ta mission se déroule en plusieurs étapes :
     * La date du stage obligatoire de Seconde en fin d'année (juin).
     * Les périodes des grands salons d'orientation (Studyrama, l'Étudiant, etc.).
 
-2.  **Planification mensuelle :** En te basant sur ces informations, crée un planning mois par mois, de septembre 2025 à juin 2026. Pour chaque mois, propose des actions claires et réalistes.
+2.  **Planification mensuelle thématique :** En te basant sur ces informations, crée un planning mois par mois, du mois actuel jusqu'à juin de l'année suivante. Le planning doit suivre une progression logique :
+    * **Trimestre 1 : Exploration & Découverte.**
+    * **Trimestre 2 : Approfondissement & Préparation des choix.**
+    * **Trimestre 3 : Décision & Concrétisation.**
+    Pour chaque mois, propose des actions claires et réalistes.
 
 3.  **Intégration des étapes de l'application :** Pour chaque mois, tu dois recommander à l'élève de réaliser une ou plusieurs étapes de son application "Mon Explor'Orientation". Il est **impératif** que tu utilises scrupuleusement les noms exacts des étapes listées ci-dessous.
+
+4.  **Conseils d'Expert (Obligatoire) :**
+    Dans la section "conseilDetaille" de ta réponse JSON, tu dois inclure un paragraphe de coaching, suivi de deux sous-sections de conseils concrets :
+    * **Bien choisir ses spécialités :** Donne 2-3 conseils clés pour faire des choix éclairés (lien entre les matières, les projets d'études et les centres d'intérêt).
+    * **Réussir son stage de Seconde :** Explique comment chercher un stage, se comporter en entreprise et en tirer le meilleur parti pour son orientation.
+    * Tu dois impérativement écrire de façon fluide sans # et sans * dans tes paragraphes.
 
     **Liste des étapes de l'application à utiliser :**
     * 'Mieux se connaître'
@@ -3005,29 +3026,34 @@ Ta mission se déroule en plusieurs étapes :
                     case 'premiere':
                         prompt = ` Agis en tant que conseiller d'orientation expert et coach scolaire rigoureux, spécialisé dans l'accompagnement des lycéens en classe de Première générale en France.
 
-Un élève de Première te demande de lui créer un rétroplanning stratégique pour son année. Nous sommes le 9 septembre 2025. Ta réponse doit être d'une précision absolue et se baser sur les échéances officielles.
+Un élève de Première te demande de lui créer un rétroplanning stratégique pour son année. **Nous sommes le ${date}.** Ta réponse doit être d'une précision absolue et se baser sur les échéances officielles.
 
 Ta mission est la suivante :
 
-1.  **Calendrier Officiel des Épreuves (non-négociable) :**
-    Tu dois construire ton planning autour des dates **fixes et imposées** suivantes pour les épreuves de fin d'année 2026 :
-    * **Épreuve écrite de Français :** vendredi 12 juin 2026.
-    * **Épreuves orales de Français :** entre le lundi 22 juin et le vendredi 3 juillet 2026.
-    * **Épreuve de Mathématiques (pour tous) :** fin juin 2026. (Utilise la recherche web pour affiner ce jour si une date précise a été publiée).
-
+1.  **Calendrier de référence (non-négociable) :**
+    Tu dois construire ton planning autour des jalons suivants pour l'année scolaire en cours et à venir :
+    * **Échéances Académiques :** Prends en compte les périodes des **conseils de classe** (vers début décembre et mi-mars) comme des moments de bilan.
+    * **Périodes de Révision :** Utilise les **vacances scolaires** (Toussaint, Noël, Hiver, Pâques) comme des moments clés pour la consolidation et les révisions.
+    * **Épreuves Finales :**
+        * Épreuve écrite de Français : mi-juin.
+        * Épreuves orales de Français : de fin juin à début juillet.
+        * Épreuve de Mathématiques (pour tous) : fin juin.
+        (Utilise la recherche web pour trouver les dates exactes pour l'année scolaire concernée).
 
 2.  **Planification Stratégique Mensuelle :**
-    Élabore un planning détaillé de septembre 2025 à juillet 2026. Chaque mois doit comporter des tâches équilibrées entre **trois axes majeurs** :
-    * **Axe 1 - Intégration des connaissances :** Actions pour renforcer les acquis (français, maths). Inclure des conseils sur la gestion du temps et les techniques de révision.
-    * **Axe 2 - Intègre les étapes de l'application "Mon Explor'Orientation" que je te demande d'utiliser plus bas.
+    Élabore un planning détaillé à partir du mois actuel jusqu'à juillet de l'année suivante, en suivant une progression logique : le premier trimestre pour la découverte et la méthode, le deuxième pour l'approfondissement, et le troisième pour la finalisation et la préparation intensive.
+
+    Chaque mois doit comporter des tâches équilibrées entre **trois axes majeurs** :
+    * **Axe 1 - Réussite Scolaire :** Actions pour renforcer les acquis (français, maths).
+    * **Axe 2 - Construction du Projet :** Répartis de manière logique les étapes de l'application "Mon Explor'Orientation".
+    * **Axe 3 - Équilibre & Bien-être :** Propose une action simple pour gérer le stress et maintenir la motivation.
 
 3.  **Conseils d'Expert (Obligatoire) :**
-    Dans la section "conseilDetaille" de ta réponse JSON, tu dois inclure un paragraphe de coaching, suivi de **trois sous-sections de conseils méthodologiques distincts et concrets** :
-    * **Réussir l'Écrit de Français :** Donne 2-3 conseils clés sur la méthode (dissertation/commentaire) et la gestion des révisions des œuvres au programme.
-    * **Préparer l'Oral de Français :** Explique comment construire son descriptif de lecture et comment aborder la préparation de l'explication linéaire et de la question de grammaire.
-    * **Aborder l'Épreuve de Mathématiques :** Donne des conseils sur la manière de réviser le programme spécifique de cette épreuve et l'importance de la pratique régulière.
+    Dans la section "conseilDetaille" de ta réponse JSON, tu dois inclure un paragraphe de coaching, suivi de trois sous-sections de conseils méthodologiques distincts et concrets :
+    * Réussir l'Écrit de Français
+    * Préparer l'Oral de Français
+    * Aborder l'Épreuve de Mathématiques
     * Tu dois impérativement écrire de façon fluide sans # et sans * dans tes paragraphes.
-
 
     **Liste des étapes de l'application à utiliser :**
     * 'Mieux se connaître'
@@ -3044,52 +3070,62 @@ Ta mission est la suivante :
                     case 'terminale':
                         prompt = `Agis en tant que conseiller d'orientation expert et coach de réussite intransigeant, spécialisé dans l'accompagnement des lycéens en classe de Terminale en France.
 
-Un élève de Terminale te demande de lui créer un rétroplanning stratégique pour son année. Nous sommes le 9 septembre 2025. Ta réponse doit être d'une précision absolue et se baser sur le calendrier officiel.
+Un élève de Terminale te demande de lui créer un rétroplanning stratégique pour son année. **Nous sommes le ${date}.** Ta réponse doit être d'une précision absolue et se baser sur le calendrier officiel.
 
 Ta mission est la suivante :
 
-1.  **Calendrier Officiel 2025-2026 (non-négociable) :**
-    Tu dois construire ton planning en te basant **exclusivement** sur les échéances suivantes.
+1.  *Calendrier Officiel 2025-2026 (non-négociable) :**
+    Tu dois construire ton planning en te basant **exclusivement** sur les échéances suivantes.
 
-    **Épreuves du Baccalauréat (dates imposées) :**
-    * **Philosophie :** lundi 15 juin 2026.
-    * **Épreuves de spécialité :** du mardi 16 au jeudi 18 juin 2026.
-    * **Grand oral :** du lundi 22 juin au mercredi 1er juillet 2026.
+    **Épreuves du Baccalauréat (dates imposées) :**
+    * **Philosophie :** lundi 15 juin 2026.
+    * **Épreuves de spécialité :** du mardi 16 au jeudi 18 juin 2026.
+    * **Grand oral :** du lundi 22 juin au mercredi 1er juillet 2026.
 
-    **Calendrier Parcoursup (à respecter scrupuleusement) :**
-    * **Septembre à Décembre :** Phase d'information.
-    * **Fin Décembre :** Mise à jour du catalogue des formations.
-    * **Janvier :** Début des inscriptions et formulation des vœux.
-    * **Mars :** Date limite pour ajouter des vœux.
-    * **Avril :** Période pour finaliser les dossiers et confirmer chaque vœu.
-    * **Juin :** Début de la phase d'admission principale.
-    * **Juillet :** Fin de la phase principale.
+    **Calendrier Parcoursup (à respecter scrupuleusement) :**
+    * **Septembre à Décembre :** Phase d'information.
+    * **Fin Décembre :** Mise à jour du catalogue des formations.
+    * **Janvier :** Début des inscriptions et formulation des vœux.
+    * **Mars :** Date limite pour ajouter des vœux.
+    * **Avril :** Période pour finaliser les dossiers et confirmer chaque vœu.
+    * **Juin :** Début de la phase d'admission principale.
+    * **Juillet :** Fin de la phase principale.
+
+    * **Épreuves du Baccalauréat :**
+        * Philosophie
+        * Épreuves de spécialité
+        * Grand oral
+
+    * **Calendrier Parcoursup :**
+        * Phase d'information et ouverture du site.
+        * Début des inscriptions et formulation des vœux.
+        * **Date limite** pour ajouter des vœux.
+        * **Date limite** pour finaliser les dossiers et confirmer chaque vœu.
+        * Début de la phase d'admission principale.
+        * Fin de la phase principale.
 
 2.  **Planification Mensuelle Détaillée :**
-    À partir de ce calendrier, crée un planning de septembre 2025 à juillet 2026 avec deux axes clairs pour chaque mois :
-    * **Axe 1 - Parcoursup & Orientation :** Actions liées au dossier, vœux et admissions. Intègre les étapes de l'application "Mon Explor'Orientation".
+    À partir de ce calendrier, crée un planning **du mois actuel jusqu'à juillet de l'année suivante** avec **trois axes clairs** pour chaque mois :
+    * **Axe 1 - Parcoursup & Orientation :** Actions liées au dossier, vœux et admissions. Intègre les étapes de l'application.
     * **Axe 2 - Préparation au Bac :** Révisions et préparation spécifique pour chaque grande épreuve.
+    * **Axe 3 - Équilibre & Gestion du Stress :** Un conseil ou une action pour gérer la pression et rester concentré.
 
 3.  **Conseils d'Expert (Obligatoire) :**
-    Dans la section "conseilDetaille" de ta réponse JSON, tu dois inclure un paragraphe de coaching, suivi de **trois sous-sections de conseils méthodologiques distincts et concrets** :
-    * **Réussir la Philosophie :** Donne 2-3 conseils clés sur la méthode de la dissertation/commentaire et la gestion du temps.
-    * **Préparer les Épreuves de Spécialité :** Explique comment organiser ses révisions entre les deux matières et l'importance des annales.
-    * **Maîtriser le Grand Oral :** Donne des conseils sur le choix du sujet, la structuration de l'exposé et la gestion du stress.
-    * Tu dois impérativement écrire de façon fluide sans # et sans * dans tes paragraphes 
-
-
+    Dans la section "conseilDetaille" de ta réponse JSON, tu dois inclure un paragraphe de coaching, suivi de trois sous-sections de conseils méthodologiques distincts et concrets :
+    * **Réussir la Philosophie :** Donne 2-3 conseils clés sur la méthode et la gestion du temps.
+    * **Préparer les Épreuves de Spéralité :** Explique comment organiser ses révisions et l'importance des annales.
+    * **Maîtriser le Grand Oral :** Donne des conseils sur le choix du sujet, la structuration et la gestion du stress.
+    * Tu dois impérativement écrire de façon fluide sans # et sans * dans tes paragraphes.
 
 **Étapes clés de l'application à utiliser :**
 * 'Le Catalogue'
-* 'Préparer sa candidature'
-* 'Anticiper la suite'
 * 'Mon Portfolio de Compétences'
 * 'Passer à l'action'
 * 'L'Expérience'
 * 'Préparer sa candidature'
 * 'Anticiper la suite'
-* 'simulateur de vie étudiante'
- ${commonPromptPart}`;
+* 'Simulateur Vie Étudiante'
+ ${commonPromptPart}`
                         break;
                 }
 
