@@ -3305,8 +3305,16 @@ async function createPublicShareView(userId, token) {
                 const loader = mainApp.querySelector('#publicGeminiShareLoader');
                 const resultDiv = mainApp.querySelector('#publicGeminiShareResult');
                 loader.style.display = 'block'; resultDiv.textContent = '';
-                const prompt = `Analyse le journal de bord de cet élève : ${JSON.stringify(publicJournalData)}. Génère 3 'Pistes de discussion' pour un entretien avec ses parents ou son professeur. Formule-les comme des questions ouvertes pour faciliter un dialogue constructif.`;
-                const result = await callGeminiAPI(prompt);
+                const prompt = `Agis en tant que coach d'orientation et médiateur familial expert. Analyse le journal de bord de cet élève : ${JSON.stringify(publicJournalData)}.
+                
+                Ta mission est de générer 3 "points de dialogue" pour aider les parents ou professeurs à avoir une discussion constructive.
+
+                Pour chaque point, tu dois fournir deux éléments bien distincts :
+                1.  **Piste de discussion :** Une question ouverte et bienveillante qui ouvre le dialogue sur un point clé du journal (un doute, une force, une contradiction).
+                2.  **Action de résolution :** Une suggestion d'action simple et concrète que l'élève pourrait entreprendre pour avancer sur ce point précis (ex: utiliser une étape spécifique de l'application, faire une recherche ciblée, contacter quelqu'un).
+                
+                Utilise un ton encourageant et présente clairement les deux parties pour chaque point.`;
+                                const result = await callGeminiAPI(prompt);
                 loader.style.display = 'none';
                 resultDiv.textContent = result;
                 // Note : On ne sauvegarde pas le résultat, car c'est une page en lecture seule.
