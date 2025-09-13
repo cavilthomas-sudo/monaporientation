@@ -782,6 +782,17 @@ function createMenuView() {
         loader.style.display = 'none';
         resultDiv.textContent = result;
     });
+    
+    // Bouton déconnexion
+div.querySelector('#logoutButton').addEventListener('click', async () => {
+    try {
+        await signOut(auth);
+    } catch (error) {
+        console.error("Erreur lors de la déconnexion :", error);
+        alert("Impossible de se déconnecter, veuillez réessayer.");
+    }
+});
+
     return div;
 }
         
