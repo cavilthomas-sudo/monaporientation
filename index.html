@@ -3105,11 +3105,6 @@ Ta mission est la suivante :
         </div>
         <div id="badges-wrapper"></div>
         <div id="journalContent" class="mt-8"></div>
-        <div class="mt-8 border-t pt-6 text-center">
-            <button id="shareBtn" class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">🤝 Préparer une discussion</button>
-        </div>
-        <div id="geminiShareLoader" class="hidden"><div class="loader"></div></div>
-        <div id="geminiShareResult" class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg text-slate-700 whitespace-pre-wrap"></div>
     `;
 
     div.querySelector('#orientation-map-wrapper').innerHTML = createOrientationMapView(journalData);
@@ -3192,16 +3187,6 @@ Ta mission est la suivante :
         loader.style.display = 'none'; contentP.style.display = 'block';
     });
 
-    div.querySelector('#shareBtn').addEventListener('click', async () => {
-        const loader = div.querySelector('#geminiShareLoader');
-        const resultDiv = div.querySelector('#geminiShareResult');
-        loader.style.display = 'block'; resultDiv.textContent = '';
-        const prompt = `Analyse le journal de bord de cet élève : ${JSON.stringify(journalData)}. Génère 3 'Pistes de discussion' pour un entretien avec ses parents ou son professeur. Formule-les comme des questions ouvertes pour faciliter un dialogue constructif.`;
-        const result = await callGeminiAPI(prompt);
-        loader.style.display = 'none'; resultDiv.textContent = result;
-        journalData.discussion_points = result; await saveData();
-    });
-
     div.querySelector('#exportPdfBtn').addEventListener('click', exportPDF);
 
     return div;
@@ -3229,6 +3214,7 @@ async function createPublicShareView(userId, token) {
                 gradeLevel: data.gradeLevel || 'sa classe'
             };
             
+            // On commence à construire le HTML de la page partagée
             let pageHTML = `
                 <div class="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200">
                     <h1 class="text-2xl font-bold text-indigo-700 mb-2">Journal de Bord de ${userInfo.firstName}</h1>
@@ -3244,11 +3230,11 @@ async function createPublicShareView(userId, token) {
                     }
                 `;
 
-            // On utilise la fonction createBadgesDisplay pour afficher les badges
+            // On utilise une astuce pour réutiliser createBadgesDisplay avec les bonnes données
             const tempJournalData = journalData;
             journalData = publicJournalData;
             pageHTML += createBadgesDisplay('journal');
-            journalData = tempJournalData;
+            journalData = tempJournalData; // On restaure les données de l'utilisateur courant
 
             // --- Logique complète pour afficher le contenu détaillé du journal ---
             let contentHTML = '';
@@ -3290,17 +3276,41 @@ async function createPublicShareView(userId, token) {
                         }
                     }
                 }
+                
                 if (hasContent) {
-                    // On n'affiche pas le titre "Mieux se connaître" car il est déjà dans l'infographie
-                    if (stepKey !== 'step0') {
+                    if (stepKey === 'step0') {
+                        contentHTML += `<div class="mb-8"><h3 class="text-xl font-bold border-b pb-2 mb-4 text-indigo-700">${stepTitles[stepKey]}</h3><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-3 rounded-lg">${stepData.analysis}</p></div>`;
+                    } else {
                         contentHTML += `<div class="mb-8"><h3 class="text-xl font-bold border-b pb-2 mb-4 text-indigo-700">${stepTitles[stepKey]}</h3>${stepContent}</div>`;
                     }
                 }
             }
             
             pageHTML += contentHTML;
-            pageHTML += `</div>`;
+
+            // On ajoute le bouton "Préparer une discussion" à la fin
+            pageHTML += `
+                <div class="mt-8 border-t pt-6 text-center">
+                    <button id="publicShareBtn" class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">🤝 Préparer une discussion</button>
+                </div>
+                <div id="publicGeminiShareLoader" class="hidden"><div class="loader"></div></div>
+                <div id="publicGeminiShareResult" class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg text-slate-700 whitespace-pre-wrap"></div>
+            `;
+            
+            pageHTML += `</div>`; // Fin de la carte principale
             mainApp.innerHTML = pageHTML;
+
+            // On attache l'événement au nouveau bouton
+            mainApp.querySelector('#publicShareBtn').addEventListener('click', async () => {
+                const loader = mainApp.querySelector('#publicGeminiShareLoader');
+                const resultDiv = mainApp.querySelector('#publicGeminiShareResult');
+                loader.style.display = 'block'; resultDiv.textContent = '';
+                const prompt = `Analyse le journal de bord de cet élève : ${JSON.stringify(publicJournalData)}. Génère 3 'Pistes de discussion' pour un entretien avec ses parents ou son professeur. Formule-les comme des questions ouvertes pour faciliter un dialogue constructif.`;
+                const result = await callGeminiAPI(prompt);
+                loader.style.display = 'none';
+                resultDiv.textContent = result;
+                // Note : On ne sauvegarde pas le résultat, car c'est une page en lecture seule.
+            });
 
         } else {
             throw new Error("Utilisateur non trouvé.");
