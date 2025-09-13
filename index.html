@@ -360,13 +360,11 @@ function showSignupView() {
 
     signupForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const firstName = document.getElementById('firstName').value;
-        const lastName = document.getElementById('lastName').value;
-        const schoolNameInput = document.getElementById('schoolName').value;
+        const firstName = capitalizeWords(document.getElementById('firstName').value);
+        const lastName = capitalizeWords(document.getElementById('lastName').value);
+        const schoolName = capitalizeWords(document.getElementById('schoolName').value);
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
-
-        const schoolName = capitalizeWords(schoolNameInput);
 
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -490,7 +488,7 @@ window.showView = showView;
             });
         }
 
-        async function callGeminiAPI(prompt, useGrounding = false, isJson = false) {
+       async function callGeminiAPI(prompt, useGrounding = false, isJson = false) {
     const functionUrl = "https://us-central1-monapp0rientation.cloudfunctions.net/generateContent"; 
 
     try {
@@ -512,11 +510,20 @@ window.showView = showView;
         }
 
         const data = await response.json();
-        return data.result;
+        let resultText = data.result;
+
+        // --- CORRECTION APPLIQUÉE ICI ---
+        // On nettoie le texte s'il existe, s'il est bien du texte, et si ce n'est pas du JSON
+        if (!isJson && resultText && typeof resultText === 'string') {
+            resultText = resultText.replace(/[#*]/g, '');
+        }
+        // --- FIN DE LA CORRECTION ---
+
+        return resultText;
 
     } catch (error) {
         console.error("Error calling Cloud Function:", error);
-        return `Impossible de contacter le service d'IA. (${error.message})`;
+        return isJson ? "{}" : `Impossible de contacter le service d'IA. (${error.message})`;
     }
 }
         
@@ -614,7 +621,7 @@ function createMenuView() {
     const progressPercentage = totalTrackableSteps > 0 ? (completedStepsCount / totalTrackableSteps) * 100 : 0;
 
     const progressBarHTML = `
-        <div class="mb-8">
+        <div class="max-w-md mx-auto mb-8">
             <div class="flex justify-between mb-1">
                 <span class="text-base font-medium text-cyan-700">Progression</span>
                 <span class="text-sm font-medium text-cyan-700">${Math.round(progressPercentage)}%</span>
@@ -626,7 +633,7 @@ function createMenuView() {
     `;
 
     const guideCardHTML = `
-        <div onclick="window.showView('guide')" class="step-card bg-white p-4 rounded-xl shadow-md border border-slate-200 cursor-pointer flex flex-col items-center space-y-2 mb-6">
+        <div onclick="window.showView('guide')" class="step-card bg-white p-4 rounded-xl shadow-md border border-slate-200 cursor-pointer flex flex-col items-center space-y-2 mb-6 max-w-md mx-auto">
             <div class="text-3xl">❓</div>
             <div class="text-center">
                 <h2 class="text-lg font-semibold text-slate-800">Guide d'Utilisation</h2>
@@ -805,7 +812,7 @@ function createMenuView() {
         }
         
 
-// REMPLACEZ VOTRE FONCTION createProfileInfographic EXISTANTE PAR CELLE-CI :
+
 
 function createProfileInfographic(step0Data) {
     if (!step0Data || !step0Data.analysis) {
