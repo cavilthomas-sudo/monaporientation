@@ -3234,6 +3234,8 @@ async function createPublicShareView(userId, token) {
                     <h1 class="text-2xl font-bold text-indigo-700 mb-2">Journal de Bord de ${userInfo.firstName}</h1>
                     <p class="text-slate-500 mb-8">Élève en ${userInfo.gradeLevel} à ${userInfo.schoolName}.</p>
                     
+                    ${createOrientationMapView(publicJournalData)} 
+                    
                     ${publicJournalData.fil_rouge ? `
                         <div class="mb-8 p-6 bg-violet-50 border-l-4 border-violet-500 rounded-r-lg">
                             <h2 class="text-xl font-bold text-violet-800 mb-4">✨ Son Fil Rouge</h2>
@@ -3243,16 +3245,15 @@ async function createPublicShareView(userId, token) {
                 `;
 
             // On utilise la fonction createBadgesDisplay pour afficher les badges
-            // en lui passant les données du journal public
-            const tempJournalData = journalData; // Sauvegarde temporaire
-            journalData = publicJournalData; // On utilise les données publiques
+            const tempJournalData = journalData;
+            journalData = publicJournalData;
             pageHTML += createBadgesDisplay('journal');
-            journalData = tempJournalData; // On restaure les données de l'utilisateur courant
+            journalData = tempJournalData;
 
             // --- Logique complète pour afficher le contenu détaillé du journal ---
             let contentHTML = '';
             if (publicJournalData.step0 && publicJournalData.step0.analysis) {
-                contentHTML += createProfileInfographic(publicJournalData.step0);
+                contentHTML += createProfileInfographic(publicJournalData.step0).outerHTML;
             }
 
             const stepTitles = {
@@ -3283,14 +3284,17 @@ async function createPublicShareView(userId, token) {
                         if (value && typeof value === 'string' && value.trim() !== '' && !key.startsWith('q')) {
                             hasContent = true;
                             const config = Object.values(stepsConfig).find(c => c.stepKey === stepKey);
-                            let label = key;
+                            let label = key.replace(/([A-Z0-9])/g, ' $1').replace(/^./, str => str.toUpperCase());
                             if (config && config.fields) { const field = config.fields.find(f => f.id === key); if (field) label = field.label; }
                             stepContent += `<div class="mb-3"><p class="font-semibold text-slate-700">${label}</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${value}</p></div>`;
                         }
                     }
                 }
                 if (hasContent) {
-                    contentHTML += `<div class="mb-8"><h3 class="text-xl font-bold border-b pb-2 mb-4 text-indigo-700">${stepTitles[stepKey]}</h3>${stepContent}</div>`;
+                    // On n'affiche pas le titre "Mieux se connaître" car il est déjà dans l'infographie
+                    if (stepKey !== 'step0') {
+                        contentHTML += `<div class="mb-8"><h3 class="text-xl font-bold border-b pb-2 mb-4 text-indigo-700">${stepTitles[stepKey]}</h3>${stepContent}</div>`;
+                    }
                 }
             }
             
