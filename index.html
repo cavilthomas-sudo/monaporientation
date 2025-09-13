@@ -3154,8 +3154,14 @@ Ta mission est la suivante :
         if (!stepData) continue;
         let stepContent = '';
         let hasContent = false;
-
-        if (stepKey === 'step11') {
+            
+        if (stepKey === 'step0') {
+            if (stepData.analysis && stepData.analysis.trim() !== '') {
+                hasContent = true;
+                // On affiche directement l'analyse sans sous-titre
+                stepContent += `<div class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-3 rounded-lg">${stepData.analysis}</div>`;
+            }
+        } else if (stepKey === 'step11') {
             if (stepData.location) { hasContent = true; stepContent += `<div class="mb-3"><p class="font-semibold text-slate-700">Lieu de recherche</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${stepData.location}</p></div>`; }
             if (stepData.evenements && Array.isArray(stepData.evenements) && stepData.evenements.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Événements sauvegardés :</h4>`; stepData.evenements.forEach(event => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-bold text-cyan-700">${event.nom || ''}</p><p class="text-sm text-slate-600">${event.date || ''} - ${event.lieu || ''}</p></div>`; }); }
             if (stepData.structures && Array.isArray(stepData.structures) && stepData.structures.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Structures sauvegardées :</h4>`; stepData.structures.forEach(struct => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-bold text-cyan-700">${struct.nom || ''}</p><p class="text-sm text-slate-600">${struct.adresse || ''}</p></div>`; }); }
