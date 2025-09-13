@@ -3386,10 +3386,9 @@ function createJournalContentHTML(data) {
 
 // REMPLACEZ VOTRE FONCTION exportPDF EXISTANTE PAR CELLE-CI :
 
-async function exportPDF() {
-    // DÉCLARATION AU BON ENDROIT : On attend le clic pour être sûr que la bibliothèque est chargée.
-    const { jsPDF } = window.jspdf;
+// REMPLACEZ VOTRE FONCTION exportPDF EXISTANTE PAR CETTE VERSION FINALE :
 
+async function exportPDF() {
     const printContainer = document.createElement('div');
     printContainer.style.position = 'absolute';
     printContainer.style.left = '-9999px';
@@ -3413,8 +3412,17 @@ async function exportPDF() {
             .badge-item span { font-size: 36px; }
             .badge-item p { font-size: 10px; font-weight: 500; color: #475569; }
             .journal-section { margin-bottom: 25px; page-break-inside: avoid; }
-            .whitespace-pre-wrap { white-space: pre-wrap; }
             a { color: #4f46e5; text-decoration: none; }
+            /* Classes Tailwind utilisées dans l'infographie */
+            .bg-slate-50 { background-color: #f8fafc; } .p-6 { padding: 1.5rem; } .rounded-xl { border-radius: 0.75rem; } .border { border-width: 1px; } .border-slate-200 { border-color: #e2e8f0; } .mt-4 { margin-top: 1rem; }
+            .grid { display: grid; } .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); } .md\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .gap-x-8 { column-gap: 2rem; } .gap-y-6 { row-gap: 1.5rem; } .mb-8 { margin-bottom: 2rem; }
+            .font-semibold { font-weight: 600; } .text-slate-700 { color: #334155; } .mb-1 { margin-bottom: 0.25rem; }
+            .flex { display: flex; } .items-center { align-items: center; } .justify-between { justify-content: space-between; }
+            .text-sm { font-size: 0.875rem; } .text-slate-600 { color: #475569; }
+            .font-medium { font-weight: 500; } .text-indigo-700 { color: #4338ca; } .text-violet-700 { color: #6d28d9; }
+            .w-full { width: 100%; } .h-2 { height: 0.5rem; } .rounded-full { border-radius: 9999px; } .overflow-hidden { overflow: hidden; }
+            .w-1\\/2 { width: 50%; } .bg-slate-200 { background-color: #e2e8f0; } .bg-indigo-600 { background-color: #4f46e5; } .bg-violet-600 { background-color: #7c3aed; }
         </style>
     `;
 
@@ -3446,23 +3454,28 @@ async function exportPDF() {
     printContainer.innerHTML = styles + html;
     document.body.appendChild(printContainer);
 
-    const canvas = await html2canvas(printContainer, { 
-        scale: 2,
-        useCORS: true,
-        windowWidth: printContainer.scrollWidth,
-        windowHeight: printContainer.scrollHeight
-    });
-    
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    
-    document.body.removeChild(printContainer);
+    // --- CORRECTION APPLIQUÉE ICI ---
+    // On ajoute une courte pause pour laisser le temps au navigateur de tout dessiner
+    setTimeout(async () => {
+        const { jsPDF } = window.jspdf;
+        const canvas = await html2canvas(printContainer, { 
+            scale: 2,
+            useCORS: true,
+            windowWidth: printContainer.scrollWidth,
+            windowHeight: printContainer.scrollHeight
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        
+        document.body.removeChild(printContainer);
 
-    pdf.save(`Rapport_Orientation_${currentUserInfo.firstName}_${currentUserInfo.lastName}.pdf`);
+        pdf.save(`Rapport_Orientation_${currentUserInfo.firstName}_${currentUserInfo.lastName}.pdf`);
+    }, 500); // Une pause de 500 millisecondes
 }
 function isStepComplete(stepKey) {
     const config = Object.values(stepsConfig).find(s => s.stepKey === stepKey);
