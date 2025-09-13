@@ -114,8 +114,7 @@
     </div>
 
     <!-- Chatbot Window -->
-    <div id="chatbot-container" class="hidden fixed bottom-24 right-6 w-full max-w-sm h-[60vh] bg-white rounded-2xl shadow-xl border border-slate-200 z-50 flex flex-col">
-        <div class="flex items-center justify-between p-4 border-b bg-slate-50 rounded-t-2xl">
+   <div id="chatbot-container" class="hidden fixed bottom-4 right-4 sm:bottom-24 sm:right-6 w-[calc(100%-2rem)] max-w-sm h-[70vh] sm:h-[60vh] bg-white rounded-2xl shadow-xl border border-slate-200 z-50 flex flex-col">           <div class="flex items-center justify-between p-4 border-b bg-slate-50 rounded-t-2xl">
             <h3 class="font-bold text-slate-800">🤖 Ton Coach Orientation</h3>
             <button id="chatbot-close" class="text-slate-500 hover:text-slate-800">&times;</button>
         </div>
@@ -265,7 +264,7 @@ function showLoginView() {
                 <input id="password" type="password" placeholder="Mot de passe" class="w-full p-3 mb-4 border border-slate-300 rounded-lg" required>
                 <button type="submit" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700 transition">Se connecter</button>
             </form>
-            <div class="flex justify-between items-center text-sm">
+            <div class="flex justify-between items-center text-sm text-left">
                 <p class="text-slate-500">Pas encore de compte ? 
                     <button id="showSignupButton" class="font-semibold text-cyan-600 hover:underline">Inscrivez-vous</button>
                 </p>
