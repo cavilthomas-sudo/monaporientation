@@ -2690,7 +2690,7 @@ function createStep10View() {
 
     return div;
 }
-// REMPLACEZ VOTRE FONCTION createOrientationMapView EXISTANTE PAR CELLE-CI :
+
 
 function createOrientationMapView(data) {
     let mapHTML = '<div class="mb-8"><h2 class="text-xl font-bold text-slate-800 text-center mb-4">🗺️ Carte d\'Orientation Personnelle</h2>';
@@ -2698,9 +2698,13 @@ function createOrientationMapView(data) {
 
     const profileAnalysis = data.step0 ? data.step0.analysis : '';
     if (profileAnalysis) {
+        // --- CORRECTION APPLIQUÉE ICI ---
+        // On ne prend que la première phrase de l'analyse en coupant au premier point.
+        const profileSummary = profileAnalysis.split('.')[0] + '.';
+
         mapHTML += `<div class="lg:col-span-1 bg-cyan-50 p-4 rounded-lg border border-cyan-200">
                         <h3 class="font-bold text-cyan-800 text-center">👤 Mon Profil</h3>
-                        <p class="text-sm text-slate-600 whitespace-pre-wrap mt-2">${profileAnalysis}</p>
+                        <p class="text-sm text-slate-600 whitespace-pre-wrap mt-2">${profileSummary}</p>
                     </div>`;
     } else {
         mapHTML += `<div class="lg:col-span-1 bg-slate-50 p-4 rounded-lg border text-center">
