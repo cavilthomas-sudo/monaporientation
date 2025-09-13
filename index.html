@@ -504,7 +504,7 @@ window.showView = showView;
             })
         });
 
-        if (!response.ok) {
+        if (!response.ok) {cd 
             const errorData = await response.json();
             throw new Error(`Erreur du serveur: ${errorData.error || response.statusText}`);
         }
@@ -512,20 +512,42 @@ window.showView = showView;
         const data = await response.json();
         let resultText = data.result;
 
-        // --- CORRECTION APPLIQUÉE ICI ---
-        // On nettoie le texte s'il existe, s'il est bien du texte, et si ce n'est pas du JSON
-        if (!isJson && resultText && typeof resultText === 'string') {
-            resultText = resultText.replace(/[#*]/g, '');
+       const cleanResponse = (text) => {
+        if (!isJson && text && typeof text === 'string') {
+            return text.replace(/[#*]/g, '');
         }
-        // --- FIN DE LA CORRECTION ---
+        return text;
+    };
 
-        return resultText;
+    const functionUrl = "https://us-central1-monapp0rientation.cloudfunctions.net/generateContent"; 
+
+    try {
+        const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt: prompt,
+                useGrounding: useGrounding,
+                isJson: isJson
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Erreur du serveur: ${errorData.error || response.statusText}`);
+        }
+
+        const data = await response.json();
+        // On nettoie la réponse en cas de succès
+        return cleanResponse(data.result);
 
     } catch (error) {
         console.error("Error calling Cloud Function:", error);
-        return isJson ? "{}" : `Impossible de contacter le service d'IA. (${error.message})`;
+        const errorMessage = `Impossible de contacter le service d'IA. (${error.message})`;
+        // On nettoie aussi le message d'erreur au cas où
+        return cleanResponse(errorMessage);
     }
-}
+
         
         async function showView(viewName) {
     mainApp.innerHTML = '';
