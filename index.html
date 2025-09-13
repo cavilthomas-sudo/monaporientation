@@ -2690,6 +2690,8 @@ function createStep10View() {
 
     return div;
 }
+// REMPLACEZ VOTRE FONCTION createOrientationMapView EXISTANTE PAR CELLE-CI :
+
 function createOrientationMapView(data) {
     let mapHTML = '<div class="mb-8"><h2 class="text-xl font-bold text-slate-800 text-center mb-4">🗺️ Carte d\'Orientation Personnelle</h2>';
     mapHTML += '<div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">';
@@ -2698,7 +2700,7 @@ function createOrientationMapView(data) {
     if (profileAnalysis) {
         mapHTML += `<div class="lg:col-span-1 bg-cyan-50 p-4 rounded-lg border border-cyan-200">
                         <h3 class="font-bold text-cyan-800 text-center">👤 Mon Profil</h3>
-                        <p class="text-sm text-slate-600 whitespace-pre-wrap mt-2">${profileAnalysis.split('\n')[0]}</p>
+                        <p class="text-sm text-slate-600 whitespace-pre-wrap mt-2">${profileAnalysis}</p>
                     </div>`;
     } else {
         mapHTML += `<div class="lg:col-span-1 bg-slate-50 p-4 rounded-lg border text-center">
