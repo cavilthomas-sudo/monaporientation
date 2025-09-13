@@ -250,7 +250,7 @@ function showLoginView() {
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 fade-in">
             
-            <img src="logo.png" alt="Logo Mon Explor'Orientation" class="mx-auto h-64 w-auto mb-6">
+            <img src="logo.png" alt="Logo Mon Explor'Orientation" class="mx-auto h-48 w-auto mb-6">
 
             <div class="p-4 bg-slate-50 rounded-lg text-center text-slate-700 mb-6">
                 <p>Bienvenue sur ton compagnon d'orientation personnel. Explore des métiers, simule tes choix et construis ton projet d'avenir grâce à des outils interactifs et une IA bienveillante. Ton exploration commence ici.</p>
@@ -267,6 +267,11 @@ function showLoginView() {
                 </p>
                 <button id="forgotPasswordButton" class="text-sm text-slate-500 hover:underline">Mot de passe oublié ?</button>
             </div>
+            
+            <div class="text-center mt-6 border-t pt-4">
+                <button id="showGuideButton" class="text-sm text-slate-500 hover:underline">❓ Consulter le guide d'utilisation</button>
+            </div>
+
             <p id="authError" class="text-red-500 text-center mt-4"></p>
         </div>
     `;
@@ -282,6 +287,7 @@ function showLoginView() {
 
     authContainer.querySelector('#showSignupButton').addEventListener('click', showSignupView);
     authContainer.querySelector('#forgotPasswordButton').addEventListener('click', showForgotPasswordView);
+    authContainer.querySelector('#showGuideButton').addEventListener('click', window.showGuideFromLogin);
 }
 
 function showForgotPasswordView() {
