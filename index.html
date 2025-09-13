@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon Explor'Orientation</title>
     <link rel="icon" href="logo.png" type="image/png">
+    <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -92,6 +93,16 @@
             transition: opacity 0.3s ease;
         }
 
+        h1, h2, h3, h4 {
+            text-align: center; /* Centré par défaut (mobile) */
+        }
+
+        @media (min-width: 768px) { /* Correspond au breakpoint 'md' de Tailwind */
+            h1, h2, h3, h4 {
+                text-align: left; /* Aligné à gauche sur les écrans plus grands */
+            }
+        }
+        
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -3704,6 +3715,16 @@ Réponds maintenant à la question suivante : "${userInput}"`;
 
         window.showView = showView;
         window.exportPDF = exportPDF;
+
+        if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').then(registration => {
+                console.log('SW registered: ', registration);
+            }).catch(registrationError => {
+                console.log('SW registration failed: ', registrationError);
+            });
+        });
+    }
     </script>
 </body>
 </html>
