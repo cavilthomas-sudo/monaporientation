@@ -3143,7 +3143,7 @@ Ta mission est la suivante :
             if (stepData.evenements && Array.isArray(stepData.evenements) && stepData.evenements.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Événements sauvegardés :</h4>`; stepData.evenements.forEach(event => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-bold text-indigo-700">${event.nom || ''}</p><p class="text-sm text-slate-600">${event.date || ''} - ${event.lieu || ''}</p></div>`; }); }
             if (stepData.structures && Array.isArray(stepData.structures) && stepData.structures.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Structures sauvegardées :</h4>`; stepData.structures.forEach(struct => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-bold text-indigo-700">${struct.nom || ''}</p><p class="text-sm text-slate-600">${struct.adresse || ''}</p></div>`; }); }
         } else if (stepKey === 'step10') {
-            if (stepData.experiences && stepData.experiences.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mb-2">Expériences Significatives :</h4>`; stepData.experiences.forEach((exp, index) => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`; }); }
+            if (stepData.experiences && Array.isArray(stepData.experiences) && stepData.experiences.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mb-2">Expériences Significatives :</h4>`; stepData.experiences.forEach((exp, index) => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`; }); }
             if (stepData.soft_skills_profile) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Profil de Compétences Transversales :</h4>`; stepContent += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>`; }
         } else {
             for (const [key, value] of Object.entries(stepData)) {
@@ -3165,10 +3165,43 @@ Ta mission est la suivante :
 
     // --- Logique des boutons ---
     const toggleBtn = div.querySelector('#toggle-share-btn');
-    toggleBtn.addEventListener('click', async () => { /* ... */ });
-    if (shareToken) { div.querySelector('#copy-share-link').addEventListener('click', () => { /* ... */ }); }
-    div.querySelector('#updateFilRougeBtn').addEventListener('click', async () => { /* ... */ });
-    div.querySelector('#shareBtn').addEventListener('click', async () => { /* ... */ });
+    toggleBtn.addEventListener('click', async () => {
+        if (journalData.share_token) {
+            if (confirm("Es-tu sûr de vouloir désactiver le partage ? Le lien ne fonctionnera plus.")) {
+                journalData.share_token = null; await saveData(); showView('journal');
+            }
+        } else {
+            journalData.share_token = 'shr_' + Math.random().toString(36).substr(2, 16); await saveData(); showView('journal');
+        }
+    });
+
+    if (shareToken) {
+        div.querySelector('#copy-share-link').addEventListener('click', () => {
+            navigator.clipboard.writeText(shareLink).then(() => alert("Lien copié !"));
+        });
+    }
+
+    div.querySelector('#updateFilRougeBtn').addEventListener('click', async () => {
+        const loader = div.querySelector('#filRougeLoader');
+        const contentP = div.querySelector('#filRougeContent');
+        loader.style.display = 'block'; contentP.style.display = 'none';
+        const prompt = `En te basant sur l'intégralité du journal de cet élève : ${JSON.stringify(journalData)}, rédige une synthèse de son projet d'orientation en 3 points : 1. Tes Moteurs : Quels sont les grands intérêts qui ressortent ? 2. Tes Compétences Clés : Quelles sont les aptitudes qui semblent importantes ? 3. Ton Environnement Idéal : Quel type d'études semble te correspondre ? Donne un titre à son projet.`;
+        const result = await callGeminiAPI(prompt);
+        journalData.fil_rouge = result; await saveData();
+        contentP.textContent = result;
+        loader.style.display = 'none'; contentP.style.display = 'block';
+    });
+
+    div.querySelector('#shareBtn').addEventListener('click', async () => {
+        const loader = div.querySelector('#geminiShareLoader');
+        const resultDiv = div.querySelector('#geminiShareResult');
+        loader.style.display = 'block'; resultDiv.textContent = '';
+        const prompt = `Analyse le journal de bord de cet élève : ${JSON.stringify(journalData)}. Génère 3 'Pistes de discussion' pour un entretien avec ses parents ou son professeur. Formule-les comme des questions ouvertes pour faciliter un dialogue constructif.`;
+        const result = await callGeminiAPI(prompt);
+        loader.style.display = 'none'; resultDiv.textContent = result;
+        journalData.discussion_points = result; await saveData();
+    });
+
     div.querySelector('#exportPdfBtn').addEventListener('click', exportPDF);
 
     return div;
