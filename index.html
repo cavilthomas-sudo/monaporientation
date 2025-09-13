@@ -3396,8 +3396,8 @@ async function exportPDF() {
     const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
     let y = MARGIN;
 
-    const COLOR_PRIMARY = '#4f46e5'; // Indigo
-    const COLOR_SECONDARY = '#475569'; // Slate
+    const COLOR_PRIMARY = '#4f46e5';
+    const COLOR_SECONDARY = '#475569';
     const COLOR_TEXT = '#334155';
     
     // --- Fonctions utilitaires ---
@@ -3465,35 +3465,48 @@ async function exportPDF() {
         if (!stepData || Object.values(stepData).every(v => !v || (Array.isArray(v) && v.length === 0))) continue;
 
         if (key === 'fil_rouge' && stepData.trim()) {
-            addSectionTitle("✨ Mon Fil Rouge");
+            addSectionTitle("Mon Fil Rouge");
             addBodyText(stepData);
             continue;
         } 
         if (key === 'badges') {
             const earnedBadges = journalData.earned_badges || [];
             if(earnedBadges.length > 0) {
-                addSectionTitle("🏆 Mes Badges");
+                addSectionTitle("Mes Badges");
                 earnedBadges.forEach(badgeKey => {
                     const badge = badgesConfig[badgeKey];
-                    if (badge) addBodyText(`${badge.icon} ${badge.title}`);
+                    if (badge) addBodyText(`- ${badge.title}`);
                 });
             }
             continue;
         }
 
-        addSectionTitle(`${stepInfo.icon} ${stepInfo.title}`);
+        addSectionTitle(stepInfo.title);
 
         if (key === 'step0' && stepData.analysis) {
             const infographicContainer = createProfileInfographic(stepData);
             const elementToCapture = infographicContainer.querySelector('.bg-slate-50');
+
             if (elementToCapture) {
-                elementToCapture.style.width = '700px';
-                const canvas = await html2canvas(elementToCapture, { scale: 3, backgroundColor: '#f8fafc' });
-                const imgData = canvas.toDataURL('image/png');
-                const imgHeight = (canvas.height * CONTENT_WIDTH) / canvas.width;
-                checkPageBreak(imgHeight + 5);
-                doc.addImage(imgData, 'PNG', MARGIN, y, CONTENT_WIDTH, imgHeight);
-                y += imgHeight + 8;
+                // CORRECTION : On attache, on capture, on retire
+                infographicContainer.style.position = 'fixed';
+                infographicContainer.style.left = '-9999px';
+                infographicContainer.style.width = '700px';
+                document.body.appendChild(infographicContainer);
+
+                try {
+                    const canvas = await html2canvas(elementToCapture, { scale: 3, backgroundColor: '#f8fafc' });
+                    const imgData = canvas.toDataURL('image/png');
+                    const imgHeight = (canvas.height * CONTENT_WIDTH) / canvas.width;
+                    checkPageBreak(imgHeight + 5);
+                    doc.addImage(imgData, 'PNG', MARGIN, y, CONTENT_WIDTH, imgHeight);
+                    y += imgHeight + 8;
+                } catch (e) {
+                    console.error("html2canvas failed:", e);
+                    addBodyText("[Erreur lors de la génération de l'infographie]");
+                } finally {
+                    document.body.removeChild(infographicContainer);
+                }
             }
             addSubHeader("Analyse de l'IA :");
             addBodyText(stepData.analysis);
