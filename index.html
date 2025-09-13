@@ -3351,94 +3351,178 @@ async function createPublicShareView(userId, token) {
         }
 
 
-// REMPLACEZ VOTRE FONCTION exportPDF EXISTANTE PAR CETTE VERSION FINALE :
-
 async function exportPDF() {
-    const exportButton = document.getElementById('exportPdfBtn');
-    exportButton.disabled = true;
-    exportButton.textContent = 'Génération en cours...';
-
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    const FONT_NORMAL = 'Helvetica';
 
+    // --- Constantes de mise en page et couleurs ---
     const MARGIN = 15;
     const PAGE_WIDTH = doc.internal.pageSize.getWidth();
     const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
     const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
     let y = MARGIN;
 
-    // --- PAGE DE GARDE ---
+    const COLOR_PRIMARY = '#4f46e5'; // Indigo
+    const COLOR_SECONDARY = '#475569'; // Slate
+    const COLOR_TEXT = '#334155';
+    
+    // --- Fonctions utilitaires pour un code propre ---
+    const checkPageBreak = (heightNeeded) => {
+        if (y + heightNeeded > PAGE_HEIGHT - MARGIN) {
+            doc.addPage();
+            y = MARGIN;
+        }
+    };
+
+    const addSectionTitle = (title, icon) => {
+        checkPageBreak(20);
+        doc.setFontSize(16);
+        doc.setFont(FONT_NORMAL, 'bold');
+        doc.setTextColor(COLOR_PRIMARY);
+        doc.text(`${icon} ${title}`, MARGIN, y);
+        y += 6;
+        doc.setDrawColor('#cbd5e1');
+        doc.line(MARGIN, y, PAGE_WIDTH - MARGIN, y);
+        y += 10;
+    };
+
+    const addBodyText = (text, options = {}) => {
+        const { indent = 0, isHTML = false } = options;
+        doc.setFontSize(11);
+        doc.setFont(FONT_NORMAL, 'normal');
+        doc.setTextColor(COLOR_TEXT);
+        const cleanText = isHTML ? text.replace(/<br>/g, '\n').replace(/<[^>]*>/g, '') : text;
+        const textLines = doc.splitTextToSize(cleanText, CONTENT_WIDTH - indent);
+        checkPageBreak(textLines.length * 5);
+        doc.text(textLines, MARGIN + indent, y);
+        y += textLines.length * 5 + 4;
+    };
+
+    const addSubHeader = (text) => {
+        checkPageBreak(8);
+        doc.setFontSize(12);
+        doc.setFont(FONT_NORMAL, 'bold');
+        doc.setTextColor(COLOR_SECONDARY);
+        doc.text(text, MARGIN, y);
+        y += 7;
+    };
+
+    // --- 1. PAGE DE GARDE ---
     doc.setFontSize(24);
-    doc.setFont('Helvetica', 'bold');
-    doc.setTextColor('#4f46e5'); // Indigo
-    doc.text("Journal de Bord d'Orientation", PAGE_WIDTH / 2, 120, { align: 'center' });
+    doc.setFont(FONT_NORMAL, 'bold');
+    doc.setTextColor(COLOR_PRIMARY);
+    doc.text("Rapport d'Orientation Personnalisé", PAGE_WIDTH / 2, 120, { align: 'center' });
     doc.setFontSize(16);
-    doc.setFont('Helvetica', 'normal');
-    doc.setTextColor('#475569'); // Slate
+    doc.setFont(FONT_NORMAL, 'normal');
+    doc.setTextColor(COLOR_SECONDARY);
     doc.text(`${currentUserInfo.firstName} ${currentUserInfo.lastName}`, PAGE_WIDTH / 2, 135, { align: 'center' });
     doc.setFontSize(12);
     doc.text(`Élève de ${userGradeLevel}`, PAGE_WIDTH / 2, 145, { align: 'center' });
     doc.text(capitalizeWords(currentUserInfo.schoolName), PAGE_WIDTH / 2, 152, { align: 'center' });
     
-    // Liste de toutes les sections à capturer, dans l'ordre
-    const sectionsToCapture = [
-        '#orientation-map-wrapper',
-        '#filRougeContainer',
-        '#badges-wrapper',
-        '#journal-section-step0',
-        '#journal-section-step10',
-        '#journal-section-step1',
-        '#journal-section-step2',
-        '#journal-section-step3',
-        '#journal-section-step5',
-        '#journal-section-step11',
-        '#journal-section-discussion',
+    doc.addPage();
+    y = MARGIN;
+
+    // --- 2. GÉNÉRATION EXHAUSTIVE DU CONTENU DU RAPPORT ---
+
+    // Ordre d'affichage des sections dans le PDF
+    const reportOrder = [
+        'fil_rouge', 'badges', 'step0', 'step10', 'step1', 'step2', 'step3', 
+        'step5', 'step4', 'step8', 'step11', 'step6', 'step9', 'retroplanning'
     ];
 
-    for (const selector of sectionsToCapture) {
-        const element = document.querySelector(selector);
+    for (const key of reportOrder) {
+        const stepData = journalData[key];
+        const stepInfo = Object.values(stepsConfig).find(s => s.stepKey === key) || { title: 'Rétroplanning', icon: '🗓️' };
         
-        // On ne capture que les sections qui existent et sont visibles
-        if (element && element.offsetHeight > 0) {
-            doc.addPage();
-            y = MARGIN;
-            
-            try {
-                const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-                const imgData = canvas.toDataURL('image/png');
-                
-                const imgHeight = (canvas.height * CONTENT_WIDTH) / canvas.width;
-                
-                // Vérification si l'image est plus grande que la page
-                if (imgHeight > PAGE_HEIGHT - (MARGIN * 2)) {
-                    doc.addImage(imgData, 'PNG', MARGIN, y, CONTENT_WIDTH, PAGE_HEIGHT - (MARGIN * 2), undefined, 'FAST');
-                } else {
-                    doc.addImage(imgData, 'PNG', MARGIN, y, CONTENT_WIDTH, imgHeight, undefined, 'FAST');
-                }
+        // On ne crée une section que si la donnée existe et n'est pas vide
+        if (!stepData || Object.values(stepData).every(v => !v || (Array.isArray(v) && v.length === 0))) continue;
 
-            } catch (e) {
-                console.error(`Erreur lors de la capture de ${selector}:`, e);
-                doc.text(`Erreur lors de la génération de la section: ${selector}`, MARGIN, y);
+        if (key === 'fil_rouge' && stepData.trim()) {
+            addSectionTitle("Mon Fil Rouge", "✨");
+            addBodyText(stepData);
+            continue; // Passe à la section suivante
+        } 
+        
+        if (key === 'badges') {
+            const earnedBadges = journalData.earned_badges || [];
+            if(earnedBadges.length > 0) {
+                addSectionTitle("Mes Badges", "🏆");
+                let badgeText = earnedBadges.map(badgeKey => {
+                    const badge = badgesConfig[badgeKey];
+                    return badge ? `${badge.icon} ${badge.title}` : '';
+                }).filter(Boolean).join('  |  ');
+                addBodyText(badgeText);
             }
+            continue;
+        }
+
+        // Pour toutes les autres étapes, on crée le titre de section
+        addSectionTitle(stepInfo.title, stepInfo.icon);
+
+        if (key === 'step0' && stepData.analysis) {
+            const infographicContainer = createProfileInfographic(stepData);
+            const elementToCapture = infographicContainer.querySelector('.bg-slate-50');
+
+            if (elementToCapture) {
+                infographicContainer.style.position = 'fixed';
+                infographicContainer.style.left = '-9999px';
+                infographicContainer.style.width = '700px';
+                document.body.appendChild(infographicContainer);
+
+                try {
+                    const canvas = await html2canvas(elementToCapture, { scale: 3, backgroundColor: '#f8fafc' });
+                    const imgData = canvas.toDataURL('image/png');
+                    const imgHeight = (canvas.height * CONTENT_WIDTH) / canvas.width;
+                    checkPageBreak(imgHeight + 5);
+                    doc.addImage(imgData, 'PNG', MARGIN, y, CONTENT_WIDTH, imgHeight);
+                    y += imgHeight + 8;
+                } catch (e) {
+                    console.error("html2canvas failed:", e);
+                    addBodyText("[Erreur lors de la génération de l'infographie]");
+                } finally {
+                    document.body.removeChild(infographicContainer);
+                }
+            }
+            addSubHeader("Analyse de l'IA :");
+            addBodyText(stepData.analysis);
+        } else if (key === 'step10') {
+            if (stepData.experiences && stepData.experiences.length > 0) {
+                addSubHeader("Expériences Significatives :");
+                stepData.experiences.forEach((exp, i) => addBodyText(`Expérience #${i + 1}: ${exp.analysis}`, { indent: 5 }));
+            }
+            if (stepData.soft_skills_profile) {
+                addSubHeader("Profil de Compétences Transversales :");
+                addBodyText(stepData.soft_skills_profile, { indent: 5 });
+            }
+        } else if (key === 'retroplanning' && stepData.tasks) {
+            stepData.tasks.forEach(month => {
+                checkPageBreak(8);
+                addSubHeader(month.month);
+                month.tasks.forEach(task => addBodyText((task.completed ? `[x] ` : `[ ] `) + task.text, { indent: 5 }));
+            });
+        } else if (stepInfo.fields) { // Rendu générique pour toutes les autres étapes
+            stepInfo.fields.forEach(field => {
+                if (stepData[field.id] && String(stepData[field.id]).trim()) {
+                    addSubHeader(field.label + " :");
+                    addBodyText(String(stepData[field.id]), { indent: 5, isHTML: true });
+                }
+            });
         }
     }
 
-    // --- FINALISATION DU PDF ---
+    // --- 3. FINALISATION (Pied de page, etc.) ---
     const pageCount = doc.internal.getNumberOfPages();
     for(let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         doc.setFontSize(9);
         doc.setTextColor(156, 163, 175);
-        if (i > 1) {
-             doc.text("Journal de Bord | Mon Explor'Orientation", MARGIN, 10);
-        }
+        if (i > 1) doc.text("Rapport d'Orientation | Mon Explor'Orientation", MARGIN, 10);
         doc.text(`Page ${i} sur ${pageCount}`, PAGE_WIDTH / 2, PAGE_HEIGHT - 10, { align: 'center' });
     }
 
-    doc.save(`Journal_Orientation_${currentUserInfo.firstName}_${currentUserInfo.lastName}.pdf`);
-    
-    exportButton.disabled = false;
-    exportButton.textContent = 'Exporter en PDF';
+    doc.save(`Rapport_Orientation_${currentUserInfo.firstName}_${currentUserInfo.lastName}.pdf`);
 }
 function isStepComplete(stepKey) {
     const config = Object.values(stepsConfig).find(s => s.stepKey === stepKey);
