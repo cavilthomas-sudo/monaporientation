@@ -12,6 +12,7 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
+            text-align: justify;
         }
         .step-card {
             transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
@@ -659,11 +660,11 @@ function createMenuView() {
         const lastItemIndex = steps.length - 1;
         const centeredClass = (isLastItemCentered && index === lastItemIndex) ? 'lg:col-start-2' : '';
 
-        return `
-        <div onclick="window.showView('${step.id}')" class="step-card bg-white p-6 rounded-xl shadow-md border border-slate-200 cursor-pointer flex items-start space-x-4 ${centeredClass} ${gridItemClasses}">
+         return `
+        <div onclick="window.showView('${step.id}')" class="step-card bg-white p-6 rounded-xl shadow-md border border-slate-200 cursor-pointer flex flex-col items-center space-y-2 text-center ${centeredClass} ${gridItemClasses}">
             <div class="text-3xl">${step.icon}</div>
             <div>
-                <div class="flex items-center">
+                <div class="flex justify-center items-center">
                      <h2 class="text-lg font-semibold text-slate-800">${step.title}</h2>
                      ${statusSymbol}
                 </div>
