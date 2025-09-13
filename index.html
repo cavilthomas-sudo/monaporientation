@@ -6,6 +6,7 @@
     <title>Mon Explor'Orientation</title>
     <link rel="icon" href="logo.png" type="image/png">
     <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="logo_180.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -624,7 +625,7 @@ function createMenuView() {
     const progressPercentage = totalTrackableSteps > 0 ? (completedStepsCount / totalTrackableSteps) * 100 : 0;
 
     const progressBarHTML = `
-        <div class="max-w-md mx-auto mb-8">
+        <div class="max-w-xl mx-auto mb-8">
             <div class="flex justify-between mb-1">
                 <span class="text-base font-medium text-cyan-700">Progression</span>
                 <span class="text-sm font-medium text-cyan-700">${Math.round(progressPercentage)}%</span>
