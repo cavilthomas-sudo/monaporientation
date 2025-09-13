@@ -691,10 +691,20 @@ function createMenuView() {
     }).join('');
 
     const radarHTML = `
-       <div class="mt-12 text-center fade-in">
+        <div class="mt-12 text-center fade-in">
             <h2 class="text-2xl font-bold text-slate-800 mb-4">📡 Le Radar à Opportunités</h2>
-            <p class="text-slate-600 max-w-2xl mx-auto mb-6">Tu as l'impression de tourner en rond ? Clique ici pour que l'IA analyse ton parcours et te propose une piste inattendue mais pertinente, basée sur tes propres notes.</p>
-            <button id="radarBtn" class="bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition">Me surprendre !</button>
+            <p class="text-slate-600 max-w-2xl mx-auto mb-6">Teste ici tes propres idées de métiers ou laisse l'IA t'en proposer une à laquelle tu n'aurais jamais pensé !</p>
+            
+            <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                <div class="flex flex-col md:flex-row gap-4 items-center">
+                    <input type="text" id="radarInput" class="w-full md:flex-1 p-3 border border-slate-300 rounded-lg" placeholder="Propose un métier ou un domaine...">
+                    
+                    <button id="radarAnalyzeBtn" class="w-full md:w-auto bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">Analyser mon idée</button>
+                </div>
+                <div class="my-4 text-slate-500 font-semibold">OU</div>
+                <button id="radarSurpriseBtn" class="w-full bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition">Me surprendre !</button>
+            </div>
+
             <div id="radarLoader" class="hidden"><div class="loader"></div></div>
             <div id="radarResult" class="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg text-slate-700 whitespace-pre-wrap text-left"></div>
         </div>
@@ -702,13 +712,39 @@ function createMenuView() {
 
     div.innerHTML = menuTitle + progressBarHTML + guideCardHTML + `<div class="${gridContainerClasses}">${gridHTML}</div>` + radarHTML;
     
-    div.querySelector('#logoutButton').addEventListener('click', () => signOut(auth));
-    
-    div.querySelector('#radarBtn').addEventListener('click', async () => {
-        const loader = div.querySelector('#radarLoader');
-        const resultDiv = div.querySelector('#radarResult');
-        loader.style.display = 'block'; resultDiv.textContent = '';
+    // --- NOUVELLE LOGIQUE DES BOUTONS DU RADAR ---
+    const loader = div.querySelector('#radarLoader');
+    const resultDiv = div.querySelector('#radarResult');
+    const radarInput = div.querySelector('#radarInput');
+
+    // Clic sur "Analyser mon idée"
+    div.querySelector('#radarAnalyzeBtn').addEventListener('click', async () => {
+        const userInput = radarInput.value.trim();
+        if (!userInput) {
+            alert("Veuillez entrer un métier ou un domaine à analyser.");
+            return;
+        }
+
+        loader.style.display = 'block';
+        resultDiv.textContent = '';
         
+        const prompt = `Agis comme un conseiller d'orientation expert et bienveillant. Un lycéen te propose de considérer le métier ou le domaine suivant : "${userInput}".
+        Voici l'intégralité de son journal de bord pour que tu puisses analyser son profil : ${JSON.stringify(journalData)}.
+
+        Ta mission est de lui donner un retour structuré en 3 points :
+        1.  **Points de Connexion :** Explique en quoi cette idée est pertinente par rapport à son profil. Fais des liens directs avec les éléments de son journal (ses traits de personnalité, ses matières fortes, ses intérêts, etc.). Sois encourageant.
+        2.  **Points de Vigilance :** Mentionne 1 ou 2 aspects auxquels il/elle devra faire attention ou compétences qu'il/elle devra développer pour réussir dans cette voie (ex: "Attention, ce secteur demande une grande rigueur mathématique...", "Pense à développer ta créativité...").
+        3.  **Première Mission d'Exploration :** Suggère une action concrète pour qu'il/elle puisse immédiatement approfondir cette piste (ex: "Cherche la fiche Onisep de ce métier", "Regarde des interviews de professionnels sur YouTube", "Utilise l'étape 'Le Catalogue' pour voir les formations liées").`;
+        
+        const result = await callGeminiAPI(prompt);
+        loader.style.display = 'none';
+        resultDiv.textContent = result;
+    });
+
+    // Clic sur "Me surprendre !"
+    div.querySelector('#radarSurpriseBtn').addEventListener('click', async () => {
+        loader.style.display = 'block';
+        resultDiv.textContent = '';
         let historyPrompt = "";
         if (journalData.radar_history && journalData.radar_history.length > 0) {
             historyPrompt = `Important : tu m'as déjà proposé les pistes suivantes : "${journalData.radar_history.join('", "')}". Propose une idée complètement nouvelle et différente de celles-ci.`;
@@ -1675,6 +1711,12 @@ function createGuideView() {
                 <div class="conseil-prof"><strong>Conseil du Prof :</strong> Ce journal est la base de discussion la plus concrète et la plus riche que vous puissiez avoir avec vos parents ou votre professeur principal.</div>
             </div>
             <div class="etape">
+                <h4>🗺️ Ma Carte d'Orientation Personnelle</h4>
+                <p><strong>Objectif :</strong> Visualiser votre projet d'orientation en un seul coup d'œil.</p>
+                <p><strong>Fonctionnement :</strong> Située en haut de votre Journal de Bord, cette carte se remplit automatiquement au fur et à mesure que vous complétez les étapes. Elle connecte votre profil, les métiers que vous explorez et les compétences que vous identifiez.</p>
+                <div class="conseil-prof"><strong>Conseil du Prof :</strong> C'est la synthèse la plus visuelle et la plus motivante de votre parcours. Regardez-la se construire !</div>
+            </div>
+            <div class="etape">
                 <h4>🤖 Ton Coach Orientation (Chatbot)</h4>
                 <p><strong>Objectif :</strong> Obtenir des réponses rapides et fiables sur le fonctionnement de Parcoursup.</p>
                 <p><strong>Fonctionnement :</strong> Une fenêtre de discussion est disponible en permanence pour poser des questions sur les "attendus" d'une formation, le calendrier, les types de vœux, etc.</p>
@@ -1683,7 +1725,7 @@ function createGuideView() {
             <div class="etape">
                 <h4>📡 Le Radar à Opportunités</h4>
                 <p><strong>Objectif :</strong> Débloquer sa réflexion en découvrant une piste de métier ou de secteur inattendue mais pertinente.</p>
-                <p><strong>Fonctionnement :</strong> En un clic, l'IA analyse l'intégralité de votre journal de bord pour vous proposer une idée "hors des sentiers battus" qui correspond à votre profil profond.</p>
+                <p><strong>Fonctionnement :</strong> En un clic, l'IA analyse l'intégralité de votre journal de bord pour analyser une idée de domaine ou de métier qui vous intéresserait ou alors pour vous proposer une idée "hors des sentiers battus" qui correspond à votre profil profond.</p>
                 <div class="conseil-prof"><strong>Conseil du Prof :</strong> C'est l'outil idéal lorsque vous avez l'impression de tourner en rond. Laissez-vous surprendre !</div>
             </div>
             <div class="etape">
