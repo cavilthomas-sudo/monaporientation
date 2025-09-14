@@ -10,6 +10,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -31,6 +32,8 @@
             to { opacity: 1; transform: translateY(0); }
         }
         #mainApp { display: none; }
+
+        
 
         .loader {
             border: 4px solid #f3f3f3;
@@ -99,6 +102,30 @@
             text-align: center;
         }
 
+       #floatingBackBtn {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    width: 56px;
+    height: 56px;
+    background-color: #0891b2; /* cyan-600 -- COULEUR MODIFIÉE ICI */
+    color: white;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    cursor: pointer;
+    z-index: 30;
+    transition: transform 0.2s ease-in-out, opacity 0.3s ease-in-out;
+}
+
+#floatingBackBtn:hover {
+    transform: scale(1.1);
+}
+
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -108,8 +135,9 @@
     </div>
     
     <div id="mainApp" class="max-w-4xl mx-auto p-4 md:p-8">
-        <!-- Le contenu principal de l'application sera injecté ici -->
     </div>
+        
+<button id="floatingBackBtn" title="Retour au menu" style="display: none;">←</button>
 
     <footer class="text-center text-sm text-slate-500 py-6">
         <p>Application créée par Thomas Cavil, enseignant au Lycée Benjamin Franklin.</p>
@@ -183,6 +211,10 @@
 
         const authContainer = document.getElementById('authContainer');
         const mainApp = document.getElementById('mainApp');
+        const floatingBackBtn = document.getElementById('floatingBackBtn'); // AJOUTEZ CETTE LIGNE
+
+        floatingBackBtn.addEventListener('click', () => showView('menu')); // AJOUTEZ CETTE LIGNE
+
 
         let journalData = {};
         
@@ -219,29 +251,35 @@ if (shareId && shareToken) {
         showLoginView();
     }
     
-    // La logique de connexion/déconnexion est maintenant ICI, à l'intérieur du "else"
-    onAuthStateChanged(auth, user => {
-        const chatbotToggle = document.getElementById('chatbot-toggle');
+// REMPLACEZ VOTRE onAuthStateChanged ACTUELLE PAR CELLE-CI :
+onAuthStateChanged(auth, user => {
+    const chatbotToggle = document.getElementById('chatbot-toggle');
+    const floatingBackBtn = document.getElementById('floatingBackBtn');
 
-        if (user) {
-            // Un utilisateur est connecté
-            chatbotToggle.style.display = 'flex';
-            currentUserId = user.uid;
-            authContainer.style.display = 'none';
-            mainApp.style.display = 'block';
-            loadData();
-        } else {
-            // Personne n'est connecté
-            chatbotToggle.style.display = 'none';
-            currentUserId = null;
-            userGradeLevel = null;
-            currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
-            journalData = {}; 
-            authContainer.style.display = 'block';
-            mainApp.style.display = 'none';
-            showLoginView();
-        }
-    });
+    if (user) {
+        // --- UTILISATEUR CONNECTÉ ---
+        if (chatbotToggle) chatbotToggle.style.display = 'flex';
+        
+        currentUserId = user.uid;
+        authContainer.style.display = 'none';
+        mainApp.style.display = 'block';
+        loadData();
+
+    } else {
+        // --- UTILISATEUR DÉCONNECTÉ ---
+        // On s'assure que TOUS les éléments flottants sont cachés
+        if (chatbotToggle) chatbotToggle.style.display = 'none';
+        if (floatingBackBtn) floatingBackBtn.style.display = 'none';
+        
+        currentUserId = null;
+        userGradeLevel = null;
+        currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
+        journalData = {}; 
+        authContainer.style.display = 'block';
+        mainApp.style.display = 'none';
+        showLoginView();
+    }
+});
 }
             
 
@@ -252,10 +290,15 @@ function capitalizeWords(str) {
 }
 
 function showLoginView() {
+
+    const floatingBackBtn = document.getElementById('floatingBackBtn');
+    if (floatingBackBtn) {
+        floatingBackBtn.classList.add('hidden');
+    }
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 fade-in">
             
-            <img src="logo.png" alt="Logo Mon Explor'Orientation" class="mx-auto h-70 w-auto mb-6">
+            <img src="logo.png" alt="Logo Mon Explor'Orientation" class="mx-auto h-70 w-auto mb-0">
 
             <p class="text-center text-sm text-slate-500 mb-6">
                 Besoin d'aide pour commencer ? 
@@ -383,6 +426,16 @@ function showSignupView() {
 // 🔹 Rendre la fonction showView accessible globalement
 window.showView = showView;
 
+           function getCurrentSchoolYear() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth(); // 0 pour Janvier, 11 pour Décembre
+
+    // On considère que la nouvelle année scolaire commence en août (mois 7)
+    // Si nous sommes en juillet 2025 (mois 6), l'année scolaire est 2024.
+    // Si nous sommes en août 2025 (mois 7), l'année scolaire est 2025.
+    return (month >= 7) ? year : year - 1;
+}
 
         async function saveData(isInitialSave = false) {
             if (!currentUserId) return;
@@ -408,65 +461,70 @@ window.showView = showView;
         }
 
         async function loadData() {
-            if (!currentUserId) return;
-            const userDocRef = doc(db, "users", currentUserId);
-            const docSnap = await getDoc(userDocRef);
-            
-            const defaultData = {
-                step0: { q1: '', q2: '', q3: '', q4: '', q5: '', q6: '', q7: '', q8: '', q9: '', q10: '', q11: '', q12: '', q13: '', q14: '', q15: '', q16: '', q17: '', q18: '', q19: '', q20: '', q21: '', q22: '', q23: '', q24: '', q25: '', analysis: '' },
-                step1: { metier1: '', notes1: '', metier2: '', notes2: '', metier3: '', notes3: '' },
-                step2: { combo1: '', notes1: '', skills1: '', combo2: '', notes2: '', skills2: '', combo3: '', notes3: '', skills3: '' },
-                step3: { formation1: '', attendus1: '', mots_cles1: '', analyse_mots_cles1: '', formation2: '', attendus2: '', mots_cles2: '', analyse_mots_cles2: '', suggestions: '' },
-                step4: { theme1: '', question1: '', suggestions1: '', theme2: '', question2: '', suggestions2: '' },
-                step5: { article1: '', apprentissage1: '', test1: '', resultat1: '', analyse_test: '' },
-                step6: { formation: '', motivations: '', structure: '' },
-                step7: { domaine: '', reflexions: '' },
-                step8: { pro_reseau_personnel: '', pro_metier: '', pro_departement: '', pro_contacts: '', pro_strategie: '', pro_media_query: '', pro_media_content: '', jpo_ecole: '', jpo_questions: '' },
-                step9: { formation_reve: '', plan_b: '', reussite_type: '', reussite_conseils: '' },
-                step10: { experience1: '', analyse1: '', experience2: '', analyse2: '' },
-                step11: { location: '', events: '', structures: ''},
-                retroplanning: '',
-                fil_rouge: '',
-                discussion_points: '',
-                radar_history: [],
-                earned_badges: []
-            };
-
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                userGradeLevel = data.gradeLevel || null;
-                currentUserInfo = {
-                    firstName: data.firstName || '',
-                    lastName: data.lastName || '',
-                    schoolName: data.schoolName || ''
-                };
-                const loadedJournal = data.journal || {};
-                
-                journalData = {};
-                for (const key in defaultData) {
-                    if (loadedJournal[key] && typeof defaultData[key] === 'object' && defaultData[key] !== null) {
-                        journalData[key] = { ...defaultData[key], ...loadedJournal[key] };
-                    } else {
-                         journalData[key] = loadedJournal[key] || defaultData[key];
-                    }
-                }
-            } else {
-                userGradeLevel = null;
-                journalData = defaultData;
-            }
-            
-            if (!Array.isArray(journalData.earned_badges)) {
-                journalData.earned_badges = [];
-            }
-            
-            checkBadges();
-
-            if (!userGradeLevel) {
-                showGradeSelectionView();
-            } else {
-                showView('menu');
-            }
+    if (!currentUserId) return;
+    const userDocRef = doc(db, "users", currentUserId);
+    const docSnap = await getDoc(userDocRef);
+    
+    // Définit la variable data ici, avec une valeur par défaut
+    const defaultData = {
+        // ... (votre objet de données par défaut existant)
+        step0: { q1: '', q2: '', q3: '', q4: '', q5: '', q6: '', q7: '', q8: '', q9: '', q10: '', q11: '', q12: '', q13: '', q14: '', q15: '', q16: '', q17: '', q18: '', q19: '', q20: '', q21: '', q22: '', q23: '', q24: '', q25: '', analysis: '' },
+        step1: { metier1: '', notes1: '', metier2: '', notes2: '', metier3: '', notes3: '' },
+        step2: { combo1: '', notes1: '', skills1: '', combo2: '', notes2: '', skills2: '', combo3: '', notes3: '', skills3: '' },
+        step3: { formation1: '', attendus1: '', mots_cles1: '', analyse_mots_cles1: '', formation2: '', attendus2: '', mots_cles2: '', analyse_mots_cles2: '', suggestions: '' },
+        step4: { theme1: '', question1: '', suggestions1: '', theme2: '', question2: '', suggestions2: '' },
+        step5: { article1: '', apprentissage1: '', test1: '', resultat1: '', analyse_test: '' },
+        step6: { formation: '', motivations: '', structure: '' },
+        step7: { domaine: '', reflexions: '' },
+        step8: { pro_reseau_personnel: '', pro_metier: '', pro_departement: '', pro_contacts: '', pro_strategie: '', pro_media_query: '', pro_media_content: '', jpo_ecole: '', jpo_questions: '' },
+        step9: { formation_reve: '', plan_b: '', reussite_type: '', reussite_conseils: '' },
+        step10: { experience1: '', analyse1: '', experience2: '', analyse2: '' },
+        step11: { location: '', events: '', structures: ''},
+        retroplanning: '',
+        fil_rouge: '',
+        discussion_points: '',
+        radar_history: [],
+        earned_badges: []
+    };
+    
+    // Assigne les données du document ou un objet vide si le document n'existe pas
+    let data = docSnap.exists() ? docSnap.data() : {};
+    
+    userGradeLevel = data.gradeLevel || null;
+    currentUserInfo = {
+        firstName: data.firstName || '',
+        lastName: data.lastName || '',
+        schoolName: data.schoolName || ''
+    };
+    
+    const loadedJournal = data.journal || {};
+    
+    journalData = {};
+    for (const key in defaultData) {
+        if (loadedJournal[key] && typeof defaultData[key] === 'object' && defaultData[key] !== null) {
+            journalData[key] = { ...defaultData[key], ...loadedJournal[key] };
+        } else {
+             journalData[key] = loadedJournal[key] || defaultData[key];
         }
+    }
+    
+    if (!Array.isArray(journalData.earned_badges)) {
+        journalData.earned_badges = [];
+    }
+    
+    checkBadges();
+
+    const currentSchoolYear = getCurrentSchoolYear(); // On utilise notre nouvelle fonction
+    // On compare l'année scolaire en cours avec celle sauvegardée
+    if (data.lastLoginSchoolYear !== currentSchoolYear || !userGradeLevel) {
+        showGradeSelectionView();
+    } else {
+        showView('menu');
+    }
+    
+    // On met à jour l'année de connexion avec l'année scolaire
+    await setDoc(userDocRef, { lastLoginSchoolYear: currentSchoolYear }, { merge: true });
+}
         
         function showGradeSelectionView() {
             mainApp.innerHTML = `
@@ -487,6 +545,7 @@ window.showView = showView;
                     showView('menu');
                 });
             });
+
         }
 
        // REMPLACEZ VOTRE FONCTION callGeminiAPI ACTUELLE PAR CELLE-CI :
@@ -531,8 +590,34 @@ async function callGeminiAPI(prompt, useGrounding = false, isJson = false) {
     }
 }
         
-        async function showView(viewName) {
+    // REMPLACEZ VOTRE showView EXISTANTE PAR CELLE-CI :
+async function showView(viewName) {
     mainApp.innerHTML = '';
+    
+    const chatbotToggle = document.getElementById('chatbot-toggle');
+    const floatingBackBtn = document.getElementById('floatingBackBtn');
+
+    const showChatbotOn = ['menu', 'home', 'step0', 'step1', 'step2', 'step3', 'step4', 'step5', 'step6', 'step7', 'step8', 'step9', 'step10', 'step11', 'step12', 'retroplanning', 'journal'];
+    const showBackButtonOn = ['step0', 'step1', 'step2', 'step3', 'step4', 'step5', 'step6', 'step7', 'step8', 'step9', 'step10', 'step11', 'step12', 'retroplanning', 'journal', 'guide'];
+
+    if (chatbotToggle) {
+        if (showChatbotOn.includes(viewName)) {
+            chatbotToggle.style.display = 'flex';
+        } else {
+            chatbotToggle.style.display = 'none';
+        }
+    }
+    
+    if (floatingBackBtn) {
+        // La condition "!(viewName === 'guide' && cameFromLogin)" est cruciale ici
+        // Elle cache le bouton sur le guide si on vient de la page de connexion
+        if (showBackButtonOn.includes(viewName) && !(viewName === 'guide' && cameFromLogin)) {
+            floatingBackBtn.style.display = 'flex';
+        } else {
+            floatingBackBtn.style.display = 'none';
+        }
+    }
+
     let newView;
     switch(viewName) {
         case 'home': newView = createHomeView(); break;
@@ -552,10 +637,7 @@ async function callGeminiAPI(prompt, useGrounding = false, isJson = false) {
         case 'step12': newView = createStep12View(); break;
         case 'guide': newView = createGuideView(); break;
         case 'retroplanning': newView = createRetroplanningView(); break;
-        
-        // MODIFICATION ICI : On attend le résultat de la fonction asynchrone
         case 'journal': newView = await createJournalView(); break; 
-        
         default: newView = createHomeView();
     }
     if (newView) mainApp.appendChild(newView);
@@ -568,8 +650,6 @@ async function callGeminiAPI(prompt, useGrounding = false, isJson = false) {
         
 
 function createMenuView() {
-    // On s'assure que le chatbot est bien visible sur le menu principal
-    document.getElementById('chatbot-toggle').style.display = 'flex';
     
     const div = document.createElement('div');
     div.className = 'fade-in';
@@ -590,11 +670,14 @@ function createMenuView() {
 
     const menuTitle = `
         <div class="text-center mb-10">
-            <h1 class="text-3xl font-bold text-slate-800">Bienvenue, ${currentUserInfo.firstName} !</h1>
-            ${earnedBadgesHTML}
-            <p class="text-slate-500 mt-2">Élève de <span class="font-semibold text-cyan-600">${userGradeLevel.charAt(0).toUpperCase() + userGradeLevel.slice(1)}</span> à <span class="font-semibold text-cyan-600">${capitalizeWords(currentUserInfo.schoolName)}</span></p>
-            <button id="logoutButton" class="mt-2 text-sm text-cyan-600 hover:underline">Se déconnecter</button>
-        </div>
+    <h1 class="text-3xl font-bold text-slate-800">Bienvenue, ${currentUserInfo.firstName} !</h1>
+    ${earnedBadgesHTML}
+        <p class="text-slate-500 mt-2">Élève de <span class="font-semibold text-cyan-600">${userGradeLevel ? userGradeLevel.charAt(0).toUpperCase() + userGradeLevel.slice(1) : 'Niveau non défini'}</span> à <span class="font-semibold text-cyan-600">${capitalizeWords(currentUserInfo.schoolName)}</span></p>    <div class="flex justify-center items-center gap-2 mt-2">
+        <button id="changeGradeButton" class="text-sm text-cyan-600 hover:underline">Modifier mon niveau</button>
+        <span class="text-slate-400">|</span>
+        <button id="logoutButton" class="text-sm text-cyan-600 hover:underline">Se déconnecter</button>
+    </div>
+</div>
     `;
     
     const allSteps = [
@@ -782,7 +865,7 @@ function createMenuView() {
         loader.style.display = 'none';
         resultDiv.textContent = result;
     });
-    
+
     // Bouton déconnexion
 div.querySelector('#logoutButton').addEventListener('click', async () => {
     try {
@@ -791,6 +874,10 @@ div.querySelector('#logoutButton').addEventListener('click', async () => {
         console.error("Erreur lors de la déconnexion :", error);
         alert("Impossible de se déconnecter, veuillez réessayer.");
     }
+});
+
+div.querySelector('#changeGradeButton').addEventListener('click', () => {
+    showGradeSelectionView();
 });
 
     return div;
@@ -865,50 +952,125 @@ div.querySelector('#logoutButton').addEventListener('click', async () => {
 
 
 
-function createProfileInfographic(step0Data) {
+function createProfileInfographic(step0Data, context = 'user') {
     if (!step0Data || !step0Data.analysis) {
-        return document.createElement('div'); // Retourne un élément vide si pas de données
+        return document.createElement('div');
     }
-
-    const profiles = [
-        { title: 'Source d\'énergie', q: 'q20', left: { key: 'seul', label: 'Introverti' }, right: { key: 'amis', label: 'Extraverti' } },
-        { title: 'Prise de décision', q: 'q11', left: { key: 'analyse', label: 'Analyse' }, right: { key: 'intuition', label: 'Intuition' } },
-        { title: 'Mode de travail', q: 'q1', left: { key: 'seul', label: 'Individuel' }, right: { key: 'equipe', label: 'Collaboratif' } },
-        { title: 'Approche des problèmes', q: 'q3', left: { key: 'logique', label: 'Méthodique' }, right: { key: 'creatif', label: 'Créatif' } },
-        { title: 'Zone de confort', q: 'q19', left: { key: 'claires', label: 'Cadre clair' }, right: { key: 'generales', label: 'Autonomie' } },
-        { title: 'Moteur principal', q: 'q25', left: { key: 'competence', label: 'Maîtrise' }, right: { key: 'sens', label: 'Quête de sens' } }
-    ];
-
-    let infographicHTML = '<div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mb-8">';
-    profiles.forEach(p => {
-        const answer = step0Data[p.q];
-        let leftColor = 'bg-slate-200';
-        let rightColor = 'bg-slate-200';
-        if (answer === p.left.key) leftColor = 'bg-cyan-600';
-        if (answer === p.right.key) rightColor = 'bg-cyan-600';
-        infographicHTML += `
-            <div>
-                <h3 class="font-semibold text-slate-700 mb-1">${p.title}</h3>
-                <div class="flex items-center justify-between text-sm text-slate-600 mb-1">
-                    <span class="font-medium ${answer === p.left.key ? 'text-cyan-700' : ''}">${p.left.label}</span>
-                    <span class="font-medium ${answer === p.right.key ? 'text-cyan-700' : ''}">${p.right.label}</span>
-                </div>
-                <div class="w-full flex h-2 rounded-full overflow-hidden">
-                    <div class="w-1/2 ${leftColor}"></div>
-                    <div class="w-1/2 ${rightColor}"></div>
-                </div>
-            </div>`;
-    });
-    infographicHTML += '</div>';
 
     const container = document.createElement('div');
     container.className = 'mb-8';
-    container.innerHTML = `
-        <h2 class="text-xl font-bold border-b pb-2 mb-4 text-cyan-700">👤 Synthèse de ton Profil</h2>
-        <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mt-4">
-           ${infographicHTML}
-        </div>
-    `;
+
+    // On choisit le texte du titre et du bouton en fonction du contexte
+    const titleText = context === 'user' ? 'Synthèse visuelle de mon profil' : 'Synthèse visuelle de son profil';
+    const buttonText = context === 'user' ? 'Analyser la forme de mon profil' : 'Analyser la forme de son profil';
+
+    container.innerHTML =
+        `<h2 class="text-xl font-bold border-b pb-2 mb-4 text-cyan-700">${titleText}</h2>` +
+        '<div class="bg-slate-50 p-4 md:p-6 rounded-xl border border-slate-200 mt-4">' +
+        '   <canvas id="profileRadarChart"></canvas>' +
+        '</div>' +
+        '<div id="radar-legend" class="mt-6"></div>' +
+        '<div class="text-center mt-6">' +
+        `    <button type="button" id="analyzeShapeBtn" class="bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">🧠 ${buttonText}</button>` +
+        '</div>' +
+        '<div id="shapeLoader" class="hidden"><div class="loader"></div></div>' +
+        '<div id="shapeAnalysisResult" class="mt-6 p-4 bg-slate-50 rounded-lg border whitespace-pre-wrap"></div>';
+
+    const profiles = [
+        { axe: 'Énergie', question: 'q20', left: { key: 'seul', label: 'Introverti' }, right: { key: 'amis', label: 'Extraverti' } },
+        { axe: 'Décision', question: 'q11', left: { key: 'analyse', label: 'Analyse' }, right: { key: 'intuition', label: 'Intuition' } },
+        { axe: 'Travail', question: 'q1', left: { key: 'seul', label: 'Individuel' }, right: { key: 'equipe', label: 'Collaboratif' } },
+        { axe: 'Approche', question: 'q3', left: { key: 'logique', label: 'Méthodique' }, right: { key: 'creatif', label: 'Créatif' } },
+        { axe: 'Cadre', question: 'q19', left: { key: 'claires', label: 'Structuré' }, right: { key: 'generales', label: 'Autonome' } },
+        { axe: 'Moteur', question: 'q25', left: { key: 'competence', label: 'Maîtrise' }, right: { key: 'sens', label: 'Quête de sens' } }
+    ];
+
+    const tooltips = profiles.map(p => {
+        const answer = step0Data[p.question];
+        if (answer === p.left.key) return p.left.label;
+        if (answer === p.right.key) return p.right.label;
+        return 'Neutre';
+    });
+
+    const legendContainer = container.querySelector('#radar-legend');
+    let legendHTML = '<h3 class="font-bold text-slate-700 mb-2">Légende du graphique :</h3><ul class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-sm">';
+    profiles.forEach((p, i) => {
+        legendHTML += `<li class="flex justify-between p-1 rounded"><span class="font-semibold">${p.axe} :</span> <span class="text-cyan-700 font-bold">${tooltips[i]}</span></li>`;
+    });
+    legendHTML += '</ul>';
+    legendContainer.innerHTML = legendHTML;
+
+    container.querySelector('#analyzeShapeBtn').addEventListener('click', async () => {
+        const loader = container.querySelector('#shapeLoader');
+        const resultDiv = container.querySelector('#shapeAnalysisResult');
+        
+        loader.style.display = 'block';
+        resultDiv.textContent = '';
+
+        const profileSummary = profiles.map((p, i) => `${p.axe}: ${tooltips[i]}`).join(', ');
+
+        const prompt = 'Agis comme un psychologue expert en orientation. Un élève a obtenu le profil de personnalité suivant sur un graphique radar : ' + profileSummary + '.\n\n' +
+        'Ta mission est d\'analyser la "forme" globale de ce profil. Ne te contente pas de répéter les traits un par un. Rédige une analyse de 2-3 paragraphes qui explique ce que cette combinaison unique de tendances signifie.\n\n' +
+        'Par exemple, que suggère un profil qui est à la fois "Créatif" et "Structuré" ? Ou "Introverti" mais aussi "Collaboratif" ? Mets en lumière les forces et les synergies qui se dégagent de cette forme, et conclus par une suggestion sur les types d\'environnements d\'études ou de travail qui pourraient lui convenir. Adresse-toi directement à l\'élève avec "tu".';
+
+        const result = await callGeminiAPI(prompt);
+        loader.style.display = 'none';
+        resultDiv.textContent = result;
+    });
+
+    setTimeout(() => {
+        const ctx = document.getElementById('profileRadarChart')?.getContext('2d');
+        if (!ctx) return;
+
+        const labels = profiles.map(p => p.axe);
+        const dataPoints = profiles.map(p => {
+            const answer = step0Data[p.question];
+            if (answer === p.left.key) return 1;
+            if (answer === p.right.key) return 3;
+            return 2;
+        });
+
+        new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Tendance',
+                    data: dataPoints,
+                    fill: true,
+                    backgroundColor: 'rgba(8, 145, 178, 0.2)',
+                    borderColor: 'rgb(8, 145, 178)',
+                    pointBackgroundColor: 'rgb(8, 145, 178)',
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    r: {
+                        min: 0,
+                        max: 4,
+                        ticks: { display: false },
+                        pointLabels: {
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        grid: { circular: true }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return tooltips[context.dataIndex];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }, 0);
+
     return container;
 }
 
@@ -990,21 +1152,22 @@ const stepsConfig = {
             {id: 'suggestions2', label: 'Suggestions de questions par l\'IA', type: 'textarea', isReadonly: true}
         ]
     },
-    step5: {
-        stepKey: 'step5', title: "L'Actu & Tests", icon: '📰',
-        description: `Des médias comme L'Étudiant.fr ou Studyrama.com apportent un autre regard. <b>Ce que tu peux y trouver :</b> des classements, des articles sur des secteurs qui recrutent, et des tests d'orientation variés.`,
-        action: "<b>Ta mission :</b> Cherche une info ou un classement qui t'intéresse pour préciser ce que tu as appris. Ensuite, fais un test d'orientation sur l'un des sites. Note le résultat brut, puis clique sur ✨ pour obtenir une analyse personnalisée qui croise ce résultat avec ton profil établi dans l'étape mieux se connaitre.",
-        urls: [
-            { site: "L'Étudiant.fr", url: 'https://www.letudiant.fr' },
-            { site: "Studyrama.com", url: 'https://www.studyrama.com/tests' }
-        ],
-        fields: [
-            {id: 'article1', label: 'Info ou classement trouvé (optionnel)', placeholder: 'Ex: Le classement des écoles de commerce 2025'},
-            {id: 'apprentissage1', label: 'Ce que j\'ai appris', placeholder: 'Certaines écoles sont spécialisées dans le luxe...', type: 'textarea'},
-            {id: 'test1', label: 'Test d\'orientation effectué', placeholder: 'Ex: Test RIASEC sur Studyrama'},
-            {id: 'resultat1', label: 'Résultats bruts du test', placeholder: 'Profil "Social/Créatif/Investigateur"', type: 'textarea'}
-        ]
-    },
+
+step5: {
+    stepKey: 'step5', title: "L'Actu & Tests", icon: '📰',
+    description: `Des médias comme L'Étudiant.fr ou Studyrama.com apportent un autre regard. <b>Ce que tu peux y trouver :</b> des classements, des articles sur des secteurs qui recrutent, et des tests d'orientation variés.`,
+    action: `<b>Ta mission est double :</b><br>1. <b>Veille d'actualité :</b> Explore les sites de L'Étudiant.fr ou Studyrama.com et trouve <b>deux</b> informations pertinentes pour ton projet (un classement d'écoles, un article sur un secteur qui recrute, un dossier sur une filière...). Remplis les champs correspondants et clique sur le premier bouton ✨ pour que l'IA analyse tes trouvailles.<br>2. <b>Tests d'orientation :</b> Fais au moins <b>deux</b> tests d'orientation différents sur ces sites. Copie-colle tes résultats bruts, puis clique sur le second bouton ✨ pour obtenir une analyse croisée avec ton profil de l'étape "Mieux se connaître".`,
+    urls: [
+        { site: "L'Étudiant.fr", url: 'https://www.letudiant.fr' },
+        { site: "Studyrama.com", url: 'https://www.studyrama.com/tests' }
+    ],
+    fields: [
+        {id: 'article1', label: 'Info ou classement trouvé (optionnel)', placeholder: 'Ex: Le classement des écoles de commerce 2025'},
+        {id: 'apprentissage1', label: 'Ce que j\'ai appris', placeholder: 'Certaines écoles sont spécialisées dans le luxe...', type: 'textarea'},
+        {id: 'test1', label: 'Test d\'orientation effectué', placeholder: 'Ex: Test RIASEC sur Studyrama'},
+        {id: 'resultat1', label: 'Résultats bruts du test', placeholder: 'Profil "Social/Créatif/Investigateur"', type: 'textarea'}
+    ]
+},
     step6: { 
         stepKey: 'step6', title: 'Préparer sa candidature', icon: '✍️',
         description: `La rédaction du "projet de formation motivé" sur Parcoursup est une étape cruciale. Cet outil ne va pas écrire la lettre à ta place, mais t'aider à la structurer de manière claire et percutante.`,
@@ -1637,8 +1800,7 @@ function createStep12View() {
 }
 
 function createGuideView() {
-    // On s'assure que le chatbot est bien caché sur cette page
-    document.getElementById('chatbot-toggle').style.display = 'none';
+   
 
     const div = document.createElement('div');
     div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200';
@@ -1652,7 +1814,7 @@ function createGuideView() {
             .guide-container h3 { color: #334155; font-size: 1.3em; margin-top: 40px; font-weight: 600; }
             .guide-container .centered-subtitle { text-align: center; margin-bottom: 30px; }
             .guide-container h4 { margin-top: 0; font-size: 1.1em; font-weight: 600; display: flex; align-items: center; gap: 0.75rem; }
-            .guide-container .logo { display: block; margin: 0 auto 20px auto; width: 350px; }
+            .guide-container .logo { display: block; margin: 0 auto 10px auto; width: 350px; }
             .guide-container .info-box { padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid; }
             .guide-container .info-box-parents { background-color: #f7fee7; border-color: #84cc16; } /* Vert Citron */
             .guide-container .info-box-parents h4 { color: #4d7c0f; display: block; }
@@ -2115,67 +2277,165 @@ function createStep4View() {
     return div;
 }
 
-        function createStep5View() {
-            const config = stepsConfig.step5;
-            const div = createStepView(config);
-            const form = div.querySelector('#stepForm');
-            const submitButton = form.querySelector('button[type="submit"]');
+   function createStep5View() {
+    const config = stepsConfig.step5;
+    const div = createStepView(config);
+    const form = div.querySelector('#stepForm');
+    
+    // Remplacement de l'HTML par la nouvelle structure
+    form.innerHTML = `
+        <h2 class="text-2xl font-bold text-slate-800 mb-4">Veille d'actualité et de classements</h2>
+        <div class="mb-6">
+            <label for="article1" class="block text-md font-medium text-slate-700 mb-2">Info ou classement trouvé #1</label>
+            <input type="text" id="article1" name="article1" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="${config.fields[0].placeholder}" value="${journalData.step5.article1 || ''}">
+        </div>
+        <div class="mb-6">
+            <label for="apprentissage1" class="block text-md font-medium text-slate-700 mb-2">Ce que j'ai appris de cette info</label>
+            <textarea id="apprentissage1" name="apprentissage1" rows="4" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="${config.fields[1].placeholder}">${journalData.step5.apprentissage1 || ''}</textarea>
+        </div>
+        <div class="mb-6">
+            <label for="article2" class="block text-md font-medium text-slate-700 mb-2">Info ou classement trouvé #2</label>
+            <input type="text" id="article2" name="article2" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="${config.fields[0].placeholder}" value="${journalData.step5.article2 || ''}">
+        </div>
+        <div class="mb-6">
+            <label for="apprentissage2" class="block text-md font-medium text-slate-700 mb-2">Ce que j'ai appris de cette info</label>
+            <textarea id="apprentissage2" name="apprentissage2" rows="4" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="${config.fields[1].placeholder}">${journalData.step5.apprentissage2 || ''}</textarea>
+        </div>
+        
+        <div class="text-center mb-4">
+            <button type="button" id="geminiBtn_actu" class="bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">✨ Analyser mon actualité</button>
+        </div>
+        <div id="geminiLoader_actu" class="hidden"><div class="loader"></div></div>
+        <div id="actu-analysis-container" class="mb-6">
+            <label for="analyse_actu" class="block text-md font-medium text-slate-700 mb-2">Analyse personnalisée par l'IA</label>
+            <textarea id="analyse_actu" name="analyse_actu" rows="8" class="w-full p-3 border border-slate-300 rounded-lg bg-slate-50" readonly>${journalData.step5.analyse_actu || ''}</textarea>
+        </div>
 
-            const analysisHTML = `
-                <hr class="my-8">
-                <h2 class="text-xl font-semibold mb-4 text-slate-800">💡 Analyse personnalisée de tes résultats</h2>
-                <p class="text-slate-600 mb-4">Un résultat de test est une chose, mais que signifie-t-il VRAIMENT pour toi ? L'IA peut t'aider à y voir plus clair en le reliant à ton profil.</p>
-                <div class="text-center mb-4">
-                    <button type="button" id="geminiBtn_test" class="bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">✨ Analyser mes résultats</button>
-                </div>
-                <div id="geminiLoader_test" class="hidden"><div class="loader"></div></div>
-            `;
-            const resultatField = form.querySelector('textarea[name="resultat1"]');
-            resultatField.parentElement.insertAdjacentHTML('afterend', analysisHTML);
+        <hr class="my-8">
 
+        <h2 class="text-2xl font-bold text-slate-800 mb-4">Analyse des tests d'orientation</h2>
+        
+        <p class="text-slate-600 mb-6">
+            Pour cette partie, utilise exclusivement le site <a href="https://test-orientation.studyrama.com/" target="_blank" class="font-semibold text-cyan-600 hover:underline">test-orientation.studyrama.com</a>.
+            <br>
+            Attention, pour obtenir tes résultats, tu devras créer un compte gratuit sur le site. Copie-colle ensuite les résultats bruts dans les champs ci-dessous.
+        </p>
 
-            div.querySelector('#geminiBtn_test').addEventListener('click', async () => {
-                const loader = div.querySelector('#geminiLoader_test');
-                const testResult = div.querySelector('#resultat1').value;
-                const existingAnalysis = div.querySelector('#analyse_test');
-                if(existingAnalysis) existingAnalysis.parentElement.remove();
+        <div class="mb-6">
+            <label for="test1" class="block text-md font-medium text-slate-700 mb-2">Nom du test #1</label>
+            <input type="text" id="test1" name="test1" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="${config.fields[2].placeholder}" value="${journalData.step5.test1 || ''}">
+        </div>
+        <div class="mb-6">
+            <label for="resultat1" class="block text-md font-medium text-slate-700 mb-2">Résultats bruts du test #1</label>
+            <textarea id="resultat1" name="resultat1" rows="4" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="${config.fields[3].placeholder}">${journalData.step5.resultat1 || ''}</textarea>
+        </div>
 
+        <div class="mb-6">
+            <label for="test2" class="block text-md font-medium text-slate-700 mb-2">Nom du test #2</label>
+            <input type="text" id="test2" name="test2" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="${config.fields[2].placeholder}" value="${journalData.step5.test2 || ''}">
+        </div>
+        <div class="mb-6">
+            <label for="resultat2" class="block text-md font-medium text-slate-700 mb-2">Résultats bruts du test #2</label>
+            <textarea id="resultat2" name="resultat2" rows="4" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="${config.fields[3].placeholder}">${journalData.step5.resultat2 || ''}</textarea>
+        </div>
+        
+        <div class="text-center mb-4">
+            <button type="button" id="geminiBtn_test" class="bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">✨ Analyser mes résultats</button>
+        </div>
+        <div id="geminiLoader_test" class="hidden"><div class="loader"></div></div>
+        
+        <div id="analysis-container" class="mb-6">
+            <label for="analyse_test" class="block text-md font-medium text-slate-700 mb-2">Analyse personnalisée par l'IA</label>
+            <textarea id="analyse_test" name="analyse_test" rows="8" class="w-full p-3 border border-slate-300 rounded-lg bg-slate-50" readonly>${journalData.step5.analyse_test || ''}</textarea>
+        </div>
 
-                if (!journalData.step0.analysis) {
-                    alert("Pour obtenir une analyse personnalisée, veuillez d'abord compléter l'Étape: Mieux se connaître.");
-                    return;
-                }
+        <button type="submit" class="w-full mt-4 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700 transition">✔️ Terminer et sauvegarder</button>
+    `;
 
-                if (!testResult.trim()) {
-                    alert("Veuillez renseigner le résultat du test que vous avez effectué.");
-                    return;
-                }
+    // Gestion du clic sur le bouton d'analyse de test
+    div.querySelector('#geminiBtn_test').addEventListener('click', async () => {
+        const loader = div.querySelector('#geminiLoader_test');
+        const testResult1 = div.querySelector('#resultat1').value;
+        const testResult2 = div.querySelector('#resultat2').value;
+        const analysisContainer = div.querySelector('#analysis-container');
+        const analysisTextarea = div.querySelector('#analyse_test');
 
-                loader.style.display = 'block';
-
-                const prompt = `Agis comme un conseiller d'orientation avisé. Voici l'analyse du profil personnel d'un lycéen : "${journalData.step0.analysis}". 
-                Ce même lycéen vient de passer un test d'orientation et a obtenu le résultat suivant : "${testResult}".
-
-                Ta mission est de :
-                1. Expliquer brièvement et simplement ce que signifie le résultat du test (ex: "Un profil 'Social' signifie que...").
-                2. Mettre en lumière les cohérences (ou les apparentes contradictions) entre le résultat du test et le profil personnel de l'élève.
-                3. Proposer une piste de réflexion : "Ce résultat confirme ton intérêt pour... Tu pourrais donc explorer les métiers de..." ou "C'est intéressant, car cela montre une facette de toi que tu n'avais pas mentionnée...".
-                Le ton doit être constructif et aider l'élève à faire des liens.`;
-
-                const result = await callGeminiAPI(prompt);
-                loader.style.display = 'none';
-
-                const analysisResultHTML = `
-                    <div class="mb-6">
-                        <label for="analyse_test" class="block text-md font-medium text-slate-700 mb-2">Analyse personnalisée par l'IA</label>
-                        <textarea id="analyse_test" name="analyse_test" rows="8" class="w-full p-3 border border-slate-300 rounded-lg bg-slate-50" readonly>${result}</textarea>
-                    </div>
-                `;
-                loader.insertAdjacentHTML('afterend', analysisResultHTML);
-            });
-
-            return div;
+        if (!journalData.step0.analysis) {
+            alert("Pour obtenir une analyse personnalisée, veuillez d'abord compléter l'Étape: Mieux se connaître.");
+            return;
         }
+
+        if (!testResult1.trim() && !testResult2.trim()) {
+            alert("Veuillez renseigner au moins les résultats d'un des deux tests.");
+            return;
+        }
+
+        loader.style.display = 'block';
+        analysisTextarea.value = '';
+
+        // CORRECTION DE LA SYNTAXE POUR ÉVITER LES ERREURS DE COPIER-COLLER
+        const prompt = 'Agis comme un conseiller d\'orientation avisé. Voici l\'analyse du profil personnel d\'un lycéen : "' + journalData.step0.analysis + '". ' +
+        'Ce même lycéen vient de passer des tests d\'orientation et a obtenu les résultats suivants :\n' +
+        '- Test 1 : "' + testResult1 + '"\n' +
+        '- Test 2 : "' + testResult2 + '"\n\n' +
+        'Ta mission est de :\n' +
+        '1. Expliquer brièvement et simplement ce que signifient les résultats des tests.\n' +
+        '2. Mettre en lumière les cohérences (ou les apparentes contradictions) entre les résultats des tests et le profil personnel de l\'élève.\n' +
+        '3. Proposer une piste de réflexion en faisant le lien entre tous les éléments.\n' +
+        'Le ton doit être constructif et aider l\'élève à faire des liens. Tu dois t\'adresser directement à l\'élève, en utilisant "tu".';
+
+        const result = await callGeminiAPI(prompt);
+        loader.style.display = 'none';
+
+        analysisTextarea.value = result;
+        analysisContainer.classList.remove('hidden');
+    });
+
+    // Gestion du clic sur le bouton d'analyse de l'actualité
+    div.querySelector('#geminiBtn_actu').addEventListener('click', async () => {
+        const loader = div.querySelector('#geminiLoader_actu');
+        const article1 = div.querySelector('#article1').value;
+        const apprentissage1 = div.querySelector('#apprentissage1').value;
+        const article2 = div.querySelector('#article2').value;
+        const apprentissage2 = div.querySelector('#apprentissage2').value;
+        const analysisTextarea = div.querySelector('#analyse_actu');
+        const actuAnalysisContainer = div.querySelector('#actu-analysis-container');
+        
+        if (!journalData.step0.analysis) {
+            alert("Pour obtenir une analyse personnalisée, veuillez d'abord compléter l'Étape: Mieux se connaître.");
+            return;
+        }
+
+        if (!article1.trim() && !apprentissage1.trim() && !article2.trim() && !apprentissage2.trim()) {
+            alert("Veuillez renseigner au moins une information de l'actualité que vous avez trouvée.");
+            return;
+        }
+
+        loader.style.display = 'block';
+        analysisTextarea.value = '';
+
+        // CORRECTION DE LA SYNTAXE POUR ÉVITER LES ERREURS DE COPIER-COLLER
+        const prompt = 'Agis comme un conseiller d\'orientation expert. Voici l\'analyse du profil personnel d\'un lycéen : "' + journalData.step0.analysis + '".\n' +
+        'Ce lycéen a exploré l\'actualité suivante :\n' +
+        '- Article/Classement 1 : "' + article1 + '"\n' +
+        '- Ce qu\'il a appris 1 : "' + apprentissage1 + '"\n' +
+        '- Article/Classement 2 : "' + article2 + '"\n' +
+        '- Ce qu\'il a appris 2 : "' + apprentissage2 + '"\n\n' +
+        'Ta mission est de :\n' +
+        '1. Mettre en relation l\'actualité qu\'il a trouvée avec son profil personnel.\n' +
+        '2. Suggérer, en te basant sur une recherche web, 3 autres classements ou articles d\'actualité précis et pertinents qui pourraient l\'intéresser, en te basant sur son profil et son premier apprentissage. Ces suggestions doivent être des titres précis, trouvés sur des sites de référence comme L\'Étudiant.fr ou Studyrama.com.\n' +
+        '3. Expliquer brièvement pourquoi ces suggestions sont pertinentes.\n' +
+        'Le ton doit être constructif et aider l\'élève à faire des liens.Tu dois t\'adresser directement à l\'élève, en utilisant "tu"';
+
+        const result = await callGeminiAPI(prompt, true);
+        loader.style.display = 'none';
+
+        analysisTextarea.value = result;
+        actuAnalysisContainer.classList.remove('hidden');
+    });
+    
+    return div;
+}
         
         function createStep6View() {
             const config = stepsConfig.step6;
@@ -2518,10 +2778,24 @@ function createStep8View() {
 
 function createStep10View() {
     const config = stepsConfig.step10;
-    const div = createStepView(config);
+    
+    const div = document.createElement('div');
+    div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200';
+
+    div.innerHTML = `
+        <div class="flex items-center mb-6">
+            <button onclick="window.showView('menu')" class="text-cyan-600 hover:text-cyan-800 font-bold mr-4">← Retour</button>
+            <h1 class="text-2xl font-bold">${config.icon} ${config.title}</h1>
+        </div>
+        <form id="stepForm"></form> 
+    `;
+    
     const form = div.querySelector('#stepForm');
     
-    // NOUVELLE STRUCTURE DE DONNÉES : un objet pour séparer expériences et profil
+    // On récupère la description et l'action depuis l'objet de configuration
+    const description = config.description;
+    const action = config.action;
+    
     if (!journalData.step10 || !Array.isArray(journalData.step10.experiences)) {
         const experiences = Array.isArray(journalData.step10) ? journalData.step10 : [];
         journalData.step10 = {
@@ -2532,8 +2806,24 @@ function createStep10View() {
 
     let currentExperience = null;
     
-    // Structure HTML principale avec les deux modules
+    // CORRECTION : Nouvelle structure HTML pour le contenu du formulaire
     form.innerHTML = `
+        <div class="text-slate-600 mb-4 whitespace-pre-wrap">${description}</div>
+
+        <div class="bg-cyan-50 p-4 rounded-r-lg border-l-4 border-cyan-400 my-6">
+            <h3 class="font-bold text-cyan-800">🤔 Profil vs. Compétences : quelle est la différence ?</h3>
+            <p class="text-sm text-slate-700 mt-2">
+                À l'étape "Mieux se connaître", tu as fait un autoportrait de ta personnalité (introverti ou extraverti, créatif ou logique...). Ici, tu vas construire un portfolio qui montre concrètement ce que tu as appris à faire.
+            </p>
+            <p class="text-sm text-slate-700 mt-2">
+                Ton profil répond à la question **"Qui es-tu ?"**. Ton portfolio répond à la question **"Que sais-tu faire ?"**. Les deux sont essentiels pour un projet d'orientation solide et crédible !
+            </p>
+        </div>
+
+        <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6">
+            <div class="font-semibold text-cyan-900">${action}</div>
+        </div>
+
         <div class="mb-12">
             <h2 class="text-2xl font-bold text-slate-800 mb-4">Mes Expériences Significatives</h2>
             <div id="experience-list-container" class="space-y-4 mb-6"></div>
@@ -2562,7 +2852,7 @@ function createStep10View() {
             <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
                 <div class="flex items-center justify-between p-4 border-b">
                     <h2 class="text-xl font-bold text-slate-800">Assistant de Portfolio</h2>
-                    <button type="button" id="portfolio-modal-close" class="text-slate-500 hover:text-slate-800 text-2xl">&times;</button>
+                    <button type="button" id="portfolio-modal-close" class="text-slate-500 hover:text-slate-800 text-2xl">×</button>
                 </div>
                 <div class="p-6 overflow-y-auto">
                     <div id="wizard-step-1">
@@ -2580,7 +2870,6 @@ function createStep10View() {
     `;
 
     // --- LOGIQUE DU DÉTECTEUR DE COMPÉTENCES ---
-
     const detectorContainer = div.querySelector('#detector-container');
     const startDetectorBtn = div.querySelector('#start-detector-btn');
     const quizContainer = div.querySelector('#quiz-container');
@@ -2593,7 +2882,12 @@ function createStep10View() {
         { question: "Dans un travail de groupe, tu as tendance à :", answers: [ { text: "T'assurer que tout le monde s'entend bien.", skill: "Collaboration" }, { text: "Prendre les devants pour organiser les tâches.", skill: "Leadership" }, { text: "Te concentrer sur la partie qui demande le plus de recherche.", skill: "Analyse" } ] },
         { question: "Quand tu ne comprends pas quelque chose, tu :", answers: [ { text: "Cherches la réponse par toi-même jusqu'à la trouver.", skill: "Autonomie" }, { text: "Demandes de l'aide à quelqu'un qui sait.", skill: "Communication" }, { text: "Essaies de voir le problème sous un autre angle.", skill: "Adaptabilité" } ] },
         { question: "Un imprévu survient dans un projet. Que fais-tu ?", answers: [ { text: "Tu proposes rapidement un plan B.", skill: "Adaptabilité" }, { text: "Tu analyses la source du problème pour qu'il ne se répète pas.", skill: "Analyse" }, { text: "Tu rassures l'équipe et maintiens une bonne ambiance.", skill: "Intelligence Émotionnelle" } ] },
-        { question: "Laquelle de ces phrases te décrit le mieux ?", answers: [ { text: "J'aime quand les choses sont bien organisées.", skill: "Rigueur" }, { text: "J'aime convaincre les autres de mes idées.", skill: "Persuasion" }, { text: "J'aime apprendre de nouvelles choses constamment.", skill: "Curiosité" } ] }
+        { question: "Laquelle de ces phrases te décrit le mieux ?", answers: [ { text: "J'aime quand les choses sont bien organisées.", skill: "Rigueur" }, { text: "J'aime convaincre les autres de mes idées.", skill: "Persuasion" }, { text: "J'aime apprendre de nouvelles choses constamment.", skill: "Curiosité" } ] },
+        { question: "Face à un grand changement (déménagement, nouveau projet...), tu es plutôt :", answers: [ { text: "Enthousiaste, tu y vois une opportunité.", skill: "Adaptabilité" }, { text: "Prudent, tu as besoin de temps pour t'adapter.", skill: "Réflexion" } ] },
+        { question: "Quand tu as beaucoup de choses à faire, tu as tendance à :", answers: [ { text: "Créer une to-do list et t'y tenir.", skill: "Organisation" }, { text: "Travailler sur la tâche qui t'inspire le plus.", skill: "Motivation" } ] },
+        { question: "Tu préfères un projet où :", answers: [ { text: "Le résultat est garanti.", skill: "Prudence" }, { text: "Il y a une part de risque et de découverte.", skill: "Audace" } ] },
+        { question: "Face à une difficulté, ton premier réflexe est de :", answers: [ { text: "Chercher à comprendre pourquoi ça n'a pas marché.", skill: "Analyse critique" }, { text: "Te relever et réessayer.", skill: "Résilience" } ] },
+        { question: "Quand tu ne connais personne à une soirée, tu as tendance à :", answers: [ { text: "Attendre que quelqu'un vienne te parler.", skill: "Observation" }, { text: "Faire le premier pas et aller vers les autres.", skill: "Proactivité" } ] }
     ];
 
     const displayQuestion = (index) => {
@@ -2628,7 +2922,7 @@ function createStep10View() {
         }, {});
         const topSkills = Object.entries(skillCounts).sort((a, b) => b[1] - a[1]).map(el => el[0]);
 
-        const prompt = `Un lycéen a passé un quiz de compétences transversales. Ses compétences les plus marquées sont : ${topSkills.join(', ')}. Rédige une analyse courte et positive (2-3 phrases) de son profil de compétences, en expliquant ce que cela signifie pour son orientation. Par exemple : "Ton profil suggère que tu es quelqu'un de très organisé (Planification, Rigueur) qui aime aussi explorer de nouvelles idées (Créativité). Cela t'ouvre des portes vers des métiers qui allient structure et innovation."`;
+        const prompt = `Un lycéen a passé un quiz de compétences transversales. Ses compétences les plus marquées sont : ${topSkills.join(', ')}. Rédige une analyse courte et positive (8-10 phrases) de son profil de compétences, en expliquant ce que cela signifie pour son orientation. Par exemple : "Ton profil suggère que tu es quelqu'un de très organisé (Planification, Rigueur) qui aime aussi explorer de nouvelles idées (Créativité). Cela t'ouvre des portes vers des métiers qui allient structure et innovation."Tu dois t'adresser directement à l'élève, en utilisant "tu"`;
         
         const result = await callGeminiAPI(prompt);
         journalData.step10.soft_skills_profile = result;
@@ -2640,7 +2934,6 @@ function createStep10View() {
     };
 
     startDetectorBtn.addEventListener('click', () => {
-        startDetectorBtn.classList.add('hidden');
         quizContainer.classList.remove('hidden');
         userSoftSkills = [];
         currentQuestionIndex = 0;
@@ -2648,7 +2941,7 @@ function createStep10View() {
     });
 
     if (journalData.step10.soft_skills_profile) {
-        startDetectorBtn.classList.add('hidden');
+        startDetectorBtn.classList.remove('hidden');
         resultsContainer.classList.remove('hidden');
         resultsContainer.innerHTML = `
             <h4 class="font-bold text-slate-800 mb-2">Analyse de ton profil :</h4>
@@ -2657,8 +2950,6 @@ function createStep10View() {
     }
 
     // --- LOGIQUE DU GESTIONNAIRE D'EXPÉRIENCES (dans le modal) ---
-    // (Cette partie est identique à la version précédente, mais lit et écrit dans `journalData.step10.experiences`)
-
     const modal = div.querySelector('#portfolio-modal');
     const experienceListContainer = div.querySelector('#experience-list-container');
 
@@ -2751,29 +3042,36 @@ function createStep10View() {
         }
     });
     
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        checkBadges();
+        await saveData();
+        showView('menu');
+    });
+
     renderExperienceCards();
 
     return div;
 }
 
 
-function createOrientationMapView(data) {
+function createOrientationMapView(data, context = 'user') { // On ajoute le paramètre 'context'
+    // On choisit le titre en fonction du contexte
+    const profileTitle = context === 'user' ? 'Mon Profil' : 'Son Profil';
+
     let mapHTML = '<div class="mb-8"><h2 class="text-xl font-bold text-slate-800 text-center mb-4">🗺️ Carte d\'Orientation Personnelle</h2>';
     mapHTML += '<div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">';
 
     const profileAnalysis = data.step0 ? data.step0.analysis : '';
     if (profileAnalysis) {
-        // --- CORRECTION APPLIQUÉE ICI ---
-        // On ne prend que la première phrase de l'analyse en coupant au premier point.
         const profileSummary = profileAnalysis.split('.')[0] + '.';
-
         mapHTML += `<div class="lg:col-span-1 bg-cyan-50 p-4 rounded-lg border border-cyan-200">
-                        <h3 class="font-bold text-cyan-800 text-center">👤 Mon Profil</h3>
+                        <h3 class="font-bold text-cyan-800 text-center">👤 ${profileTitle}</h3>
                         <p class="text-sm text-slate-600 whitespace-pre-wrap mt-2">${profileSummary}</p>
                     </div>`;
     } else {
         mapHTML += `<div class="lg:col-span-1 bg-slate-50 p-4 rounded-lg border text-center">
-                        <h3 class="font-bold text-slate-500">👤 Mon Profil</h3>
+                        <h3 class="font-bold text-slate-500">👤 ${profileTitle}</h3>
                         <p class="text-sm text-slate-500 mt-2">Complète l'étape "Mieux se connaître" pour révéler ton profil.</p>
                     </div>`;
     }
@@ -3168,13 +3466,32 @@ Ta mission est la suivante :
             return div;
         }
 
-       async function createJournalView() {
+      async function createJournalView() {
+    // 1. Création du conteneur principal de la page
     const div = document.createElement('div');
     div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200';
+
+    // 2. Création de chaque section de la page
     
+    // -- En-tête --
+    const headerEl = document.createElement('div');
+    headerEl.innerHTML = `
+        <div class="flex flex-col sm:flex-row items-start justify-between mb-6 gap-4">
+            <div class="flex items-center">
+                <button onclick="window.showView('menu')" class="text-cyan-600 hover:text-cyan-800 font-bold mr-4 self-start mt-1">← Retour</button>
+                <div>
+                    <h1 class="text-2xl font-bold">📓 Mon Journal de Bord</h1>
+                    <p class="text-slate-500">Pour ${currentUserInfo.firstName} ${currentUserInfo.lastName}, élève de ${userGradeLevel}.</p>
+                </div>
+            </div>
+            </div>
+    `;
+
+    // -- Panneau de Partage --
     const shareToken = journalData.share_token || null;
     const shareLink = shareToken ? `${window.location.origin}${window.location.pathname}?share_id=${currentUserId}&token=${shareToken}` : '';
-    const sharePanelHTML = `
+    const sharePanelEl = document.createElement('div');
+    sharePanelEl.innerHTML = `
         <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-8">
             <h2 class="text-xl font-bold text-slate-800 mb-2">🤝 Espace Partage</h2>
             <p class="text-slate-600 text-sm mb-4">Partage une version "lecture seule" de ton journal avec tes parents ou ton professeur principal pour faciliter la discussion.</p>
@@ -3193,19 +3510,9 @@ Ta mission est la suivante :
         </div>
     `;
 
-    div.innerHTML = `
-        <div class="flex flex-col sm:flex-row items-start justify-between mb-6 gap-4">
-            <div class="flex items-center">
-                <button onclick="window.showView('menu')" class="text-cyan-600 hover:text-cyan-800 font-bold mr-4 self-start mt-1">← Retour</button>
-                <div>
-                    <h1 class="text-2xl font-bold">📓 Mon Journal de Bord</h1>
-                    <p class="text-slate-500">Pour ${currentUserInfo.firstName} ${currentUserInfo.lastName}, élève de ${userGradeLevel}.</p>
-                </div>
-            </div>
-            <button id="exportPdfBtn" class="w-full sm:w-auto bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition">Exporter en PDF</button>
-        </div>
-        ${sharePanelHTML}
-        <div id="orientation-map-wrapper"></div>
+    // -- Fil Rouge --
+    const filRougeEl = document.createElement('div');
+    filRougeEl.innerHTML = `
         <div id="filRougeContainer" class="mb-8 p-6 bg-cyan-50 border-l-4 border-cyan-500 rounded-r-lg">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold text-cyan-800">✨ Mon Fil Rouge</h2>
@@ -3214,70 +3521,81 @@ Ta mission est la suivante :
             <div id="filRougeLoader" class="hidden"><div class="loader"></div></div>
             <p id="filRougeContent" class="text-slate-700 whitespace-pre-wrap">${journalData.fil_rouge || "Cliquez sur 'Mettre à jour' pour que l'IA analyse votre parcours et crée une synthèse."}</p>
         </div>
-        <div id="badges-wrapper"></div>
-        <div id="journalContent" class="mt-8"></div>
     `;
 
-    div.querySelector('#orientation-map-wrapper').innerHTML = createOrientationMapView(journalData);
-    div.querySelector('#badges-wrapper').innerHTML = createBadgesDisplay('journal');
+    // 3. Assemblage de la page dans le bon ordre
+    div.appendChild(headerEl);
+    div.appendChild(sharePanelEl);
 
-    const journalContentDiv = div.querySelector('#journalContent');
-    let contentHTML = '';
+    const earnedBadges = journalData.earned_badges || [];
+    if (earnedBadges.length > 0) {
+        const badgesWrapper = document.createElement('div');
+        badgesWrapper.innerHTML = createBadgesDisplay('journal');
+        div.appendChild(badgesWrapper);
+    }
 
+    const mapWrapper = document.createElement('div');
+    mapWrapper.innerHTML = createOrientationMapView(journalData, 'user');
+    div.appendChild(mapWrapper);
+
+    div.appendChild(filRougeEl);
+
+    // 4. Remplissage du contenu détaillé (infographie + étapes)
+    const journalContentDiv = document.createElement('div');
+    journalContentDiv.id = 'journalContent';
+    journalContentDiv.className = 'mt-8';
+    
+    let hasAnyContent = false;
     if (journalData.step0 && journalData.step0.analysis) {
-        contentHTML += createProfileInfographic(journalData.step0).outerHTML;
+        const infographicElement = createProfileInfographic(journalData.step0);
+        journalContentDiv.appendChild(infographicElement);
+        hasAnyContent = true;
     }
     
     const stepTitles = {
-        step0: '👤 Mieux se connaître (Analyse)',
         step1: '📚 Les Fondations',
         step2: '🧭 Le simulateur de spécialités',
         step3: '🎓 Le Catalogue',
-        step5: '📰 L\'Actu & Tests',
         step10: '💼 Mon Portfolio de Compétences',
-        step11: '🌍 Rencontres sur mon Territoire'
     };
 
     for (const stepKey in stepTitles) {
         const stepData = journalData[stepKey];
         if (!stepData) continue;
-        let stepContent = '';
-        let hasContent = false;
-            
-        if (stepKey === 'step0') {
-            if (stepData.analysis && stepData.analysis.trim() !== '') {
-                hasContent = true;
-                // On affiche directement l'analyse sans sous-titre
-                stepContent += `<div class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-3 rounded-lg">${stepData.analysis}</div>`;
-            }
-        } else if (stepKey === 'step11') {
-            if (stepData.location) { hasContent = true; stepContent += `<div class="mb-3"><p class="font-semibold text-slate-700">Lieu de recherche</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${stepData.location}</p></div>`; }
-            if (stepData.evenements && Array.isArray(stepData.evenements) && stepData.evenements.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Événements sauvegardés :</h4>`; stepData.evenements.forEach(event => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-bold text-cyan-700">${event.nom || ''}</p><p class="text-sm text-slate-600">${event.date || ''} - ${event.lieu || ''}</p></div>`; }); }
-            if (stepData.structures && Array.isArray(stepData.structures) && stepData.structures.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Structures sauvegardées :</h4>`; stepData.structures.forEach(struct => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-bold text-cyan-700">${struct.nom || ''}</p><p class="text-sm text-slate-600">${struct.adresse || ''}</p></div>`; }); }
-        } else if (stepKey === 'step10') {
-            if (stepData.experiences && Array.isArray(stepData.experiences) && stepData.experiences.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mb-2">Expériences Significatives :</h4>`; stepData.experiences.forEach((exp, index) => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`; }); }
-            if (stepData.soft_skills_profile) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Profil de Compétences Transversales :</h4>`; stepContent += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>`; }
+        const sectionContainer = document.createElement('div');
+        let sectionHTML = '';
+        let hasContentInSection = false;
+        // ... (la logique interne pour remplir sectionHTML reste la même)
+        if (stepKey === 'step10') {
+            if (stepData.experiences && Array.isArray(stepData.experiences) && stepData.experiences.length > 0) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mb-2">Expériences Significatives :</h4>`; stepData.experiences.forEach((exp, index) => { sectionHTML += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`; }); }
+            if (stepData.soft_skills_profile) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Profil de Compétences Transversales :</h4>`; sectionHTML += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>`; }
         } else {
             for (const [key, value] of Object.entries(stepData)) {
                 if (value && typeof value === 'string' && value.trim() !== '' && !key.startsWith('q')) {
-                    hasContent = true;
+                    hasContentInSection = true;
                     const config = Object.values(stepsConfig).find(c => c.stepKey === stepKey);
                     let label = key.replace(/([A-Z0-9])/g, ' $1').replace(/^./, str => str.toUpperCase());
                     if (config && config.fields) { const field = config.fields.find(f => f.id === key); if (field) label = field.label; }
-                    stepContent += `<div class="mb-3"><p class="font-semibold text-slate-700">${label}</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${value}</p></div>`;
+                    sectionHTML += `<div class="mb-3"><p class="font-semibold text-slate-700">${label}</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${value}</p></div>`;
                 }
             }
         }
-        if (hasContent) {
-            contentHTML += `<div class="mb-8"><h3 class="text-xl font-bold border-b pb-2 mb-4 text-cyan-700">${stepTitles[stepKey]}</h3>${stepContent}</div>`;
+        if (hasContentInSection) {
+            sectionContainer.className = 'mb-8';
+            sectionContainer.innerHTML = `<h3 class="text-xl font-bold border-b pb-2 mb-4 text-cyan-700">${stepTitles[stepKey]}</h3>${sectionHTML}`;
+            journalContentDiv.appendChild(sectionContainer);
+            hasAnyContent = true;
         }
     }
 
-    journalContentDiv.innerHTML = contentHTML || '<p class="text-center text-slate-500">Votre journal est encore vide. Explorez les étapes pour le remplir !</p>';
+    if (!hasAnyContent && !(journalData.step0 && journalData.step0.analysis)) {
+        journalContentDiv.innerHTML = '<p class="text-center text-slate-500">Votre journal est encore vide. Explorez les étapes pour le remplir !</p>';
+    }
+    
+    div.appendChild(journalContentDiv);
 
-    // --- Logique des boutons ---
-    const toggleBtn = div.querySelector('#toggle-share-btn');
-    toggleBtn.addEventListener('click', async () => {
+    // 5. Ajout des écouteurs d'événements (maintenant que tous les éléments sont créés)
+    div.querySelector('#toggle-share-btn').addEventListener('click', async () => {
         if (journalData.share_token) {
             if (confirm("Es-tu sûr de vouloir désactiver le partage ? Le lien ne fonctionnera plus.")) {
                 journalData.share_token = null; await saveData(); showView('journal');
@@ -3297,17 +3615,16 @@ Ta mission est la suivante :
         const loader = div.querySelector('#filRougeLoader');
         const contentP = div.querySelector('#filRougeContent');
         loader.style.display = 'block'; contentP.style.display = 'none';
-        const prompt = `En te basant sur l'intégralité du journal de cet élève : ${JSON.stringify(journalData)}, rédige une synthèse de son projet d'orientation en 3 points : 1. Tes Moteurs : Quels sont les grands intérêts qui ressortent ? 2. Tes Compétences Clés : Quelles sont les aptitudes qui semblent importantes ? 3. Ton Environnement Idéal : Quel type d'études semble te correspondre ? Donne un titre à son projet.`;
+        const prompt = `En te basant sur l'intégralité du journal de cet élève : ${JSON.stringify(journalData)}, rédige une synthèse de son projet d'orientation en 3 points : 1. Tes Moteurs : Quels sont les grands intérêts qui ressortent ? 2. Tes Compétences Clés : Quelles sont les aptitudes qui semblent importantes ? 3. Ton Environnement Idéal : Quel type d'études semble te correspondre ? 4. Quels métiers :Quels types de métiers tu peux envisager ? Donne un titre à son projet. Tu dois t'adresser directement à l'élève, en utilisant "tu"`;
         const result = await callGeminiAPI(prompt);
         journalData.fil_rouge = result; await saveData();
         contentP.textContent = result;
         loader.style.display = 'none'; contentP.style.display = 'block';
     });
 
-    div.querySelector('#exportPdfBtn').addEventListener('click', exportPDF);
-
     return div;
 }
+// REMPLACEZ VOTRE FONCTION createPublicShareView ACTUELLE PAR CELLE-CI :
 async function createPublicShareView(userId, token) {
     const mainApp = document.getElementById('mainApp');
     mainApp.innerHTML = `<div class="loader"></div>`;
@@ -3331,110 +3648,110 @@ async function createPublicShareView(userId, token) {
                 gradeLevel: data.gradeLevel || 'sa classe'
             };
             
-            // On commence à construire le HTML de la page partagée
-            let pageHTML = `
-                <div class="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200">
-                    <h1 class="text-2xl font-bold text-cyan-700 mb-2">Journal de Bord de ${userInfo.firstName}</h1>
-                    <p class="text-slate-500 mb-8">Élève en ${userInfo.gradeLevel} à ${userInfo.schoolName}.</p>
-                    
-                    ${createOrientationMapView(publicJournalData)} 
-                    
-                    ${publicJournalData.fil_rouge ? `
-                        <div class="mb-8 p-6 bg-cyan-50 border-l-4 border-cyan-500 rounded-r-lg">
-                            <h2 class="text-xl font-bold text-cyan-800 mb-4">✨ Son Fil Rouge</h2>
-                            <p class="text-slate-700 whitespace-pre-wrap">${publicJournalData.fil_rouge}</p>
-                        </div>` : ''
-                    }
-                `;
+            // 1. On crée le conteneur principal de la page partagée
+            const pageContainer = document.createElement('div');
+            pageContainer.className = 'bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200';
 
-            // On utilise une astuce pour réutiliser createBadgesDisplay avec les bonnes données
-            const tempJournalData = journalData;
-            journalData = publicJournalData;
-            pageHTML += createBadgesDisplay('journal');
-            journalData = tempJournalData; // On restaure les données de l'utilisateur courant
+            // 2. On injecte l'en-tête
+            pageContainer.innerHTML = `
+                <h1 class="text-2xl font-bold text-cyan-700 mb-2">Journal de Bord de ${userInfo.firstName}</h1>
+                <p class="text-slate-500 mb-8 text-center">Élève en ${userInfo.gradeLevel} à ${userInfo.schoolName}.</p>
+            `;
+            
+            // 3. Assemblage de la page dans le bon ordre, comme le journal personnel
+            const earnedBadges = publicJournalData.earned_badges || [];
+            if (earnedBadges.length > 0) {
+                const tempJournalData = journalData;
+                journalData = publicJournalData;
+                const badgesElement = document.createElement('div');
+                badgesElement.innerHTML = createBadgesDisplay('journal');
+                pageContainer.appendChild(badgesElement);
+                journalData = tempJournalData;
+            }
 
-            // --- Logique complète pour afficher le contenu détaillé du journal ---
-            let contentHTML = '';
+            const mapViewElement = document.createElement('div');
+            mapViewElement.innerHTML = createOrientationMapView(publicJournalData, 'public');
+            pageContainer.appendChild(mapViewElement);
+
+            if (publicJournalData.fil_rouge) {
+                const filRougeElement = document.createElement('div');
+                filRougeElement.innerHTML = `
+                    <div class="mb-8 p-6 bg-cyan-50 border-l-4 border-cyan-500 rounded-r-lg">
+                        <h2 class="text-xl font-bold text-cyan-800 mb-4">✨ Son Fil Rouge</h2>
+                        <p class="text-slate-700 whitespace-pre-wrap">${publicJournalData.fil_rouge}</p>
+                    </div>`;
+                pageContainer.appendChild(filRougeElement);
+            }
+
+            const journalContentDiv = document.createElement('div');
+            journalContentDiv.className = 'mt-8';
+            pageContainer.appendChild(journalContentDiv);
+
             if (publicJournalData.step0 && publicJournalData.step0.analysis) {
-                contentHTML += createProfileInfographic(publicJournalData.step0).outerHTML;
+                const infographicElement = createProfileInfographic(publicJournalData.step0, 'public');
+                journalContentDiv.appendChild(infographicElement);
             }
 
             const stepTitles = {
-                step0: '👤 Mieux se connaître (Analyse)',
                 step1: '📚 Les Fondations',
                 step2: '🧭 Le simulateur de spécialités',
                 step3: '🎓 Le Catalogue',
-                step5: '📰 L\'Actu & Tests',
-                step10: '💼 Mon Portfolio de Compétences',
-                step11: '🌍 Rencontres sur mon Territoire'
+                step10: '💼 Son Portfolio de Compétences'
             };
             
             for (const stepKey in stepTitles) {
                 const stepData = publicJournalData[stepKey];
                 if (!stepData) continue;
-                let stepContent = '';
-                let hasContent = false;
-
-                if (stepKey === 'step11') {
-                    if (stepData.location) { hasContent = true; stepContent += `<div class="mb-3"><p class="font-semibold text-slate-700">Lieu de recherche</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${stepData.location}</p></div>`; }
-                    if (stepData.evenements && Array.isArray(stepData.evenements) && stepData.evenements.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Événements sauvegardés :</h4>`; stepData.evenements.forEach(event => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-bold text-cyan-700">${event.nom || ''}</p><p class="text-sm text-slate-600">${event.date || ''} - ${event.lieu || ''}</p></div>`; }); }
-                    if (stepData.structures && Array.isArray(stepData.structures) && stepData.structures.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Structures sauvegardées :</h4>`; stepData.structures.forEach(struct => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-bold text-cyan-700">${struct.nom || ''}</p><p class="text-sm text-slate-600">${struct.adresse || ''}</p></div>`; }); }
-                } else if (stepKey === 'step10') {
-                    if (stepData.experiences && stepData.experiences.length > 0) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mb-2">Expériences Significatives :</h4>`; stepData.experiences.forEach((exp, index) => { stepContent += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`; }); }
-                    if (stepData.soft_skills_profile) { hasContent = true; stepContent += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Profil de Compétences Transversales :</h4>`; stepContent += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>`; }
+                let sectionHTML = '';
+                let hasContentInSection = false;
+                if (stepKey === 'step10') {
+                    if (stepData.experiences && Array.isArray(stepData.experiences) && stepData.experiences.length > 0) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mb-2">Expériences Significatives :</h4>`; stepData.experiences.forEach((exp, index) => { sectionHTML += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`; }); }
+                    if (stepData.soft_skills_profile) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Profil de Compétences Transversales :</h4>`; sectionHTML += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>`; }
                 } else {
                     for (const [key, value] of Object.entries(stepData)) {
                         if (value && typeof value === 'string' && value.trim() !== '' && !key.startsWith('q')) {
-                            hasContent = true;
+                            hasContentInSection = true;
                             const config = Object.values(stepsConfig).find(c => c.stepKey === stepKey);
                             let label = key.replace(/([A-Z0-9])/g, ' $1').replace(/^./, str => str.toUpperCase());
                             if (config && config.fields) { const field = config.fields.find(f => f.id === key); if (field) label = field.label; }
-                            stepContent += `<div class="mb-3"><p class="font-semibold text-slate-700">${label}</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${value}</p></div>`;
+                            sectionHTML += `<div class="mb-3"><p class="font-semibold text-slate-700">${label}</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${value}</p></div>`;
                         }
                     }
                 }
-                
-                if (hasContent) {
-                    if (stepKey === 'step0') {
-                        contentHTML += `<div class="mb-8"><h3 class="text-xl font-bold border-b pb-2 mb-4 text-cyan-700">${stepTitles[stepKey]}</h3><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-3 rounded-lg">${stepData.analysis}</p></div>`;
-                    } else {
-                        contentHTML += `<div class="mb-8"><h3 class="text-xl font-bold border-b pb-2 mb-4 text-cyan-700">${stepTitles[stepKey]}</h3>${stepContent}</div>`;
-                    }
+                if (hasContentInSection) {
+                    const sectionContainer = document.createElement('div');
+                    sectionContainer.className = 'mb-8';
+                    sectionContainer.innerHTML = `<h3 class="text-xl font-bold border-b pb-2 mb-4 text-cyan-700">${stepTitles[stepKey]}</h3>${sectionHTML}`;
+                    journalContentDiv.appendChild(sectionContainer);
                 }
             }
-            
-            pageHTML += contentHTML;
 
-            // On ajoute le bouton "Préparer une discussion" à la fin
-            pageHTML += `
+            const discussionSection = document.createElement('div');
+            discussionSection.innerHTML = `
                 <div class="mt-8 border-t pt-6 text-center">
                     <button id="publicShareBtn" class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">🤝 Préparer une discussion</button>
                 </div>
                 <div id="publicGeminiShareLoader" class="hidden"><div class="loader"></div></div>
                 <div id="publicGeminiShareResult" class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg text-slate-700 whitespace-pre-wrap"></div>
             `;
-            
-            pageHTML += `</div>`; // Fin de la carte principale
-            mainApp.innerHTML = pageHTML;
+            pageContainer.appendChild(discussionSection);
 
-            // On attache l'événement au nouveau bouton
+            mainApp.innerHTML = '';
+            mainApp.appendChild(pageContainer);
+
             mainApp.querySelector('#publicShareBtn').addEventListener('click', async () => {
                 const loader = mainApp.querySelector('#publicGeminiShareLoader');
                 const resultDiv = mainApp.querySelector('#publicGeminiShareResult');
                 loader.style.display = 'block'; resultDiv.textContent = '';
-                const prompt = `Agis en tant que coach d'orientation et médiateur familial expert. Analyse le journal de bord de cet élève : ${JSON.stringify(publicJournalData)}.
-                
-                Ta mission est de générer 3 "points de dialogue" pour aider les parents ou professeurs à avoir une discussion constructive.
-
-                Pour chaque point, tu dois fournir deux éléments bien distincts :
-                1.  **Piste de discussion :** Une question ouverte et bienveillante qui ouvre le dialogue sur un point clé du journal (un doute, une force, une contradiction).
-                2.  **Action de résolution :** Une suggestion d'action simple et concrète que l'élève pourrait entreprendre pour avancer sur ce point précis (ex: utiliser une étape spécifique de l'application, faire une recherche ciblée, contacter quelqu'un).
-                
-                Utilise un ton encourageant et présente clairement les deux parties pour chaque point.`;
-                                const result = await callGeminiAPI(prompt);
+                const prompt = 'Agis en tant que coach d\'orientation et médiateur familial expert. Analyse le journal de bord de cet élève : ' + JSON.stringify(publicJournalData) + '.\n\n' +
+                'Ta mission est de générer 3 "points de dialogue" pour aider les parents ou professeurs à avoir une discussion constructive.\n\n' +
+                'Pour chaque point, tu dois fournir deux éléments bien distincts :\n' +
+                '1.  **Piste de discussion :** Une question ouverte et bienveillante qui ouvre le dialogue sur un point clé du journal (un doute, une force, une contradiction).\n' +
+                '2.  **Action de résolution :** Une suggestion d\'action simple et concrète que l\'élève pourrait entreprendre pour avancer sur ce point précis (ex: utiliser une étape spécifique de l\'application, faire une recherche ciblée, contacter quelqu\'un).\n\n' +
+                'Utilise un ton encourageant et présente clairement les deux parties pour chaque point.';
+                const result = await callGeminiAPI(prompt);
                 loader.style.display = 'none';
                 resultDiv.textContent = result;
-                // Note : On ne sauvegarde pas le résultat, car c'est une page en lecture seule.
             });
 
         } else {
@@ -3444,229 +3761,8 @@ async function createPublicShareView(userId, token) {
         mainApp.innerHTML = `<div class="text-center p-8 bg-white rounded-lg shadow-md"><h2 class="text-xl font-bold text-red-600">Erreur</h2><p class="text-slate-600 mt-2">${error.message}</p></div>`;
     }
 }
-        function getProfileSummaryText(step0Data) {
-            if (!step0Data) return "";
-
-            const profiles = [
-                { title: 'Source d\'énergie', q: 'q20', left: { key: 'seul', label: 'Introverti' }, right: { key: 'amis', label: 'Extraverti' } },
-                { title: 'Prise de décision', q: 'q11', left: { key: 'analyse', label: 'Analyse' }, right: { key: 'intuition', label: 'Intuition' } },
-                { title: 'Mode de travail', q: 'q1', left: { key: 'seul', label: 'Individuel' }, right: { key: 'equipe', label: 'Collaboratif' } },
-                { title: 'Approche', q: 'q3', left: { key: 'logique', label: 'Méthodique' }, right: { key: 'creatif', label: 'Créatif' } },
-                { title: 'Environnement', q: 'q19', left: { key: 'claires', label: 'Cadre clair' }, right: { key: 'generales', label: 'Autonomie' } },
-                { title: 'Moteur', q: 'q25', left: { key: 'competence', label: 'Maîtrise' }, right: { key: 'sens', label: 'Quête de sens' } }
-            ];
-            
-            let summary = "Synthèse du Profil :\n";
-            profiles.forEach(p => {
-                const answer = step0Data[p.q];
-                let trait = "Non défini";
-                if (answer === p.left.key) trait = p.left.label;
-                if (answer === p.right.key) trait = p.right.label;
-                summary += `- ${p.title}: ${trait}\n`;
-            });
-            return summary;
-        }
-
-function createJournalContentHTML(data) {
-    let contentHTML = '';
-    
-    if (data.step0 && data.step0.analysis) {
-        const infographicElement = createProfileInfographic(data.step0);
-        contentHTML += `<div class="journal-section">
-                            <h2>👤 Mieux se connaître</h2>
-                            ${infographicElement.querySelector('.bg-slate-50').innerHTML}
-                            <h3>Analyse de l'IA :</h3>
-                            <p>${linkify(data.step0.analysis)}</p>
-                         </div>`;
-    }
-
-    const stepOrder = ['step1', 'step2', 'step3', 'step5', 'step4', 'step8', 'step11', 'step6', 'step9', 'step12'];
-    stepOrder.forEach(stepKey => {
-        const stepData = data[stepKey];
-        const config = Object.values(stepsConfig).find(s => s.stepKey === stepKey);
-        if (!stepData || !config || Object.values(stepData).every(v => !v)) return;
-
-        let stepContent = '';
-        config.fields.forEach(field => {
-            if (stepData[field.id] && String(stepData[field.id]).trim()) {
-                stepContent += `<h3>${field.label}</h3><p>${linkify(String(stepData[field.id]))}</p>`;
-            }
-        });
-
-        if (stepContent) {
-            contentHTML += `<div class="journal-section"><h2>${config.icon} ${config.title}</h2>${stepContent}</div>`;
-        }
-    });
-
-    return contentHTML;
-}
 
 
-// REMPLACEZ VOTRE FONCTION exportPDF EXISTANTE PAR CETTE VERSION FINALE :
-
-async function exportPDF() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-    const FONT_NORMAL = 'Helvetica';
-
-    // --- Constantes et couleurs ---
-    const MARGIN = 15;
-    const PAGE_WIDTH = doc.internal.pageSize.getWidth();
-    const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
-    const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
-    let y = MARGIN;
-
-    const COLOR_PRIMARY = '#4f46e5';
-    const COLOR_SECONDARY = '#475569';
-    const COLOR_TEXT = '#334155';
-    
-    // --- Fonctions utilitaires ---
-    const checkPageBreak = (heightNeeded) => {
-        if (y + heightNeeded > PAGE_HEIGHT - MARGIN) {
-            doc.addPage();
-            y = MARGIN;
-        }
-    };
-
-    const addSectionTitle = (title) => {
-        checkPageBreak(20);
-        doc.setFontSize(16);
-        doc.setFont(FONT_NORMAL, 'bold');
-        doc.setTextColor(COLOR_PRIMARY);
-        doc.text(title, MARGIN, y);
-        y += 6;
-        doc.setDrawColor('#cbd5e1');
-        doc.line(MARGIN, y, PAGE_WIDTH - MARGIN, y);
-        y += 10;
-    };
-
-    const addBodyText = (text, options = {}) => {
-        const { indent = 0 } = options;
-        doc.setFontSize(11);
-        doc.setFont(FONT_NORMAL, 'normal');
-        doc.setTextColor(COLOR_TEXT);
-        const textLines = doc.splitTextToSize(String(text), CONTENT_WIDTH - indent);
-        checkPageBreak(textLines.length * 5);
-        doc.text(textLines, MARGIN + indent, y);
-        y += textLines.length * 5 + 4;
-    };
-
-    const addSubHeader = (text) => {
-        checkPageBreak(8);
-        doc.setFontSize(12);
-        doc.setFont(FONT_NORMAL, 'bold');
-        doc.setTextColor(COLOR_SECONDARY);
-        doc.text(text, MARGIN, y);
-        y += 7;
-    };
-
-    // --- 1. PAGE DE GARDE ---
-    doc.setFontSize(24);
-    doc.setFont(FONT_NORMAL, 'bold');
-    doc.setTextColor(COLOR_PRIMARY);
-    doc.text("Rapport d'Orientation Personnalisé", PAGE_WIDTH / 2, 120, { align: 'center' });
-    doc.setFontSize(16);
-    doc.setFont(FONT_NORMAL, 'normal');
-    doc.setTextColor(COLOR_SECONDARY);
-    doc.text(`${currentUserInfo.firstName} ${currentUserInfo.lastName}`, PAGE_WIDTH / 2, 135, { align: 'center' });
-    doc.setFontSize(12);
-    doc.text(`Élève de ${userGradeLevel}`, PAGE_WIDTH / 2, 145, { align: 'center' });
-    doc.text(capitalizeWords(currentUserInfo.schoolName), PAGE_WIDTH / 2, 152, { align: 'center' });
-    
-    doc.addPage();
-    y = MARGIN;
-
-    // --- 2. GÉNÉRATION EXHAUSTIVE DU CONTENU ---
-    const reportOrder = ['fil_rouge', 'badges', 'step0', 'step10', 'step1', 'step2', 'step3', 'step5', 'step4', 'step8', 'step11', 'step6', 'step9', 'retroplanning'];
-    
-    for (const key of reportOrder) {
-        const stepData = journalData[key];
-        const stepInfo = Object.values(stepsConfig).find(s => s.stepKey === key) || { title: 'Rétroplanning', icon: '🗓️' };
-        if (!stepData || Object.values(stepData).every(v => !v || (Array.isArray(v) && v.length === 0))) continue;
-
-        if (key === 'fil_rouge' && stepData.trim()) {
-            addSectionTitle("Mon Fil Rouge");
-            addBodyText(stepData);
-            continue;
-        } 
-        if (key === 'badges') {
-            const earnedBadges = journalData.earned_badges || [];
-            if(earnedBadges.length > 0) {
-                addSectionTitle("Mes Badges");
-                earnedBadges.forEach(badgeKey => {
-                    const badge = badgesConfig[badgeKey];
-                    if (badge) addBodyText(`- ${badge.title}`);
-                });
-            }
-            continue;
-        }
-
-        addSectionTitle(stepInfo.title);
-
-        if (key === 'step0' && stepData.analysis) {
-            const infographicContainer = createProfileInfographic(stepData);
-            const elementToCapture = infographicContainer.querySelector('.bg-slate-50');
-
-            if (elementToCapture) {
-                // CORRECTION : On attache, on capture, on retire
-                infographicContainer.style.position = 'fixed';
-                infographicContainer.style.left = '-9999px';
-                infographicContainer.style.width = '700px';
-                document.body.appendChild(infographicContainer);
-
-                try {
-                    const canvas = await html2canvas(elementToCapture, { scale: 3, backgroundColor: '#f8fafc' });
-                    const imgData = canvas.toDataURL('image/png');
-                    const imgHeight = (canvas.height * CONTENT_WIDTH) / canvas.width;
-                    checkPageBreak(imgHeight + 5);
-                    doc.addImage(imgData, 'PNG', MARGIN, y, CONTENT_WIDTH, imgHeight);
-                    y += imgHeight + 8;
-                } catch (e) {
-                    console.error("html2canvas failed:", e);
-                    addBodyText("[Erreur lors de la génération de l'infographie]");
-                } finally {
-                    document.body.removeChild(infographicContainer);
-                }
-            }
-            addSubHeader("Analyse de l'IA :");
-            addBodyText(stepData.analysis);
-        } else if (key === 'step10') {
-            if (stepData.experiences && stepData.experiences.length > 0) {
-                addSubHeader("Expériences Significatives :");
-                stepData.experiences.forEach((exp, i) => addBodyText(`Expérience #${i + 1}: ${exp.analysis}`, { indent: 5 }));
-            }
-            if (stepData.soft_skills_profile) {
-                addSubHeader("Profil de Compétences Transversales :");
-                addBodyText(stepData.soft_skills_profile, { indent: 5 });
-            }
-        } else if (key === 'retroplanning' && stepData.tasks) {
-            stepData.tasks.forEach(month => {
-                checkPageBreak(8);
-                addSubHeader(month.month);
-                month.tasks.forEach(task => addBodyText((task.completed ? `[x] ` : `[ ] `) + task.text, { indent: 5 }));
-            });
-        } else if (stepInfo.fields) {
-            stepInfo.fields.forEach(field => {
-                if (stepData[field.id] && String(stepData[field.id]).trim()) {
-                    addSubHeader(field.label + " :");
-                    addBodyText(String(stepData[field.id]), { indent: 5 });
-                }
-            });
-        }
-    }
-
-    // --- 3. FINALISATION ---
-    const pageCount = doc.internal.getNumberOfPages();
-    for(let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(9);
-        doc.setTextColor(156, 163, 175);
-        if (i > 1) doc.text("Rapport d'Orientation | Mon Explor'Orientation", MARGIN, 10);
-        doc.text(`Page ${i} sur ${pageCount}`, PAGE_WIDTH / 2, PAGE_HEIGHT - 10, { align: 'center' });
-    }
-
-    doc.save(`Rapport_Orientation_${currentUserInfo.firstName}_${currentUserInfo.lastName}.pdf`);
-}
 function isStepComplete(stepKey) {
     const config = Object.values(stepsConfig).find(s => s.stepKey === stepKey);
     const data = journalData[stepKey];
@@ -3823,7 +3919,6 @@ Réponds maintenant à la question suivante : "${userInput}"`;
         }
 
         window.showView = showView;
-        window.exportPDF = exportPDF;
 
         if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -3834,6 +3929,40 @@ Réponds maintenant à la question suivante : "${userInput}"`;
             });
         });
     }
+
+    // ========================================================
+// AJOUTEZ CE BLOC POUR LA NAVIGATION PAR GESTES
+// ========================================================
+let touchStartX = 0;
+let touchStartY = 0;
+
+mainApp.addEventListener('touchstart', (e) => {
+    // On enregistre la position de départ du doigt
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+mainApp.addEventListener('touchend', (e) => {
+    // On ne fait rien si le bouton retour n'est pas visible
+    // (cela empêche le geste de fonctionner sur le menu principal)
+    if (!floatingBackBtn || floatingBackBtn.style.display === 'none') {
+        return;
+    }
+
+    // On récupère la position de fin
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+
+    // On vérifie si le geste est un balayage vers la droite
+    // et pas un simple défilement vertical.
+    if (deltaX > 75 && Math.abs(deltaY) < 75) {
+        showView('menu');
+    }
+}, { passive: true });
+
     </script>
 </body>
 </html>
