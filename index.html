@@ -97,7 +97,6 @@
             transition: opacity 0.3s ease;
         }
 
-        /* Pour centrer tous les titres, partout */
         h1, h2, h3, h4 {
             text-align: center;
         }
@@ -1454,13 +1453,7 @@ function createStep0View() {
             `;
         }
         
-
-// REMPLACEZ VOTRE FONCTION createStep1View EXISTANTE PAR CELLE-CI :
-
-// REMPLACEZ VOTRE FONCTION createStep1View EXISTANTE PAR CELLE-CI :
-// REMPLACEZ VOTRE FONCTION createStep1View EXISTANTE PAR CELLE-CI :
-// REMPLACEZ VOTRE FONCTION createStep1View EXISTANTE PAR CELLE-CI :
-// REMPLACEZ VOTRE FONCTION createStep1View EXISTANTE PAR CELLE-CI :
+// REMPLACEZ VOTRE FONCTION createStep1View EXISTANTE PAR CE CODE COMPLET :
 function createStep1View() {
     const config = stepsConfig.step1;
     const div = createStepView(config);
@@ -1468,12 +1461,44 @@ function createStep1View() {
     
     if (!journalData.step1) journalData.step1 = {};
 
+    // MODIFICATION : Nouvelle fonction pour convertir le Markdown en tableau HTML
+    const markdownTableToHtml = (markdown) => {
+        if (!markdown || typeof markdown !== 'string') return '';
+        const lines = markdown.trim().split('\n').filter(line => line.trim().startsWith('|'));
+        if (lines.length < 2) {
+            // Si ce n'est pas un tableau valide, on affiche le texte tel quel
+            return `<p class="whitespace-pre-wrap">${markdown}</p>`;
+        }
+
+        const tableClasses = "w-full text-left border-collapse";
+        const thClasses = "p-3 border-b-2 border-slate-300 font-bold text-slate-800 bg-slate-100";
+        const tdClasses = "p-3 border-b border-slate-200 align-top text-sm";
+        let html = `<table class="${tableClasses}">`;
+
+        // En-tête du tableau
+        const headerCells = lines[0].split('|').slice(1, -1).map(cell => cell.trim());
+        html += '<thead><tr>';
+        headerCells.forEach(cell => { html += `<th class="${thClasses}">${cell}</th>`; });
+        html += '</tr></thead>';
+
+        // Corps du tableau
+        html += '<tbody>';
+        for (let i = 2; i < lines.length; i++) { // On saute la ligne de séparation ' |---|---| '
+            const rowCells = lines[i].split('|').slice(1, -1).map(cell => cell.trim());
+            if (rowCells.length === headerCells.length) {
+                html += '<tr>';
+                rowCells.forEach(cell => { html += `<td class="${tdClasses}">${linkify(cell)}</td>`; });
+                html += '</tr>';
+            }
+        }
+        html += '</tbody></table>';
+        return html;
+    };
+
     const createMetierBlock = (index) => {
         const metier = journalData.step1[`metier${index}`] || '';
         const notes = journalData.step1[`notes${index}`] || '';
-        // On récupère le résultat brut (HTML ou texte) pour l'afficher
-        const analysis = journalData.step1[`analysis${index}`] || ''; 
-        // On crée une version texte simple pour la sauvegarde dans l'input caché
+        const analysis = journalData.step1[`analysis${index}`] || '';
         const analysisText = journalData.step1[`analysisText${index}`] || analysis; 
         return `
             <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 mb-8">
@@ -1505,7 +1530,7 @@ function createStep1View() {
                 <button type="button" id="compare-btn" class="w-full bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition">Comparer mes métiers explorés</button>
             </div>
             <div id="loader-comparison" class="hidden"><div class="loader"></div></div>
-            <div id="comparison-result" class="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg text-slate-700 whitespace-pre-wrap text-left">${journalData.step1.comparison || ''}</div>
+            <div id="comparison-result" class="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg text-slate-700 text-left"></div>
             <input type="hidden" name="comparison" id="comparison" value="${journalData.step1.comparison || ''}">
         </div>
     `;
@@ -1542,20 +1567,16 @@ function createStep1View() {
             const loader = div.querySelector(`#loader-${index}`);
             const resultDiv = div.querySelector(`#result-${index}`);
             const analysisTextInput = div.querySelector(`#analysisText${index}`);
-
             const metier = metierInput.value.trim();
             if (!metier) {
                 resultDiv.innerHTML = 'Veuillez d\'abord entrer un nom de métier.';
                 return;
             }
-
             resultDiv.innerHTML = '';
             loader.style.display = 'block';
-
             let prompt = '';
             let useGrounding = false;
             let isJson = false;
-
             switch(action) {
                 case 'debouches':
                     prompt = `Décris en 3 points clairs les débouchés pour le métier de "${metier}".`;
@@ -1569,20 +1590,15 @@ function createStep1View() {
                     isJson = true;
                     break;
             }
-
             const result = await callGeminiAPI(prompt, useGrounding, isJson);
             loader.style.display = 'none';
-
             if (action === 'temoignages') {
                 try {
                     let parsedResult = JSON.parse(result);
                     const testimonialsList = Array.isArray(parsedResult) ? parsedResult : (parsedResult.contenus || parsedResult.testimonials);
-
                     if (!Array.isArray(testimonialsList)) {
                         throw new Error("La réponse de l'IA ne contient pas une liste valide.");
                     }
-
-                    // MODIFICATION : Nouvelle mise en forme HTML beaucoup plus compacte
                     let htmlResult = '';
                     let textResult = '';
                     testimonialsList.forEach((item, index) => {
@@ -1598,7 +1614,7 @@ function createStep1View() {
                         textResult += `Titre: ${item.titre}\nRésumé: ${item.resume}\nLien: ${item.lien}\n\n`;
                     });
                     resultDiv.innerHTML = htmlResult;
-                    analysisTextInput.value = textResult.trim(); // Sauvegarde une version texte simple
+                    analysisTextInput.value = textResult.trim();
                 } catch (e) {
                     resultDiv.innerHTML = "L'IA n'a pas pu formater les témoignages correctement. Voici sa réponse brute : <br><pre class='whitespace-pre-wrap text-xs'>" + result + "</pre>";
                     analysisTextInput.value = result;
@@ -1608,11 +1624,11 @@ function createStep1View() {
                 resultDiv.innerHTML = linkedResult;
                 analysisTextInput.value = result;
             }
-            
             checkComparisonState();
         });
     });
 
+    // MODIFICATION : Le listener du bouton de comparaison est entièrement mis à jour
     div.querySelector('#compare-btn').addEventListener('click', async () => {
         const loader = div.querySelector('#loader-comparison');
         const resultDiv = div.querySelector('#comparison-result');
@@ -1630,24 +1646,44 @@ function createStep1View() {
         if (exploredMetiers.length < 2) return;
 
         loader.style.display = 'block';
-        resultDiv.textContent = '';
+        resultDiv.innerHTML = '';
 
-        const prompt = `Agis comme un conseiller d'orientation. Compare les métiers suivants que l'élève a explorés.
-        Métiers: ${JSON.stringify(exploredMetiers)}
+        const prompt = `Agis comme un conseiller d'orientation. Compare les métiers suivants que l'élève a explorés : ${JSON.stringify(exploredMetiers)}.
         
-        Crée un tableau de comparaison en format Markdown simple avec les colonnes suivantes : "Critère", puis une colonne pour chaque nom de métier.
-        Les lignes (critères) à comparer sont impérativement :
-        - Type d'études / Niveau Requis
-        - Compétences Clés
-        - Environnement de Travail`;
+        Ta réponse doit être **uniquement un objet JSON valide** avec deux clés :
+        1. "tableau": une chaîne de caractères contenant un tableau de comparaison en format Markdown simple (avec les colonnes "Critère", puis une colonne par métier, et les lignes "Type d'études / Niveau Requis", "Compétences Clés", "Environnement de Travail").
+        2. "remarques": une chaîne de caractères avec une ou deux phrases de conclusion ou de mise en garde.`;
         
-        const result = await callGeminiAPI(prompt);
+        const result = await callGeminiAPI(prompt, false, true);
         loader.style.display = 'none';
-        resultDiv.textContent = result;
-        comparisonInput.value = result;
+
+        try {
+            const data = JSON.parse(result);
+            const tableHTML = markdownTableToHtml(data.tableau);
+            const remarksHTML = data.remarques ? `<p class="mt-4 text-sm text-slate-600 italic">${data.remarques}</p>` : '';
+            
+            resultDiv.innerHTML = tableHTML + remarksHTML;
+            comparisonInput.value = result; // On sauvegarde le JSON brut pour la persistance
+        } catch (e) {
+            resultDiv.innerHTML = `<p class="text-red-500">L'IA n'a pas pu formater la comparaison. Voici sa réponse brute :</p><pre class="whitespace-pre-wrap text-xs">${result}</pre>`;
+            comparisonInput.value = result;
+        }
     });
 
+    // On vérifie l'état initial au chargement, et on affiche le tableau si des données existent
+    if(journalData.step1.comparison) {
+        try {
+            const data = JSON.parse(journalData.step1.comparison);
+            const tableHTML = markdownTableToHtml(data.tableau);
+            const remarksHTML = data.remarques ? `<p class="mt-4 text-sm text-slate-600 italic">${data.remarques}</p>` : '';
+            div.querySelector('#comparison-result').innerHTML = tableHTML + remarksHTML;
+        } catch(e) {
+            // Si le JSON sauvegardé est invalide, on affiche le texte brut
+             div.querySelector('#comparison-result').textContent = journalData.step1.comparison;
+        }
+    }
     checkComparisonState();
+    
     return div;
 }
 
@@ -2160,8 +2196,8 @@ function createGuideView() {
     const styleHTML = `
         <style>
             .guide-container { line-height: 1.7; }
-            .guide-container h2 { border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; color: #1e293b; margin-top: 60px; font-size: 1.75em; font-weight: 700; text-align: left; }
-            .guide-container h3 { color: #334155; font-size: 1.3em; margin-top: 40px; font-weight: 600; text-align: left; }
+            .guide-container h2 { border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; color: #1e293b; margin-top: 60px; font-size: 1.75em; font-weight: 700; text-align: center; }
+            .guide-container h3 { color: #334155; font-size: 1.3em; margin-top: 40px; font-weight: 600; text-align: center; }
             .guide-container .centered-subtitle { text-align: center; margin-bottom: 30px; }
             .guide-container h4 { margin-top: 0; font-size: 1.1em; font-weight: 600; display: flex; align-items: center; gap: 0.75rem; text-align: left; }
             .guide-container .logo { display: block; margin: 0 auto 10px auto; width: 350px; }
@@ -2186,8 +2222,8 @@ function createGuideView() {
         <p>"Mon Explor'Orientation" est un <strong>carnet de bord numérique interactif</strong>, conçu pour accompagner chaque lycéen dans la construction de son projet d'avenir. Son objectif est de rendre l'élève acteur de son orientation en lui proposant une méthode structurée et des outils intelligents pour l'aider à chaque étape de sa réflexion.</p>
         <div class="info-box conseil-prof" style="font-style: normal;">
             <h4 style="font-weight: bold; color: #3730A3; display:block;">🤖 Le rôle de l'Intelligence Artificielle (IA)</h4>
-            <p style="margin-top: 10px; font-style: normal;">Dans cette application, l'IA est votre <strong>assistante personnelle bienveillante</strong>. Elle n'est pas là pour décider à votre place, mais pour vous faire gagner du temps et enrichir votre réflexion. Concrètement, elle va analyser, synthétiser, suggérer, rechercher et structurer l'information.</p>
-            <p style="margin-top: 15px; font-style: normal;"><strong>L'élève reste toujours le pilote :</strong> c'est vous qui explorez, qui choisissez et qui prenez les décisions finales. L'IA est simplement un copilote expert qui vous aide à naviguer.</p>
+            <p style="margin-top: 10px; font-style: normal;">Dans cette application, l'IA est une <strong>assistante personnelle bienveillante</strong>. Elle n'est pas là pour décider à la place de l'élève, mais pour lui faire gagner du temps et enrichir sa réflexion. Concrètement, elle va analyser, synthétiser, suggérer, rechercher et structurer l'information.</p>
+            <p style="margin-top: 15px; font-style: normal;"><strong>L'élève reste toujours le pilote :</strong> c'est lui qui explore, qui choisit et qui prend les décisions finales. L'IA est simplement un copilote expert qui l'aide à naviguer.</p>
         </div>
     `;
 
@@ -2335,7 +2371,7 @@ const partie4FonctionnalitesHTML_enseignants = `
                 La protection de vos données est une priorité absolue. Voici en toute transparence comment elles sont gérées :
                 <ul>
                     <li><strong>Quelles données sont collectées ?</strong> L'application collecte uniquement les informations que vous fournissez : votre nom, prénom, email, nom de votre lycée, ainsi que toutes les notes que vous inscrivez dans votre journal de bord.</li>
-                    <li><strong>Qui les collecte et où sont-elles hébergées ?</strong> Vos données sont collectées par le créateur de l'application, Thomas Cavil, et sont stockées de manière sécurisée sur <strong>Firebase</strong>, une plateforme de Google. L'hébergement se fait sur des serveurs sécurisés en Europe.</li>
+                    <li><strong>Qui les collecte et où sont-elles hébergées ?</strong> Vos données sont collectées par les concepteurs de l'application, et sont stockées de manière sécurisée sur <strong>Firebase</strong>, une plateforme de Google. L'hébergement se fait sur des serveurs sécurisés en Europe.</li>
                     <li><strong>Comment sont-elles utilisées ?</strong> Vos données ne sont utilisées <strong>que pour le fonctionnement de l'application</strong>. Votre journal de bord est envoyé à l'IA Gemini pour générer les réponses contextuelles, mais il n'est pas utilisé pour entraîner le modèle global de Google. Vos données ne sont jamais partagées avec des tiers ni utilisées à des fins commerciales.</li>
                     <li><strong>Qui peut y accéder ?</strong> Vous seul(e) pouvez accéder à vos données via votre compte. Si vous utilisez la fonction de partage, la personne détentrice du lien pourra voir une version "lecture seule" de votre journal.</li>
                 </ul>
