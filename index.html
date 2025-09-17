@@ -185,572 +185,52 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
-        
 
-        // IMPORTANT : Remplacez par la configuration de votre propre projet Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyCT6U-7Az53oYCPZWHo3Dvxs20XiR0y3EU",
-            authDomain: "monapp0rientation.firebaseapp.com",
-            projectId: "monapp0rientation",
-            storageBucket: "monapp0rientation.firebasestorage.app",
-            messagingSenderId: "369432089475",
-            appId: "1:369432089475:web:689a194b6880001c249cb6"
+        const levelConfig = {
+            1: 0,
+            2: 100,
+            3: 250,
+            4: 500,
+            5: 800,
+            6: 1200,
+            7: 1700,
+            8: 2300,
+            9: 3000,
+            10: 4000
         };
 
-        const firebaseApp = initializeApp(firebaseConfig);
-        const auth = getAuth(firebaseApp);
-        const db = getFirestore(firebaseApp);
-        const functions = getFunctions(firebaseApp, "europe-west1"); 
-        let currentUserId = null;
-        let userGradeLevel = null;
-        let currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
+        const rankNames = {
+            1: { homme: "Initié", femme: "Initiée", autre: "Initié(e)" },
+            2: { homme: "Apprenti", femme: "Apprentie", autre: "Apprenti(e)" },
+            3: { homme: "Curieux", femme: "Curieuse", autre: "Curieux/se" },
+            4: { homme: "Explorateur", femme: "Exploratrice", autre: "Explorateur/rice" },
+            5: { homme: "Stratège", femme: "Stratège", autre: "Stratège" },
+            6: { homme: "Analyste", femme: "Analyste", autre: "Analyste" },
+            7: { homme: "Spécialiste", femme: "Spécialiste", autre: "Spécialiste" },
+            8: { homme: "Expert", femme: "Experte", autre: "Expert(e)" },
+            9: { homme: "Mentor", femme: "Mentor", autre: "Mentor" },
+            10: { homme: "Maître de l'Orientation", femme: "Maîtresse de l'Orientation", autre: "Maître de l'Orientation" }
+        };
 
-        let cameFromLogin = false;
-        
-        const linkify = (text) => {
-    const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])|(\bwww\.[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
-    let newText = text.replace(urlRegex, function(url) {
-        let hyperLink = url;
-        if (!hyperLink.match('^https?:\/\/')) {
-            hyperLink = 'http://' + hyperLink;
-        }
-        return `<a href="${hyperLink}" target="_blank" class="text-cyan-600 hover:underline">${url}</a>`;
-    });
-    // This makes sure line breaks are preserved
-    return newText.replace(/\n/g, '<br>');
-};
-        const { jsPDF } = window.jspdf;
+        const creativeAngles = [
+            "un métier en lien avec la nature ou l'environnement.",
+            "une carrière dans le secteur du jeu vidéo ou du divertissement interactif.",
+            "un rôle qui implique des voyages ou des relations internationales.",
+            "un métier artisanal ou qui demande un savoir-faire manuel de précision.",
+            "une profession dans le domaine social ou humanitaire.",
+            "un métier de la communication ou du journalisme.",
+            "une carrière dans le secteur du luxe ou de la mode.",
+            "un rôle dans le domaine du sport et du bien-être.",
+            "un métier scientifique ou de recherche fondamentale.",
+            "une profession liée au droit ou à la justice.",
+            "une carrière dans le secteur de la finance ou de l'économie.",
+            "un métier dans l'événementiel ou le tourisme.",
+            "un rôle dans la tech qui n'est pas purement du code (ex: UX Designer, Chef de Produit).",
+            "un métier du secteur public ou de l'administration.",
+            "une profession artistique ou culturelle."
+        ];
 
-        const authContainer = document.getElementById('authContainer');
-        const mainApp = document.getElementById('mainApp');
-        const floatingBackBtn = document.getElementById('floatingBackBtn'); // AJOUTEZ CETTE LIGNE
-
-        floatingBackBtn.addEventListener('click', () => showView('menu')); // AJOUTEZ CETTE LIGNE
-
-
-        let journalData = {};
-        
-       // Détecter si l'URL est un lien de partage
-const urlParams = new URLSearchParams(window.location.search);
-const shareId = urlParams.get('share_id');
-const shareToken = urlParams.get('token');
-
-if (shareId && shareToken) {
-    // C'EST UN LIEN DE PARTAGE
-    // On cache l'authentification et on affiche directement la vue publique
-    authContainer.style.display = 'none';
-    mainApp.style.display = 'block';
-    document.querySelector('footer').style.display = 'none';
-    document.querySelector('#chatbot-toggle').style.display = 'none';
-    createPublicShareView(shareId, shareToken);
-} else {
-    // CE N'EST PAS UN LIEN DE PARTAGE : COMPORTEMENT NORMAL DE L'APP
-    
-    // On rend les fonctions de navigation globale accessibles
-    window.showGuideFromLogin = function() {
-        cameFromLogin = true;
-        document.getElementById('authContainer').style.display = 'none';
-        document.getElementById('mainApp').style.display = 'block';
-        document.querySelector('footer').style.display = 'none'; 
-        showView('guide');
-    }
-
-    
-
-    window.showLoginViewFromGuide = function() {
-        cameFromLogin = false;
-        document.getElementById('mainApp').style.display = 'none';
-        document.getElementById('authContainer').style.display = 'block';
-        document.querySelector('footer').style.display = 'block';
-        showLoginView();
-    }
-    
-// REMPLACEZ VOTRE onAuthStateChanged ACTUELLE PAR CELLE-CI :
-onAuthStateChanged(auth, user => {
-    const chatbotToggle = document.getElementById('chatbot-toggle');
-    const floatingBackBtn = document.getElementById('floatingBackBtn');
-
-    if (user) {
-        // --- UTILISATEUR CONNECTÉ ---
-        if (chatbotToggle) chatbotToggle.style.display = 'flex';
-        
-        currentUserId = user.uid;
-        authContainer.style.display = 'none';
-        mainApp.style.display = 'block';
-        loadData();
-
-    } else {
-        // --- UTILISATEUR DÉCONNECTÉ ---
-        // On s'assure que TOUS les éléments flottants sont cachés
-        if (chatbotToggle) chatbotToggle.style.display = 'none';
-        if (floatingBackBtn) floatingBackBtn.style.display = 'none';
-        
-        currentUserId = null;
-        userGradeLevel = null;
-        currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
-        journalData = {}; 
-        authContainer.style.display = 'block';
-        mainApp.style.display = 'none';
-        showLoginView();
-    }
-});
-}
-
- function extractJsonFromString(str) {
-            if (!str) return null;
-            // Trouve la première accolade '{' et la dernière '}'
-            const jsonStart = str.indexOf('{');
-            const jsonEnd = str.lastIndexOf('}') + 1;
-
-            // Si on ne trouve pas d'objet JSON, on retourne null
-            if (jsonStart === -1 || jsonEnd === 0) {
-                return null;
-            }
-
-            // Extrait la sous-chaîne qui ressemble à du JSON
-            const jsonString = str.substring(jsonStart, jsonEnd);
-            
-            try {
-                // Tente de l'analyser
-                return JSON.parse(jsonString);
-            } catch (error) {
-                // Si l'analyse échoue, c'est que ce n'était pas du JSON valide
-                console.error("Impossible d'analyser le JSON extrait:", error);
-                return null;
-            }
-        }
-
-            
-        // 🔹 Fonction utilitaire
-function capitalizeWords(str) {
-    return str.replace(/\b\w/g, c => c.toUpperCase());
-}
-
-function showLoginView() {
-    // On s'assure de toujours cacher le bouton flottant ici
-    const floatingBackBtn = document.getElementById('floatingBackBtn');
-    if (floatingBackBtn) {
-        floatingBackBtn.style.display = 'none';
-    }
-
-    authContainer.innerHTML = `
-        <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 fade-in">
-            <img src="logo.png" alt="Logo Mon Explor'Orientation" class="mx-auto h-70 w-auto mb-0">
-            <p class="text-center text-sm text-slate-500 mb-6">
-                Besoin d'aide pour commencer ? 
-                <button id="showGuideButton" class="font-semibold text-cyan-600 hover:underline">Consultez le guide d'utilisation.</button>
-            </p>
-            <div class="p-4 bg-slate-50 rounded-lg text-center text-slate-700 mb-6">
-                <p>Bienvenue sur ton compagnon d'orientation personnel. Explore des métiers, simule tes choix et construis ton projet d'avenir grâce à des outils interactifs et une IA bienveillante. Ton exploration commence ici.</p>
-            </div>
-            <form id="loginForm" class="mb-4">
-                <input id="email" type="email" placeholder="Adresse e-mail" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
-                <input id="password" type="password" placeholder="Mot de passe" class="w-full p-3 mb-4 border border-slate-300 rounded-lg" required>
-                <button type="submit" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700 transition">Se connecter</button>
-            </form>
-            <div class="flex justify-between items-center text-sm text-left">
-                <p class="text-slate-500">Pas encore de compte ? 
-                    <button id="showSignupButton" class="font-semibold text-cyan-600 hover:underline">Inscrivez-vous</button>
-                </p>
-                <button id="forgotPasswordButton" class="text-sm text-slate-500 hover:underline">Mot de passe oublié ?</button>
-            </div>
-            <p id="authError" class="text-red-500 text-center mt-4"></p>
-        </div>
-    `;
-
-    authContainer.querySelector('#loginForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        try {
-            await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value);
-        } catch (error) {
-            authContainer.querySelector('#authError').textContent = "Erreur de connexion. Vérifiez vos identifiants.";
-        }
-    });
-
-    authContainer.querySelector('#showSignupButton').addEventListener('click', showSignupView);
-    authContainer.querySelector('#forgotPasswordButton').addEventListener('click', showForgotPasswordView);
-    
-    // CORRECTION : Le bouton ouvre maintenant la fenêtre de sélection
-    authContainer.querySelector('#showGuideButton').addEventListener('click', () => {
-        document.getElementById('guideRoleModal').style.display = 'flex';
-    });
-}
-
-function showForgotPasswordView() {
-    authContainer.innerHTML = `
-        <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 fade-in">
-            <img src="logo.png" alt="Logo Mon Explor'Orientation" class="mx-auto h-48 w-auto mb-6">
-            <h2 class="text-2xl font-bold text-center text-slate-800 mb-2">Mot de passe oublié ?</h2>
-            <p class="text-center text-slate-500 mb-6">Pas de panique ! Entrez votre e-mail pour recevoir un lien de réinitialisation.</p>
-            <form id="forgotPasswordForm" class="mb-4">
-                <input id="email" type="email" placeholder="Adresse e-mail du compte" class="w-full p-3 mb-4 border border-slate-300 rounded-lg" required>
-                <button type="submit" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700 transition">Envoyer le lien</button>
-            </form>
-            <p class="text-center text-sm text-slate-500">
-                <button id="backToLoginButton" class="font-semibold text-cyan-600 hover:underline">Retour à la connexion</button>
-            </p>
-            <p id="authMessage" class="text-green-600 text-center mt-4"></p>
-        </div>
-    `;
-
-    const forgotPasswordForm = document.getElementById('forgotPasswordForm');
-    const authMessage = document.getElementById('authMessage');
-
-    forgotPasswordForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('email').value;
-        try {
-            await sendPasswordResetEmail(auth, email);
-            authMessage.textContent = "Si un compte existe pour cet e-mail, un lien de réinitialisation vient d'être envoyé.";
-            authMessage.className = 'text-green-600 text-center mt-4';
-        } catch (error) {
-            authMessage.textContent = "Une erreur est survenue. Veuillez réessayer.";
-            authMessage.className = 'text-red-500 text-center mt-4';
-        }
-    });
-
-    document.getElementById('backToLoginButton').addEventListener('click', showLoginView);
-}
-
-// 🔹 Vue d'inscription
-function showSignupView() {
-    authContainer.innerHTML = `
-        <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 fade-in">
-
-            <img src="logo.png" alt="Logo Mon Explor'Orientation" class="mx-auto h-32 w-auto mb-6">
-
-            <p class="text-center text-slate-500 mb-6 text-lg">Rejoignez l'aventure de l'orientation !</p>
-            <form id="signupForm" class="mb-4">
-                <input id="firstName" type="text" placeholder="Prénom" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
-                <input id="lastName" type="text" placeholder="Nom" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
-                <input id="schoolName" type="text" placeholder="Nom du lycée" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
-                <input id="email" type="email" placeholder="Adresse e-mail" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
-                <input id="password" type="password" placeholder="Mot de passe (6 caractères min.)" class="w-full p-3 mb-4 border border-slate-300 rounded-lg" required>
-                <button type="submit" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700">Créer mon compte</button>
-            </form>
-            <p class="text-center text-sm text-slate-500">Déjà un compte ? 
-                <button id="showLoginButton" class="font-semibold text-cyan-600 hover:underline">Connectez-vous</button>
-            </p>
-            <p id="authError" class="text-red-500 text-center mt-4"></p>
-        </div>
-    `;
-
-    const signupForm = document.getElementById('signupForm');
-    const showLoginButton = document.getElementById('showLoginButton');
-    const authError = document.getElementById('authError');
-
-    signupForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const firstName = capitalizeWords(document.getElementById('firstName').value);
-        const lastName = capitalizeWords(document.getElementById('lastName').value);
-        const schoolName = capitalizeWords(document.getElementById('schoolName').value);
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-
-        try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-            currentUserId = user.uid; 
-            currentUserInfo = { firstName, lastName, schoolName };
-            await saveData(true); 
-        } catch (error) {
-            authError.textContent = "Erreur lors de la création du compte. Le mot de passe doit faire 6 caractères minimum.";
-        }
-    });
-    showLoginButton.addEventListener('click', showLoginView);
-}
-
-// 🔹 Rendre la fonction showView accessible globalement
-window.showView = showView;
-
-           function getCurrentSchoolYear() {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth(); // 0 pour Janvier, 11 pour Décembre
-
-    // On considère que la nouvelle année scolaire commence en août (mois 7)
-    // Si nous sommes en juillet 2025 (mois 6), l'année scolaire est 2024.
-    // Si nous sommes en août 2025 (mois 7), l'année scolaire est 2025.
-    return (month >= 7) ? year : year - 1;
-}
-
-        async function saveData(isInitialSave = false) {
-            if (!currentUserId) return;
-            const userDocRef = doc(db, "users", currentUserId);
-            
-            const dataToSave = {
-                firstName: currentUserInfo.firstName,
-                lastName: currentUserInfo.lastName,
-                schoolName: currentUserInfo.schoolName,
-                gradeLevel: userGradeLevel,
-                journal: journalData
-            };
-            
-            try {
-                if(isInitialSave) {
-                    await setDoc(userDocRef, dataToSave);
-                } else {
-                    await setDoc(userDocRef, dataToSave, { merge: true });
-                }
-            } catch (error) {
-                console.error("Error saving document: ", error);
-            }
-        }
-
-        async function loadData() {
-    if (!currentUserId) return;
-    const userDocRef = doc(db, "users", currentUserId);
-    const docSnap = await getDoc(userDocRef);
-    
-    // Définit la variable data ici, avec une valeur par défaut
-    const defaultData = {
-        // ... (votre objet de données par défaut existant)
-        step0: { 
-        q1: '', q2: '', q3: '', q4: '', q5: '', q6: '', q7: '', q8: '', q9: '', q10: '', 
-        q11: '', q12: '', q13: '', q14: '', q15: '', q16: '', q17: '', q18: '', q19: '', q20: '', q21: '', 
-        analysis: '', 
-        archetype: null, 
-        test_interets: '',
-        test_motivation: '',
-        test_personnalite: '',
-        analyse_tests_croisee: '' },    
-        step1: { metier1: '', notes1: '', metier2: '', notes2: '', metier3: '', notes3: '' },
-        step2: { combo1: '', notes1: '', skills1: '', combo2: '', notes2: '', skills2: '', combo3: '', notes3: '', skills3: '' },
-        step3: { formation1: '', attendus1: '', mots_cles1: '', analyse_mots_cles1: '', formation2: '', attendus2: '', mots_cles2: '', analyse_mots_cles2: '', suggestions: '' },
-        step4: { theme1: '', question1: '', suggestions1: '', theme2: '', question2: '', suggestions2: '' },
-        step5: {
-        article1: '', apprentissage1: '',
-        article2: '', apprentissage2: '',
-        article3: '', apprentissage3: '',
-        analyse_actu: '' // Assure que la clé existe par défaut
-    },
-        step6: { formation: '', motivations: '', structure: '' },
-        step7: { 
-        domaine: '', 
-        reflexions: '',
-        scores: {} // MODIFICATION : Ajout de l'objet pour les scores
-    },
-        step8: { pro_reseau_personnel: '', pro_metier: '', pro_departement: '', pro_contacts: '', pro_strategie: '', pro_media_query: '', pro_media_content: '', jpo_ecole: '', jpo_questions: '' },
-        step9: { 
-        formation_reve: '', 
-        planb_chat_history: [], // MODIFIÉ : remplace 'plan_b'
-        reussite_type: '', 
-        reussite_conseils: '' 
-    },
-        step10: { experience1: '', analyse1: '', experience2: '', analyse2: '' },
-        step11: { 
-        location: '', 
-        evenements: [], 
-        structures: [],
-        // MODIFICATION : Ajout des nouveaux champs
-        jpo_ecole: '',
-        jpo_questions: '',
-        salon_nom: '',
-        salon_preparation: ''
-    },
-        retroplanning: '',
-        fil_rouge: '',
-        discussion_points: '',
-        radar_history: [],
-        earned_badges: []
-    };
-    
-    // Assigne les données du document ou un objet vide si le document n'existe pas
-    let data = docSnap.exists() ? docSnap.data() : {};
-    
-    userGradeLevel = data.gradeLevel || null;
-    currentUserInfo = {
-        firstName: data.firstName || '',
-        lastName: data.lastName || '',
-        schoolName: data.schoolName || ''
-    };
-    
-    
-    const loadedJournal = data.journal || {};
-    
-    journalData = {};
-    for (const key in defaultData) {
-        if (loadedJournal[key] && typeof defaultData[key] === 'object' && defaultData[key] !== null) {
-            journalData[key] = { ...defaultData[key], ...loadedJournal[key] };
-        } else {
-             journalData[key] = loadedJournal[key] || defaultData[key];
-        }
-    }
-    
-    if (!Array.isArray(journalData.earned_badges)) {
-        journalData.earned_badges = [];
-    }
-    
-    checkBadges();
-
-    const currentSchoolYear = getCurrentSchoolYear(); // On utilise notre nouvelle fonction
-    // On compare l'année scolaire en cours avec celle sauvegardée
-    if (data.lastLoginSchoolYear !== currentSchoolYear || !userGradeLevel) {
-        showGradeSelectionView();
-    } else {
-        showView('menu');
-    }
-    
-    // On met à jour l'année de connexion avec l'année scolaire
-    await setDoc(userDocRef, { lastLoginSchoolYear: currentSchoolYear }, { merge: true });
-    
-}
-        
-        function showGradeSelectionView() {
-            mainApp.innerHTML = `
-                <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 fade-in text-center">
-                    <h1 class="text-2xl font-bold text-slate-800 mb-4">Bienvenue, ${currentUserInfo.firstName} !</h1>
-                    <p class="text-slate-600 mb-6">Pour personnaliser ton parcours, sélectionne ta classe :</p>
-                    <div class="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-4">
-                        <button data-grade="seconde" class="grade-btn bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700">Seconde</button>
-                        <button data-grade="premiere" class="grade-btn bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700">Première</button>
-                        <button data-grade="terminale" class="grade-btn bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700">Terminale</button>
-                    </div>
-                </div>
-            `;
-            document.querySelectorAll('.grade-btn').forEach(button => {
-                button.addEventListener('click', async (e) => {
-                    userGradeLevel = e.target.dataset.grade;
-                    await saveData();
-                    showView('menu');
-                });
-            });
-
-        }
-
-       // REMPLACEZ VOTRE FONCTION callGeminiAPI ACTUELLE PAR CELLE-CI :
-
-async function callGeminiAPI(prompt, useGrounding = false, isJson = false) {
-    
-    // Fonction de nettoyage interne pour éviter la répétition
-    const cleanResponse = (text) => {
-        if (!isJson && text && typeof text === 'string') {
-            return text.replace(/[#*]/g, '');
-        }
-        return text;
-    };
-
-    const functionUrl = "https://us-central1-monapp0rientation.cloudfunctions.net/generateContent"; 
-
-    try {
-        const response = await fetch(functionUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                prompt: prompt,
-                useGrounding: useGrounding,
-                isJson: isJson
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`Erreur du serveur: ${errorData.error || response.statusText}`);
-        }
-
-        const data = await response.json();
-        // On nettoie la réponse en cas de succès
-        return cleanResponse(data.result);
-
-    } catch (error) {
-        console.error("Error calling Cloud Function:", error);
-        const errorMessage = `Impossible de contacter le service d'IA. (${error.message})`;
-        // On nettoie aussi le message d'erreur au cas où
-        return cleanResponse(errorMessage);
-    }
-}
-        
-    // REMPLACEZ VOTRE showView EXISTANTE PAR CELLE-CI :
-async function showView(viewName) {
-    mainApp.innerHTML = '';
-    
-    const chatbotToggle = document.getElementById('chatbot-toggle');
-    const floatingBackBtn = document.getElementById('floatingBackBtn');
-
-    const showChatbotOn = ['menu', 'home', 'step0', 'step1', 'step2', 'step3', 'step4', 'step5', 'step6', 'step7', 'step8', 'step9', 'step10', 'step11', 'step12', 'retroplanning', 'journal'];
-    const showBackButtonOn = ['step0', 'step1', 'step2', 'step3', 'step4', 'step5', 'step6', 'step7', 'step8', 'step9', 'step10', 'step11', 'step12', 'retroplanning', 'journal', 'guide'];
-
-    if (chatbotToggle) {
-        if (showChatbotOn.includes(viewName)) {
-            chatbotToggle.style.display = 'flex';
-        } else {
-            chatbotToggle.style.display = 'none';
-        }
-    }
-    
-    if (floatingBackBtn) {
-        // La condition "!(viewName === 'guide' && cameFromLogin)" est cruciale ici
-        // Elle cache le bouton sur le guide si on vient de la page de connexion
-        if (showBackButtonOn.includes(viewName) && !(viewName === 'guide' && cameFromLogin)) {
-            floatingBackBtn.style.display = 'flex';
-        } else {
-            floatingBackBtn.style.display = 'none';
-        }
-    }
-
-    let newView;
-    switch(viewName) {
-        case 'home': newView = createHomeView(); break;
-        case 'menu': newView = createMenuView(); break;
-        case 'step0': newView = createStep0View(); break;
-        case 'step1': newView = createStep1View(); break;
-        case 'step2': newView = createStep2View(); break;
-        case 'step3': newView = createStep3View(); break;
-        case 'step4': newView = createStep4View(); break;
-        case 'step5': newView = createStep5View(); break;
-        case 'step6': newView = createStep6View(); break;
-        case 'step7': newView = createStep7View(); break;
-        case 'step8': newView = createStep8View(); break;
-        case 'step9': newView = createStep9View(); break;
-        case 'step10': newView = createStep10View(); break;
-        case 'step11': newView = createStep11View(); break;
-        case 'step12': newView = createStep12View(); break;
-        case 'guide': newView = createGuideView(); break;
-        case 'retroplanning': newView = createRetroplanningView(); break;
-        case 'journal': newView = await createJournalView(); break; 
-        default: newView = createHomeView();
-    }
-    if (newView) mainApp.appendChild(newView);
-    window.scrollTo(0, 0);
-}
-
-        function createHomeView() {
-            return createMenuView();
-        }
-        
-
-function createMenuView() {
-    
-    const div = document.createElement('div');
-    div.className = 'fade-in';
-
-    let earnedBadgesHTML = '';
-    const earnedBadges = journalData.earned_badges || [];
-    if (earnedBadges.length > 0) {
-        const badgesIcons = earnedBadges.map(key => {
-            const badge = badgesConfig[key];
-            if (badge) {
-                return `<span title="${badge.title}" class="text-3xl cursor-default">${badge.icon}</span>`;
-            }
-            return '';
-        }).join(' ');
-
-        earnedBadgesHTML = `<div class="flex justify-center items-center gap-3 mt-3 mb-1">${badgesIcons}</div>`;
-    }
-
-    const menuTitle = `
-        <div class="text-center mb-10">
-    <h1 class="text-3xl font-bold text-slate-800">Bienvenue, ${currentUserInfo.firstName} !</h1>
-    ${earnedBadgesHTML}
-        <p class="text-slate-500 mt-2">Élève de <span class="font-semibold text-cyan-600">${userGradeLevel ? userGradeLevel.charAt(0).toUpperCase() + userGradeLevel.slice(1) : 'Niveau non défini'}</span> à <span class="font-semibold text-cyan-600">${capitalizeWords(currentUserInfo.schoolName)}</span></p>    <div class="flex justify-center items-center gap-2 mt-2">
-        <button id="changeGradeButton" class="text-sm text-cyan-600 hover:underline">Modifier mon niveau</button>
-        <span class="text-slate-400">|</span>
-        <button id="logoutButton" class="text-sm text-cyan-600 hover:underline">Se déconnecter</button>
-    </div>
-</div>
-    `;
-    
-    const allSteps = [
+        const allSteps = [
         { id: 'retroplanning', icon: '🗓️', title: 'Mon Rétroplanning', site: 'Outil', levels: ['seconde', 'premiere', 'terminale'] },
         { id: 'step0', icon: '👤', title: 'Mieux se connaître', site: 'Point de départ', levels: ['seconde', 'premiere', 'terminale'] },
         { id: 'step10', icon: '💼', title: 'Mon Portfolio de Compétences', site: 'Valorisation', levels: ['premiere', 'terminale'] },
@@ -768,365 +248,8 @@ function createMenuView() {
         { id: 'journal', icon: '📓', title: 'Mon Journal de Bord', site: 'Consulte tes notes', levels: ['seconde', 'premiere', 'terminale'] }
     ];
 
-    const allStepsForLevel = allSteps.filter(step => step.levels.includes(userGradeLevel));
-    const completedStepsCount = allStepsForLevel.filter(step => {
-        if (['journal', 'retroplanning', 'step12'].includes(step.id)) return false; 
-        return isStepComplete(step.id);
-    }).length;
-
-    const totalTrackableSteps = allStepsForLevel.filter(step => !['journal', 'retroplanning', 'step12'].includes(step.id)).length;
-    const progressPercentage = totalTrackableSteps > 0 ? (completedStepsCount / totalTrackableSteps) * 100 : 0;
-
-    const progressBarHTML = `
-        <div class="max-w-xl mx-auto mb-8">
-            <div class="flex justify-between mb-1">
-                <span class="text-base font-medium text-cyan-700">Progression</span>
-                <span class="text-sm font-medium text-cyan-700">${Math.round(progressPercentage)}%</span>
-            </div>
-            <div class="w-full bg-slate-200 rounded-full h-2.5">
-                <div class="bg-cyan-600 h-2.5 rounded-full" style="width: ${progressPercentage}%"></div>
-            </div>
-        </div>
-    `;
-
-    const guideCardHTML = `
-        <div onclick="window.showView('guide')" class="step-card bg-white p-4 rounded-xl shadow-md border border-slate-200 cursor-pointer flex flex-col items-center space-y-2 mb-6 max-w-md mx-auto">
-            <div class="text-3xl">❓</div>
-            <div class="text-center">
-                <h2 class="text-lg font-semibold text-slate-800">Guide d'Utilisation</h2>
-                <p class="text-sm text-slate-500">Besoin d'aide pour commencer ?</p>
-            </div>
-        </div>
-    `;
-    
-    let steps = allStepsForLevel;
-    let gridContainerClasses = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8";
-    let gridItemClasses = "";
-
-    // MODIFICATION 1 : On applique la mise en page flexible aux Terminales également
-    if (userGradeLevel === 'seconde' || userGradeLevel === 'terminale') {
-        gridContainerClasses = "flex flex-wrap justify-center gap-6 mt-8";
-        gridItemClasses = "w-full md:w-[48%] lg:w-[31%]";
-    }
-
-    let gridHTML = steps.map((step, index) => {
-        let statusSymbol = '';
-         if (!['journal', 'retroplanning', 'step12'].includes(step.id) && journalData[step.id]) {
-             if(isStepComplete(step.id)){
-                 statusSymbol = '<span class="ml-2 text-green-500 font-bold">✔</span>';
-             } else {
-                const stepData = journalData[step.id];
-                const values = Object.values(stepData);
-                const filledCount = values.filter(v => v && v.toString().trim() !== '').length;
-                if(filledCount > 0) {
-                    statusSymbol = '<span class="ml-2 text-orange-400 font-bold">✔</span>';
-                }
-             }
-        }
         
-        // MODIFICATION 2 : On limite l'ancien centrage (sur grille) uniquement à la classe de Première
-        const isLastItemCentered = (steps.length % 3 === 1 && userGradeLevel === 'premiere');
-        const lastItemIndex = steps.length - 1;
-        const centeredClass = (isLastItemCentered && index === lastItemIndex) ? 'lg:col-start-2' : '';
-
-         return `
-        <div onclick="window.showView('${step.id}')" class="step-card bg-white p-6 rounded-xl shadow-md border border-slate-200 cursor-pointer flex flex-col items-center space-y-2 text-center ${centeredClass} ${gridItemClasses}">
-            <div class="text-3xl">${step.icon}</div>
-            <div>
-                <div class="flex justify-center items-center">
-                     <h2 class="text-lg font-semibold text-slate-800">${step.title}</h2>
-                     ${statusSymbol}
-                </div>
-                <p class="text-slate-500">${step.site}</p>
-            </div>
-        </div>
-        `;
-    }).join('');
-
-    const radarHTML = `
-        <div class="mt-12 text-center fade-in">
-            <h2 class="text-2xl font-bold text-slate-800 mb-4">📡 Le Radar à Opportunités</h2>
-            <p class="text-slate-600 max-w-2xl mx-auto mb-6">Teste ici tes propres idées de métiers ou laisse l'IA t'en proposer une à laquelle tu n'aurais jamais pensé !</p>
-            
-            <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
-                <div class="flex flex-col md:flex-row gap-4 items-center">
-                    <input type="text" id="radarInput" class="w-full md:flex-1 p-3 border border-slate-300 rounded-lg" placeholder="Propose un métier ou un domaine...">
-                    
-                    <button id="radarAnalyzeBtn" class="w-full md:w-auto bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">Analyser mon idée</button>
-                </div>
-                <div class="my-4 text-slate-500 font-semibold">OU</div>
-                <button id="radarSurpriseBtn" class="w-full bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition">Me surprendre !</button>
-            </div>
-
-            <div id="radarLoader" class="hidden"><div class="loader"></div></div>
-            <div id="radarResult" class="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg text-slate-700 whitespace-pre-wrap text-left"></div>
-        </div>
-    `;
-
-    div.innerHTML = menuTitle + progressBarHTML + guideCardHTML + `<div class="${gridContainerClasses}">${gridHTML}</div>` + radarHTML;
-    
-    // --- NOUVELLE LOGIQUE DES BOUTONS DU RADAR ---
-    const loader = div.querySelector('#radarLoader');
-    const resultDiv = div.querySelector('#radarResult');
-    const radarInput = div.querySelector('#radarInput');
-
-    // Clic sur "Analyser mon idée"
-    div.querySelector('#radarAnalyzeBtn').addEventListener('click', async () => {
-        const userInput = radarInput.value.trim();
-        if (!userInput) {
-            alert("Veuillez entrer un métier ou un domaine à analyser.");
-            return;
-        }
-
-        loader.style.display = 'block';
-        resultDiv.textContent = '';
-        
-        const prompt = `Agis comme un conseiller d'orientation expert et bienveillant. Un lycéen te propose de considérer le métier ou le domaine suivant : "${userInput}".
-        Voici l'intégralité de son journal de bord pour que tu puisses analyser son profil : ${JSON.stringify(journalData)}.
-
-        Ta mission est de lui donner un retour structuré en 3 points :
-        1.  **Points de Connexion :** Explique en quoi cette idée est pertinente par rapport à son profil. Fais des liens directs avec les éléments de son journal (ses traits de personnalité, ses matières fortes, ses intérêts, etc.). Sois encourageant.
-        2.  **Points de Vigilance :** Mentionne 1 ou 2 aspects auxquels il/elle devra faire attention ou compétences qu'il/elle devra développer pour réussir dans cette voie (ex: "Attention, ce secteur demande une grande rigueur mathématique...", "Pense à développer ta créativité...").
-        3.  **Première Mission d'Exploration :** Suggère une action concrète pour qu'il/elle puisse immédiatement approfondir cette piste (ex: "Cherche la fiche Onisep de ce métier", "Regarde des interviews de professionnels sur YouTube", "Utilise l'étape 'Le Catalogue' pour voir les formations liées").`;
-        
-        const result = await callGeminiAPI(prompt);
-        loader.style.display = 'none';
-        resultDiv.textContent = result;
-    });
-
-    // Clic sur "Me surprendre !"
-    div.querySelector('#radarSurpriseBtn').addEventListener('click', async () => {
-        loader.style.display = 'block';
-        resultDiv.textContent = '';
-        let historyPrompt = "";
-        if (journalData.radar_history && journalData.radar_history.length > 0) {
-            historyPrompt = `Important : tu m'as déjà proposé les pistes suivantes : "${journalData.radar_history.join('", "')}". Propose une idée complètement nouvelle et différente de celles-ci.`;
-        }
-
-        const prompt = `Agis comme un coach d'orientation bienveillant et perspicace. Tu t'adresses directement à un lycéen. Voici son journal de bord : ${JSON.stringify(journalData)}.
-
-        ${historyPrompt}
-
-        Ta mission est de lui révéler une "Piste Inattendue", un métier ou un secteur surprenant mais qui correspond parfaitement à ce que tu as perçu de lui.
-
-        Rédige ta réponse en t'adressant directement à lui (utilise "tu" et "toi"). Ta réponse doit être structurée et détaillée en 3 parties claires :
-
-        1.  Ta Piste Inattendue : Propose-lui un nom de métier ou de secteur précis.
-
-        2.  Pourquoi je pense que c'est fait pour toi : Justifie ton choix de manière détaillée en te basant sur les éléments de son journal. Fais des liens explicites et personnels.
-
-        3.  Ta première mission d'exploration : Suggère-lui une action simple et concrète pour qu'il puisse commencer à explorer cette piste.`;
-        
-        const result = await callGeminiAPI(prompt);
-
-        const trackNameMatch = result.match(/Ta Piste Inattendue : (.*?)\n/);
-        if (trackNameMatch && trackNameMatch[1]) {
-            const trackName = trackNameMatch[1].trim();
-            if (!journalData.radar_history) {
-                journalData.radar_history = [];
-            }
-            journalData.radar_history.push(trackName);
-            if (journalData.radar_history.length > 3) {
-                journalData.radar_history.shift();
-            }
-            saveData();
-        }
-
-        loader.style.display = 'none';
-        resultDiv.textContent = result;
-    });
-
-    // Bouton déconnexion
-div.querySelector('#logoutButton').addEventListener('click', async () => {
-    try {
-        await signOut(auth);
-    } catch (error) {
-        console.error("Erreur lors de la déconnexion :", error);
-        alert("Impossible de se déconnecter, veuillez réessayer.");
-    }
-});
-
-div.querySelector('#changeGradeButton').addEventListener('click', () => {
-    showGradeSelectionView();
-});
-
-    return div;
-}
-        
-        function createStepView(config) {
-            const div = document.createElement('div');
-            div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200';
-            
-            let formFields = '';
-            if (config.fields) {
-                formFields = config.fields.map(field => {
-                    const value = (journalData[config.stepKey] && journalData[config.stepKey][field.id]) || '';
-                    const isReadonly = field.isReadonly ? 'readonly' : '';
-                    const bgColor = isReadonly ? 'bg-slate-50' : 'bg-white';
-                    return `
-                    <div class="mb-6">
-                        <label for="${field.id}" class="block text-md font-medium text-slate-700 mb-2">${field.label}</label>
-                        ${field.type === 'textarea' ? `<textarea id="${field.id}" name="${field.id}" rows="4" class="w-full p-3 border border-slate-300 rounded-lg ${bgColor}" placeholder="${field.placeholder}" ${isReadonly}>${value}</textarea>` : `<input type="text" id="${field.id}" name="${field.id}" class="w-full p-3 border border-slate-300 rounded-lg ${bgColor}" placeholder="${field.placeholder}" value="${value}" ${isReadonly}>`}
-                    </div>
-                `}).join('');
-            }
-
-            let description = config.description;
-            if(typeof description === 'object') {
-                description = description[userGradeLevel] || description['default'] || '';
-            }
-
-            let action = config.action;
-            if(typeof action === 'object') {
-                action = action[userGradeLevel] || action['default'] || '';
-            }
-
-            let linksHTML = '';
-    if (config.urls) {
-        linksHTML = config.urls.map(link => 
-            `<a href="${link.url}" target="_blank" class="inline-block bg-cyan-100 text-cyan-800 font-semibold py-2 px-4 rounded-lg hover:bg-cyan-200 transition mr-2 mb-2">Visiter ${link.site} ↗</a>`
-        ).join('');
-    } else if (config.url) {
-        linksHTML = `<a href="${config.url}" target="_blank" class="inline-block bg-cyan-100 text-cyan-800 font-semibold py-2 px-4 rounded-lg hover:bg-cyan-200 transition">Visiter ${config.site} ↗</a>`;
-    }
-
-    div.innerHTML = `
-        <div class="flex items-center mb-6"><button onclick="window.showView('menu')" class="text-cyan-600 hover:text-cyan-800 font-bold mr-4">← Retour</button><h1 class="text-2xl font-bold">${config.icon} ${config.title}</h1></div>
-        <div class="text-slate-600 mb-4 whitespace-pre-wrap">${description}</div>
-        <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6"><div class="font-semibold text-cyan-900">${action}</div></div>
-        <div class="mb-8">${linksHTML}</div>
-        <form id="stepForm">
-            ${formFields}
-            <button type="submit" class="w-full mt-4 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700 transition">✔️ Terminer et sauvegarder</button>
-        </form>
-    `;
-            
-            div.querySelector('#stepForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const stepKey = config.stepKey;
-                if (!journalData[stepKey]) journalData[stepKey] = {};
-
-                for (const [key, newValue] of formData.entries()) {
-                     journalData[stepKey][key] = newValue; 
-                }
-                
-                checkBadges();
-                await saveData();
-                showView('menu');
-            });
-
-            return div;
-        }
-        
-
-
-
-// REMPLACEZ VOTRE FONCTION createProfileInfographic EXISTANTE PAR CELLE-CI :
-function createProfileInfographic(step0Data, context = 'user') {
-    if (!step0Data || !step0Data.analysis) {
-        return document.createElement('div');
-    }
-
-    const container = document.createElement('div');
-    container.className = 'mb-8';
-
-    const titleText = context === 'user' ? 'Synthèse visuelle de mon profil' : 'Synthèse visuelle de son profil';
-
-    container.innerHTML = `
-        <h2 class="text-xl font-bold border-b pb-2 mb-4 text-cyan-700">${titleText}</h2>
-        <div class="bg-slate-50 p-4 md:p-6 rounded-xl border border-slate-200 mt-4">
-            <h3 class="text-lg font-bold text-slate-800 mb-2">Votre Profil d'Intérêts (RIASEC)</h3>
-            <canvas id="profileBarChart"></canvas>
-        </div>
-        <div id="riasec-legend" class="mt-6 text-sm text-slate-600 space-y-2">
-            <p><strong class="font-semibold text-slate-800">R (Réaliste) :</strong> Aime le travail concret, physique, avec des outils ou en plein air.</p>
-            <p><strong class="font-semibold text-slate-800">I (Investigateur) :</strong> Aime analyser, comprendre, résoudre des problèmes complexes.</p>
-            <p><strong class="font-semibold text-slate-800">A (Artistique) :</strong> Aime créer, imaginer, s'exprimer de manière non conventionnelle.</p>
-            <p><strong class="font-semibold text-slate-800">S (Social) :</strong> Aime aider, former, soigner, être en contact avec les autres.</p>
-            <p><strong class="font-semibold text-slate-800">E (Entreprenant) :</strong> Aime diriger, convaincre, mener des projets, prendre des décisions.</p>
-            <p><strong class="font-semibold text-slate-800">C (Conventionnel) :</strong> Aime organiser, gérer, respecter les règles, travailler avec des données.</p>
-        </div>
-    `;
-
-    // On attend un court instant que le canvas soit bien dans le DOM
-    setTimeout(() => {
-        const ctx = document.getElementById('profileBarChart')?.getContext('2d');
-        if (!ctx) return;
-
-        // Logique pour calculer les scores RIASEC à partir du nouveau questionnaire
-        const riasecScores = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
-        const riasecMapping = {
-            q15: { realiste: 'R', investigatif: 'I' },
-            q16: { artistique: 'A', social: 'S' },
-            q17: { entreprenant: 'E', conventionnel: 'C' },
-            q18: { social: 'S', entreprenant: 'E' },
-            q19: { artistique: 'A', conventionnel: 'C' },
-            q20: { realiste: 'R', artistique: 'A' },
-            q21: { social: 'S', investigatif: 'I', realiste: 'R' }
-        };
-
-        for (const [questionId, mapping] of Object.entries(riasecMapping)) {
-            const answer = step0Data[questionId];
-            if (answer && mapping[answer]) {
-                const type = mapping[answer];
-                riasecScores[type]++;
-            }
-        }
-        
-        const labels = ['Réaliste', 'Investigateur', 'Artistique', 'Social', 'Entreprenant', 'Conventionnel'];
-        const dataPoints = [riasecScores.R, riasecScores.I, riasecScores.A, riasecScores.S, riasecScores.E, riasecScores.C];
-
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Score d\'intérêt',
-                    data: dataPoints,
-                    backgroundColor: [
-                        'rgba(239, 68, 68, 0.6)',    // R - red
-                        'rgba(59, 130, 246, 0.6)',   // I - blue
-                        'rgba(251, 191, 36, 0.6)',  // A - amber
-                        'rgba(34, 197, 94, 0.6)',   // S - green
-                        'rgba(249, 115, 22, 0.6)',  // E - orange
-                        'rgba(148, 163, 184, 0.6)'  // C - slate
-                    ],
-                    borderColor: [
-                        'rgb(239, 68, 68)',
-                        'rgb(59, 130, 246)',
-                        'rgb(251, 191, 36)',
-                        'rgb(34, 197, 94)',
-                        'rgb(249, 115, 22)',
-                        'rgb(148, 163, 184)'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        });
-    }, 0);
-
-    return container;
-}
-
-const stepsConfig = {
+        const stepsConfig = {
     step0: { 
     stepKey: 'step0', title: 'Mieux se connaître', icon: '👤',
     description: `Toute bonne orientation commence par une bonne connaissance de soi. Réponds honnêtement à ces quelques questions pour dégager tes grandes tendances et obtenir une première analyse de ton profil.`,
@@ -1316,6 +439,1442 @@ const badgesConfig = {
         }
     }
 };
+
+function showSurpriseModal(title, contentHTML, duration = null) {
+            const modalId = 'surprise-modal';
+            const existingModal = document.getElementById(modalId);
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            const modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900 bg-opacity-60 fade-in';
+            
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-xl w-full max-w-md text-center p-6">
+                    <span class="text-4xl">💡</span>
+                    <h3 class="font-bold text-slate-800 text-lg mt-2 mb-4">${title}</h3>
+                    <div class="text-slate-600 mb-6">${contentHTML}</div>
+                    <button id="surprise-close-btn" class="w-full bg-cyan-600 text-white font-semibold py-2 rounded-lg hover:bg-cyan-700 transition">OK</button>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+
+            const closeModal = () => {
+                modal.style.opacity = '0';
+                setTimeout(() => modal.remove(), 300);
+            };
+            
+            modal.querySelector('#surprise-close-btn').addEventListener('click', closeModal);
+
+            // Logique d'auto-fermeture
+            if (duration) {
+                setTimeout(closeModal, duration);
+            }
+        }
+
+function createSimpleModal(title, contentHTML) {
+            const modalId = 'simple-info-modal';
+            // Supprime un modal existant s'il y en a un
+            const existingModal = document.getElementById(modalId);
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            const modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900 bg-opacity-60 fade-in';
+            
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col max-h-[80vh]">
+                    <div class="flex items-center justify-between p-4 border-b bg-slate-50 rounded-t-2xl">
+                        <h3 class="font-bold text-slate-800 text-lg">${title}</h3>
+                        <button id="simple-modal-close" class="text-slate-500 hover:text-slate-800 text-2xl">×</button>
+                    </div>
+                    <div class="p-6 overflow-y-auto">
+                        ${contentHTML}
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+
+            const closeModal = () => modal.remove();
+            
+            modal.querySelector('#simple-modal-close').addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeModal();
+                }
+            });
+        }
+
+        function showConfirmationModal(question) {
+            return new Promise((resolve) => {
+                const modalId = 'confirmation-modal';
+                // Supprime un modal de confirmation existant pour éviter les doublons
+                const existingModal = document.getElementById(modalId);
+                if (existingModal) existingModal.remove();
+
+                const modal = document.createElement('div');
+                modal.id = modalId;
+                modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900 bg-opacity-60 fade-in';
+
+                modal.innerHTML = `
+                    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm text-center p-6">
+                        <h3 class="font-bold text-slate-800 text-lg mb-4">Confirmation requise</h3>
+                        <p class="text-slate-600 mb-6">${question}</p>
+                        <div class="flex gap-4">
+                            <button id="confirm-cancel-btn" class="flex-1 bg-slate-200 text-slate-800 font-semibold py-2 px-4 rounded-lg hover:bg-slate-300 transition">Annuler</button>
+                            <button id="confirm-ok-btn" class="flex-1 bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition">Confirmer</button>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(modal);
+
+                const confirmBtn = modal.querySelector('#confirm-ok-btn');
+                const cancelBtn = modal.querySelector('#confirm-cancel-btn');
+
+                const closeModal = (result) => {
+                    modal.remove();
+                    resolve(result); // La promesse est résolue avec 'true' ou 'false'
+                };
+
+                confirmBtn.addEventListener('click', () => closeModal(true));
+                cancelBtn.addEventListener('click', () => closeModal(false));
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        closeModal(false); // Cliquer en dehors équivaut à annuler
+                    }
+                });
+            });
+        }
+
+        // IMPORTANT : Remplacez par la configuration de votre propre projet Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCT6U-7Az53oYCPZWHo3Dvxs20XiR0y3EU",
+            authDomain: "monapp0rientation.firebaseapp.com",
+            projectId: "monapp0rientation",
+            storageBucket: "monapp0rientation.firebasestorage.app",
+            messagingSenderId: "369432089475",
+            appId: "1:369432089475:web:689a194b6880001c249cb6"
+        };
+
+        const firebaseApp = initializeApp(firebaseConfig);
+        const auth = getAuth(firebaseApp);
+        const db = getFirestore(firebaseApp);
+        const functions = getFunctions(firebaseApp, "europe-west1"); 
+        let currentUserId = null;
+        let userGradeLevel = null;
+        let currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
+
+        let cameFromLogin = false;
+        
+        const linkify = (text) => {
+    const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])|(\bwww\.[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+    let newText = text.replace(urlRegex, function(url) {
+        let hyperLink = url;
+        if (!hyperLink.match('^https?:\/\/')) {
+            hyperLink = 'http://' + hyperLink;
+        }
+        return `<a href="${hyperLink}" target="_blank" class="text-cyan-600 hover:underline">${url}</a>`;
+    });
+    // This makes sure line breaks are preserved
+    return newText.replace(/\n/g, '<br>');
+};
+        const { jsPDF } = window.jspdf;
+
+        const authContainer = document.getElementById('authContainer');
+        const mainApp = document.getElementById('mainApp');
+        const floatingBackBtn = document.getElementById('floatingBackBtn'); // AJOUTEZ CETTE LIGNE
+
+        floatingBackBtn.addEventListener('click', () => showView('menu')); // AJOUTEZ CETTE LIGNE
+
+
+        let journalData = {};
+        
+       // Détecter si l'URL est un lien de partage
+const urlParams = new URLSearchParams(window.location.search);
+const shareId = urlParams.get('share_id');
+const shareToken = urlParams.get('token');
+
+if (shareId && shareToken) {
+    // C'EST UN LIEN DE PARTAGE
+    // On cache l'authentification et on affiche directement la vue publique
+    authContainer.style.display = 'none';
+    mainApp.style.display = 'block';
+    document.querySelector('footer').style.display = 'none';
+    document.querySelector('#chatbot-toggle').style.display = 'none';
+    createPublicShareView(shareId, shareToken);
+} else {
+    // CE N'EST PAS UN LIEN DE PARTAGE : COMPORTEMENT NORMAL DE L'APP
+    
+    // On rend les fonctions de navigation globale accessibles
+    window.showGuideFromLogin = function() {
+        cameFromLogin = true;
+        document.getElementById('authContainer').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        document.querySelector('footer').style.display = 'none'; 
+        showView('guide');
+    }
+
+    
+
+    window.showLoginViewFromGuide = function() {
+        cameFromLogin = false;
+        document.getElementById('mainApp').style.display = 'none';
+        document.getElementById('authContainer').style.display = 'block';
+        document.querySelector('footer').style.display = 'block';
+        showLoginView();
+    }
+
+    
+    
+// REMPLACEZ VOTRE onAuthStateChanged ACTUELLE PAR CELLE-CI :
+onAuthStateChanged(auth, user => {
+    const chatbotToggle = document.getElementById('chatbot-toggle');
+    const floatingBackBtn = document.getElementById('floatingBackBtn');
+
+    if (user) {
+        // --- UTILISATEUR CONNECTÉ ---
+        if (chatbotToggle) chatbotToggle.style.display = 'flex';
+        
+        currentUserId = user.uid;
+        authContainer.style.display = 'none';
+        mainApp.style.display = 'block';
+        loadData();
+
+    } else {
+        // --- UTILISATEUR DÉCONNECTÉ ---
+        // On s'assure que TOUS les éléments flottants sont cachés
+        if (chatbotToggle) chatbotToggle.style.display = 'none';
+        if (floatingBackBtn) floatingBackBtn.style.display = 'none';
+        
+        currentUserId = null;
+        userGradeLevel = null;
+        currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
+        journalData = {}; 
+        authContainer.style.display = 'block';
+        mainApp.style.display = 'none';
+        showLoginView();
+    }
+});
+}
+
+ function extractJsonFromString(str) {
+            if (!str) return null;
+            // Trouve la première accolade '{' et la dernière '}'
+            const jsonStart = str.indexOf('{');
+            const jsonEnd = str.lastIndexOf('}') + 1;
+
+            // Si on ne trouve pas d'objet JSON, on retourne null
+            if (jsonStart === -1 || jsonEnd === 0) {
+                return null;
+            }
+
+            // Extrait la sous-chaîne qui ressemble à du JSON
+            const jsonString = str.substring(jsonStart, jsonEnd);
+            
+            try {
+                // Tente de l'analyser
+                return JSON.parse(jsonString);
+            } catch (error) {
+                // Si l'analyse échoue, c'est que ce n'était pas du JSON valide
+                console.error("Impossible d'analyser le JSON extrait:", error);
+                return null;
+            }
+        }
+
+            
+        // 🔹 Fonction utilitaire
+function capitalizeWords(str) {
+    return str.replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function showLoginView() {
+    // On s'assure de toujours cacher le bouton flottant ici
+    const floatingBackBtn = document.getElementById('floatingBackBtn');
+    if (floatingBackBtn) {
+        floatingBackBtn.style.display = 'none';
+    }
+
+    authContainer.innerHTML = `
+        <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 fade-in">
+            <img src="logo.png" alt="Logo Mon Explor'Orientation" class="mx-auto h-70 w-auto mb-0">
+            <p class="text-center text-sm text-slate-500 mb-6">
+                Besoin d'aide pour commencer ? 
+                <button id="showGuideButton" class="font-semibold text-cyan-600 hover:underline">Consultez le guide d'utilisation.</button>
+            </p>
+            <div class="p-4 bg-slate-50 rounded-lg text-center text-slate-700 mb-6">
+                <p>Bienvenue sur ton compagnon d'orientation personnel. Explore des métiers, simule tes choix et construis ton projet d'avenir grâce à des outils interactifs et une IA bienveillante. Ton exploration commence ici.</p>
+            </div>
+            <form id="loginForm" class="mb-4">
+                <input id="email" type="email" placeholder="Adresse e-mail" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
+                <input id="password" type="password" placeholder="Mot de passe" class="w-full p-3 mb-4 border border-slate-300 rounded-lg" required>
+                <button type="submit" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700 transition">Se connecter</button>
+            </form>
+            <div class="flex justify-between items-center text-sm text-left">
+                <p class="text-slate-500">Pas encore de compte ? 
+                    <button id="showSignupButton" class="font-semibold text-cyan-600 hover:underline">Inscrivez-vous</button>
+                </p>
+                <button id="forgotPasswordButton" class="text-sm text-slate-500 hover:underline">Mot de passe oublié ?</button>
+            </div>
+            <p id="authError" class="text-red-500 text-center mt-4"></p>
+        </div>
+    `;
+
+    authContainer.querySelector('#loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value);
+        } catch (error) {
+            authContainer.querySelector('#authError').textContent = "Erreur de connexion. Vérifiez vos identifiants.";
+        }
+    });
+
+    authContainer.querySelector('#showSignupButton').addEventListener('click', showSignupView);
+    authContainer.querySelector('#forgotPasswordButton').addEventListener('click', showForgotPasswordView);
+    
+    // CORRECTION : Le bouton ouvre maintenant la fenêtre de sélection
+    authContainer.querySelector('#showGuideButton').addEventListener('click', () => {
+        document.getElementById('guideRoleModal').style.display = 'flex';
+    });
+}
+
+function showForgotPasswordView() {
+    authContainer.innerHTML = `
+        <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 fade-in">
+            <img src="logo.png" alt="Logo Mon Explor'Orientation" class="mx-auto h-48 w-auto mb-6">
+            <h2 class="text-2xl font-bold text-center text-slate-800 mb-2">Mot de passe oublié ?</h2>
+            <p class="text-center text-slate-500 mb-6">Pas de panique ! Entrez votre e-mail pour recevoir un lien de réinitialisation.</p>
+            <form id="forgotPasswordForm" class="mb-4">
+                <input id="email" type="email" placeholder="Adresse e-mail du compte" class="w-full p-3 mb-4 border border-slate-300 rounded-lg" required>
+                <button type="submit" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700 transition">Envoyer le lien</button>
+            </form>
+            <p class="text-center text-sm text-slate-500">
+                <button id="backToLoginButton" class="font-semibold text-cyan-600 hover:underline">Retour à la connexion</button>
+            </p>
+            <p id="authMessage" class="text-green-600 text-center mt-4"></p>
+        </div>
+    `;
+
+    const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+    const authMessage = document.getElementById('authMessage');
+
+    forgotPasswordForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        try {
+            await sendPasswordResetEmail(auth, email);
+            authMessage.textContent = "Si un compte existe pour cet e-mail, un lien de réinitialisation vient d'être envoyé.";
+            authMessage.className = 'text-green-600 text-center mt-4';
+        } catch (error) {
+            authMessage.textContent = "Une erreur est survenue. Veuillez réessayer.";
+            authMessage.className = 'text-red-500 text-center mt-4';
+        }
+    });
+
+    document.getElementById('backToLoginButton').addEventListener('click', showLoginView);
+}
+
+// 🔹 Vue d'inscription
+function showSignupView() {
+    authContainer.innerHTML = `
+        <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 fade-in">
+
+            <img src="logo.png" alt="Logo Mon Explor'Orientation" class="mx-auto h-32 w-auto mb-6">
+
+            <p class="text-center text-slate-500 mb-6 text-lg">Rejoignez l'aventure de l'orientation !</p>
+            <form id="signupForm" class="mb-4">
+                <input id="firstName" type="text" placeholder="Prénom" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
+                <input id="lastName" type="text" placeholder="Nom" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
+                <input id="schoolName" type="text" placeholder="Nom du lycée" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
+                <input id="schoolName" type="text" placeholder="Nom du lycée" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
+                <select id="gender" class="w-full p-3 mb-3 border border-slate-300 rounded-lg bg-white" required>
+                    <option value="" disabled selected>Je suis...</option>
+                    <option value="homme">Un homme</option>
+                    <option value="femme">Une femme</option>
+                    <option value="autre">Autre / Préfère ne pas préciser</option>
+                    </select>
+                <input id="email" type="email" placeholder="Adresse e-mail" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
+                <input id="email" type="email" placeholder="Adresse e-mail" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
+                <input id="password" type="password" placeholder="Mot de passe (6 caractères min.)" class="w-full p-3 mb-4 border border-slate-300 rounded-lg" required>
+                <button type="submit" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700">Créer mon compte</button>
+            </form>
+            <p class="text-center text-sm text-slate-500">Déjà un compte ? 
+                <button id="showLoginButton" class="font-semibold text-cyan-600 hover:underline">Connectez-vous</button>
+            </p>
+            <p id="authError" class="text-red-500 text-center mt-4"></p>
+        </div>
+    `;
+
+    const signupForm = document.getElementById('signupForm');
+    const showLoginButton = document.getElementById('showLoginButton');
+    const authError = document.getElementById('authError');
+
+    signupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const firstName = capitalizeWords(document.getElementById('firstName').value);
+        const lastName = capitalizeWords(document.getElementById('lastName').value);
+        const schoolName = capitalizeWords(document.getElementById('schoolName').value);
+        const gender = document.getElementById('gender').value; // <-- AJOUTEZ CETTE LIGNE
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+            currentUserId = user.uid; 
+            currentUserInfo = { firstName, lastName, schoolName };
+            await saveData(true); 
+        } catch (error) {
+            authError.textContent = "Erreur lors de la création du compte. Le mot de passe doit faire 6 caractères minimum.";
+        }
+    });
+    showLoginButton.addEventListener('click', showLoginView);
+}
+
+// 🔹 Rendre la fonction showView accessible globalement
+window.showView = showView;
+
+           function getCurrentSchoolYear() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth(); // 0 pour Janvier, 11 pour Décembre
+
+    // On considère que la nouvelle année scolaire commence en août (mois 7)
+    // Si nous sommes en juillet 2025 (mois 6), l'année scolaire est 2024.
+    // Si nous sommes en août 2025 (mois 7), l'année scolaire est 2025.
+    return (month >= 7) ? year : year - 1;
+}
+
+        async function saveData(isInitialSave = false) {
+            if (!currentUserId) return;
+            const userDocRef = doc(db, "users", currentUserId);
+            
+            const dataToSave = {
+                firstName: currentUserInfo.firstName,
+                lastName: currentUserInfo.lastName,
+                schoolName: currentUserInfo.schoolName,
+                gradeLevel: userGradeLevel,
+                gender: currentUserInfo.gender, // <-- AJOUTEZ CETTE LIGNE
+                journal: journalData
+            };
+            
+            try {
+                if(isInitialSave) {
+                    await setDoc(userDocRef, dataToSave);
+                } else {
+                    await setDoc(userDocRef, dataToSave, { merge: true });
+                }
+            } catch (error) {
+                console.error("Error saving document: ", error);
+            }
+
+            triggerSurpriseMoment(); // <-- AJOUTEZ CETTE LIGNE
+
+        }
+
+        async function triggerSurpriseMoment() {
+            // Règle simple pour ne pas surcharger l'élève : 25% de chance de se déclencher
+            if (Math.random() > 0.25) return;
+            
+            // Pour éviter les conflits, ne pas lancer si un autre modal est déjà ouvert
+            if (document.querySelector('.simulation-modal, .portfolio-modal, #simple-info-modal, #surprise-modal')) return;
+
+            const currentLevel = journalData.level || 1;
+            const currentXp = journalData.xp || 0;
+            const xpForCurrentLevel = levelConfig[currentLevel];
+            const xpForNextLevel = levelConfig[currentLevel + 1];
+            const xpInCurrentLevel = currentXp - xpForCurrentLevel;
+            // On gère le cas où l'élève est au niveau maximum
+            const xpNeededForLevel = xpForNextLevel ? xpForNextLevel - xpForCurrentLevel : Infinity; 
+
+            let surprisesPossibles = [];
+
+            // --- 1. SURPRISES LIÉES AU PROFIL (ÉTAPE 0) ---
+
+            // Si l'élève a des traits 'Artistes' mais un portfolio vide
+            const aDesTraitsArtistes = journalData.step0 && (journalData.step0.q16 === 'artistique' || journalData.step0.q19 === 'artistique' || journalData.step0.q20 === 'artistique');
+            const portfolioVide = !journalData.step10.experiences || journalData.step10.experiences.length === 0;
+            if (aDesTraitsArtistes && portfolioVide) {
+                surprisesPossibles.push({
+                    title: "Piste de réflexion...",
+                    content: "J'ai remarqué que tu as des centres d'intérêt artistiques. N'oublie pas que tu peux valoriser tes projets créatifs (dessin, musique, écriture...) dans ton <strong>Portfolio de Compétences</strong> ! Ça peut faire toute la différence."
+                });
+            }
+            
+            // Si l'élève a des traits 'Entreprenants' mais n'a pas exploré de métiers de management
+            const aDesTraitsEntreprenants = journalData.step0 && (journalData.step0.q17 === 'entreprenant' || journalData.step0.q18 === 'entreprenant');
+            const aExploreManagement = (journalData.step1.metier1.includes('manage') || journalData.step1.metier2.includes('manage') || journalData.step1.metier3.includes('manage'));
+            if (aDesTraitsEntreprenants && !aExploreManagement) {
+                surprisesPossibles.push({
+                    title: "Ton profil de leader...",
+                    content: "Ton profil montre que tu aimes diriger et convaincre. As-tu déjà exploré des métiers liés au <strong>management de projet</strong> ou à la <strong>création d'entreprise</strong> ? Le Radar à Opportunités pourrait te surprendre !"
+                });
+            }
+
+            // Si l'élève est plutôt 'Introverti' et explore des métiers de contact
+            const estIntroverti = journalData.step0 && journalData.step0.q10 === 'introversion';
+            const aExploreMetierSocial = (journalData.step1.metier1.toLowerCase().includes('social') || journalData.step1.metier1.toLowerCase().includes('enseignant') || journalData.step1.metier1.toLowerCase().includes('infirmier'));
+            if (estIntroverti && aExploreMetierSocial) {
+                surprisesPossibles.push({
+                    title: "Une question pour toi...",
+                    content: "C'est super de t'intéresser aux métiers du contact ! Ton profil suggère que tu recharges tes batteries en étant seul(e). Pense à utiliser le simulateur de <strong>'Journée Type'</strong> pour voir si le rythme te conviendrait."
+                });
+            }
+
+            // Si l'élève est 'Curieux' et n'a pas fait de quiz
+            const estCurieux = journalData.step0 && journalData.step0.q14 === 'curieux';
+            const aFaitQuiz = journalData.step7.scores && Object.keys(journalData.step7.scores).length > 0;
+            if (estCurieux && !aFaitQuiz) {
+                surprisesPossibles.push({
+                    title: "Pour les esprits curieux...",
+                    content: "Ton profil montre une grande curiosité ! Pour la nourrir, pourquoi ne pas te lancer un défi avec l'étape <strong>'Fact Checking'</strong> ? C'est un excellent moyen de déconstruire les idées reçues."
+                });
+            }
+            
+            // --- 2. SURPRISES LIÉES À L'EXPLORATION (ÉTAPES 1 à 5) ---
+
+            // Si l'élève a exploré au moins 2 métiers mais n'a pas utilisé le comparateur
+            const metiersExplores = [journalData.step1.metier1, journalData.step1.metier2, journalData.step1.metier3].filter(m => m && m.trim() !== '').length;
+            const comparateurNonUtilise = !journalData.step1.comparison || journalData.step1.comparison.trim() === '';
+            if (metiersExplores >= 2 && comparateurNonUtilise) {
+                surprisesPossibles.push({
+                    title: "Astuce d'expert !",
+                    content: "Super, tu as exploré plusieurs métiers ! Pour t'aider à y voir plus clair, pense à utiliser le <strong>Comparateur de Métiers</strong> en bas de l'étape 'Les Fondations'. Il te créera un tableau de synthèse personnalisé."
+                });
+            }
+            
+            // Si l'élève a mis des formations dans le catalogue mais pas de métier correspondant
+            const aExploreFormations = journalData.step3 && journalData.step3.formation1.trim() !== '';
+            if (aExploreFormations && metiersExplores === 0) {
+                surprisesPossibles.push({
+                    title: "Connecte les points !",
+                    content: "Tu as commencé à explorer des formations, c'est génial ! Pour bien comprendre où elles mènent, n'oublie pas de remplir l'étape <strong>'Les Fondations'</strong> pour découvrir les métiers concrets auxquels elles préparent."
+                });
+            }
+
+            // Si l'élève est en Terminale et que la date approche de Parcoursup (Janvier)
+            const isTerminale = userGradeLevel === 'terminale';
+            const isParcoursupTime = new Date().getMonth() >= 0 && new Date().getMonth() <= 2; // Janvier à Mars
+            const candidatureVide = !journalData.step6.formation || journalData.step6.formation.trim() === '';
+            if (isTerminale && isParcoursupTime && candidatureVide) {
+                surprisesPossibles.push({
+                    title: "Parcoursup approche !",
+                    content: "La période de formulation des vœux est ouverte ! Pense à utiliser l'étape <strong>'Préparer sa candidature'</strong> pour commencer à rédiger tes projets de formation motivés. Chaque minute passée dessus est un bon investissement !"
+                });
+            }
+            
+            // Si l'élève a fait un quiz et a eu un mauvais score
+            const aFaitUnQuiz = journalData.step7.domaine && journalData.step7.scores[journalData.step7.domaine];
+            if(aFaitUnQuiz) {
+                const lastQuiz = journalData.step7.scores[journalData.step7.domaine].slice(-1)[0];
+                if(lastQuiz && (lastQuiz.score / lastQuiz.total) < 0.5) {
+                    surprisesPossibles.push({
+                        title: "L'erreur est une étape !",
+                        content: `Ne t'inquiète pas pour ton dernier score au quiz sur "${journalData.step7.domaine}". Le plus important est ce que tu as appris ! Relis tes notes et n'hésite pas à explorer ce domaine dans l'étape <strong>'L'Actu'</strong> pour approfondir.`
+                    });
+                }
+            }
+            
+            // --- 3. SURPRISES LIÉES À L'ACTION (ÉTAPES 8 à 12) ---
+
+            // Si l'élève n'a ajouté aucun contact
+            const aAucunContact = !journalData.step8.contacts || journalData.step8.contacts.length === 0;
+            if(metiersExplores > 0 && aAucunContact) {
+                 surprisesPossibles.push({
+                    title: "Passe à la vitesse supérieure !",
+                    content: "La recherche en ligne, c'est bien. Le contact humain, c'est mieux ! Utilise l'étape <strong>'Passer à l'action'</strong> pour trouver des professionnels à qui poser tes questions."
+                });
+            }
+            
+            // Si le rétroplanning a été généré mais aucune tâche n'est cochée après un certain temps
+            // (Cette logique nécessiterait de stocker la date de génération, donc on simplifie)
+            
+            // Si l'élève est en Terminale et n'a pas encore réfléchi à un plan B
+            const planBVide = !journalData.step9.planb_chat_history || journalData.step9.planb_chat_history.length === 0;
+            if(isTerminale && aExploreFormations && planBVide) {
+                 surprisesPossibles.push({
+                    title: "Et si... ?",
+                    content: "C'est super d'avoir des objectifs clairs ! Mais les meilleurs stratèges ont toujours un plan B. Prends 5 minutes pour lancer la simulation de <strong>'Plan B'</strong> dans l'étape 'Anticiper la suite'. Mieux vaut prévenir que guérir !"
+                });
+            }
+
+            // Si le simulateur de vie étudiante n'a pas été utilisé
+            const aUtiliseSimulateurVieEtu = journalData.step12 && journalData.step12.city;
+            if(aExploreFormations && !aUtiliseSimulateurVieEtu) {
+                surprisesPossibles.push({
+                    title: "Un détail qui compte...",
+                    content: "Tu as trouvé des formations qui t'intéressent, bravo ! As-tu pensé au coût de la vie sur place ? Utilise le <strong>'Simulateur Vie Étudiante'</strong> pour te faire une idée concrète."
+                });
+            }
+            
+            // --- 4. SURPRISES LIÉES À LA GAMIFICATION (XP, BADGES) ---
+            
+            // Si l'élève est proche de passer un niveau
+            const xpToNextLevel = xpNeededForLevel - xpInCurrentLevel;
+            if(xpToNextLevel > 0 && xpToNextLevel < 50) {
+                 surprisesPossibles.push({
+                    title: "Presque ! 💪",
+                    content: `Il ne te manque que <strong>${xpToNextLevel} XP</strong> pour atteindre le niveau suivant ! Une petite action comme utiliser le Radar ou faire un quiz pourrait te faire passer au rang de <strong>${rankNames[currentLevel + 1]['autre']}</strong> !`
+                });
+            }
+            
+            // Si l'élève n'a aucun badge
+            if(journalData.earned_badges.length === 0 && metiersExplores > 0) {
+                 surprisesPossibles.push({
+                    title: "Collectionne-les tous !",
+                    content: "Savais-tu que tu pouvais débloquer des badges en complétant certaines étapes ? Par exemple, le <strong>Badge de l'Explorateur</strong> récompense ceux qui terminent les premières étapes clés. Consulte le guide pour en savoir plus !"
+                });
+            }
+            
+            // --- 5. SURPRISES GÉNÉRALES ---
+            
+            // Rappel de mettre à jour le Fil Rouge
+            if(journalData.xp > 500 && (!journalData.fil_rouge || journalData.fil_rouge.length < 20)) {
+                 surprisesPossibles.push({
+                    title: "Fais le point !",
+                    content: "Tu as déjà beaucoup exploré ! C'est peut-être le bon moment pour mettre à jour ton <strong>'Fil Rouge'</strong> dans le Journal de Bord. L'IA peut t'aider à synthétiser ton parcours."
+                });
+            }
+            
+            // Encouragement à partager
+            const aPartage = journalData.share_token;
+            if(journalData.xp > 300 && !aPartage) {
+                 surprisesPossibles.push({
+                    title: "Et si on en parlait ?",
+                    content: "Parler de son orientation, c'est essentiel. Pense à utiliser la fonction de <strong>partage</strong> de ton Journal de Bord pour échanger avec tes parents ou ton professeur principal."
+                });
+            }
+
+            // --- Sélection et affichage d'une surprise aléatoire parmi les possibles ---
+            if (surprisesPossibles.length > 0) {
+                const surpriseFinale = surprisesPossibles[Math.floor(Math.random() * surprisesPossibles.length)];
+                showSurpriseModal(surpriseFinale.title, surpriseFinale.content);
+            }
+        }
+
+    async function loadData() {
+            if (!currentUserId) return;
+            const userDocRef = doc(db, "users", currentUserId);
+            const docSnap = await getDoc(userDocRef);
+            
+            const defaultData = {
+                step0: { 
+                q1: '', q2: '', q3: '', q4: '', q5: '', q6: '', q7: '', q8: '', q9: '', q10: '', 
+                q11: '', q12: '', q13: '', q14: '', q15: '', q16: '', q17: '', q18: '', q19: '', q20: '', q21: '', 
+                analysis: '', 
+                archetype: null, 
+                test_interets: '',
+                test_motivation: '',
+                test_personnalite: '',
+                analyse_tests_croisee: '' },    
+                step1: { metier1: '', notes1: '', metier2: '', notes2: '', metier3: '', notes3: '' },
+                step2: { combo1: '', notes1: '', skills1: '', combo2: '', notes2: '', skills2: '', combo3: '', notes3: '', skills3: '' },
+                step3: { formation1: '', attendus1: '', mots_cles1: '', analyse_mots_cles1: '', formation2: '', attendus2: '', mots_cles2: '', analyse_mots_cles2: '', suggestions: '' },
+                step4: { theme1: '', question1: '', suggestions1: '', theme2: '', question2: '', suggestions2: '' },
+                step5: {
+                article1: '', apprentissage1: '',
+                article2: '', apprentissage2: '',
+                article3: '', apprentissage3: '',
+                analyse_actu: ''
+            },
+                step6: { formation: '', motivations: '', structure: '' },
+                step7: { 
+                domaine: '', 
+                reflexions: '',
+                scores: {}
+            },
+                step8: { pro_reseau_personnel: '', pro_metier: '', pro_departement: '', pro_contacts: '', pro_strategie: '', pro_media_query: '', pro_media_content: '', jpo_ecole: '', jpo_questions: '' },
+                step9: { 
+                formation_reve: '', 
+                planb_chat_history: [],
+                reussite_type: '', 
+                reussite_conseils: '' 
+            },
+                step10: { experience1: '', analyse1: '', experience2: '', analyse2: '' },
+                step11: { 
+                location: '', 
+                evenements: [], 
+                structures: [],
+                jpo_ecole: '',
+                jpo_questions: '',
+                salon_nom: '',
+                salon_preparation: ''
+            },
+                retroplanning: '',
+                fil_rouge: '',
+                discussion_points: '',
+                radar_history: [],
+                earned_badges: [],
+                xp: 0,
+                level: 1
+            };
+            
+            let data = docSnap.exists() ? docSnap.data() : {};
+            
+            userGradeLevel = data.gradeLevel || null;
+            currentUserInfo = {
+                firstName: data.firstName || '',
+                lastName: data.lastName || '',
+                schoolName: data.schoolName || '',
+                gender: data.gender || 'autre' // <-- AJOUTEZ CETTE LIGNE (avec une valeur par défaut)
+
+            };
+            
+            const loadedJournal = data.journal || {};
+            
+            journalData = {};
+            for (const key in defaultData) {
+        // On ajoute une condition spéciale pour les tableaux (Array)
+        if (Array.isArray(defaultData[key])) {
+            journalData[key] = loadedJournal[key] || defaultData[key];
+        }
+        // La logique existante pour les objets
+        else if (loadedJournal[key] && typeof defaultData[key] === 'object' && defaultData[key] !== null) {
+            journalData[key] = { ...defaultData[key], ...loadedJournal[key] };
+        } 
+        // La logique par défaut pour le reste
+        else {
+             journalData[key] = loadedJournal[key] || defaultData[key];
+        }
+    }
+    
+    // Cette vérification supplémentaire est une bonne pratique
+    if (!Array.isArray(journalData.radar_history)) {
+        journalData.radar_history = [];
+    }
+    if (!Array.isArray(journalData.earned_badges)) {
+        journalData.earned_badges = [];
+    }
+    
+    checkBadges();
+
+    const currentSchoolYear = getCurrentSchoolYear();
+    if (data.lastLoginSchoolYear !== currentSchoolYear || !userGradeLevel) {
+        showGradeSelectionView();
+    } else {
+        showView('menu');
+    }
+    
+    await setDoc(userDocRef, { lastLoginSchoolYear: currentSchoolYear }, { merge: true });
+}
+
+    function getProfileSummary() {
+            let summary = "Voici un résumé du profil de l'élève :\n";
+
+            if (journalData.step0 && journalData.step0.archetype) {
+                summary += `- Son archétype de personnalité : ${journalData.step0.archetype.titre}\n`;
+            }
+            if (journalData.step0 && journalData.step0.analysis) {
+                summary += `- Analyse de son profil : "${journalData.step0.analysis}"\n`;
+            }
+
+            const metiers = [journalData.step1.metier1, journalData.step1.metier2, journalData.step1.metier3].filter(m => m && m.trim());
+            if (metiers.length > 0) {
+                summary += `- Métiers déjà explorés : ${metiers.join(', ')}\n`;
+            }
+
+            const formations = [journalData.step3.formation1, journalData.step3.formation2].filter(f => f && f.trim());
+            if (formations.length > 0) {
+                summary += `- Formations déjà explorées : ${formations.join(', ')}\n`;
+            }
+
+            if (journalData.step10 && journalData.step10.soft_skills_profile) {
+                summary += `- Résumé de ses compétences : "${journalData.step10.soft_skills_profile}"\n`;
+            }
+            
+            if (summary === "Voici un résumé du profil de l'élève :\n") {
+                return "L'élève n'a pas encore rempli suffisamment son profil. Base-toi sur le bon sens et l'idée qu'il propose.";
+            }
+
+            return summary;
+        }
+
+    async function grantXp(points) {
+            if (!journalData) return;
+
+            journalData.xp = (journalData.xp || 0) + points;
+            let currentLevel = journalData.level || 1;
+            let leveledUp = false; // On utilise un indicateur pour savoir si un niveau a été gagné
+
+            // On vérifie si l'utilisateur passe un ou plusieurs niveaux
+            while (levelConfig[currentLevel + 1] && journalData.xp >= levelConfig[currentLevel + 1]) {
+                currentLevel++;
+                journalData.level = currentLevel;
+                leveledUp = true;
+            }
+            
+            // On sauvegarde les nouvelles données (XP et niveau)
+            await saveData();
+
+            // Si un niveau a été gagné, on affiche la nouvelle fenêtre personnalisée
+            if (leveledUp) {
+                // CORRECTION DU BUG [object Object] : On sélectionne le bon titre
+                const userGender = currentUserInfo.gender || 'autre';
+                const rankTitle = rankNames[journalData.level][userGender] || rankNames[journalData.level]['autre'];
+
+                const title = `🎉 Montée de Niveau !`;
+                const contentHTML = `
+                    <p class="text-slate-600">Bravo, tu as atteint le</p>
+                    <p class="text-2xl font-bold text-cyan-700 my-2">Niveau ${journalData.level} : ${rankTitle}</p>
+                    <p class="text-slate-600">Continue sur cette lancée pour découvrir tout ton potentiel !</p>
+                `;
+                
+                // On réutilise la fonction d'affichage des surprises pour un design cohérent
+                showSurpriseModal(title, contentHTML);
+            }
+
+            // On met à jour l'affichage du menu s'il est actuellement visible
+            const menuView = document.querySelector('.fade-in');
+            if (menuView && menuView.querySelector('#xp-chart')) {
+                showView('menu');
+            }
+    
+        }
+        
+        function showGradeSelectionView() {
+            mainApp.innerHTML = `
+                <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 fade-in text-center">
+                    <h1 class="text-2xl font-bold text-slate-800 mb-4">Bienvenue, ${currentUserInfo.firstName} !</h1>
+                    <p class="text-slate-600 mb-6">Pour personnaliser ton parcours, sélectionne ta classe :</p>
+                    <div class="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-4">
+                        <button data-grade="seconde" class="grade-btn bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700">Seconde</button>
+                        <button data-grade="premiere" class="grade-btn bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700">Première</button>
+                        <button data-grade="terminale" class="grade-btn bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700">Terminale</button>
+                    </div>
+                </div>
+            `;
+            document.querySelectorAll('.grade-btn').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    userGradeLevel = e.target.dataset.grade;
+                    await saveData();
+                    showView('menu');
+                });
+            });
+
+        }
+
+       // REMPLACEZ VOTRE FONCTION callGeminiAPI ACTUELLE PAR CELLE-CI :
+
+async function callGeminiAPI(prompt, useGrounding = false, isJson = false) {
+    
+    // Fonction de nettoyage interne pour éviter la répétition
+    const cleanResponse = (text) => {
+        if (!isJson && text && typeof text === 'string') {
+            return text.replace(/[#*]/g, '');
+        }
+        return text;
+    };
+
+    const functionUrl = "https://us-central1-monapp0rientation.cloudfunctions.net/generateContent"; 
+
+    try {
+        const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt: prompt,
+                useGrounding: useGrounding,
+                isJson: isJson
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Erreur du serveur: ${errorData.error || response.statusText}`);
+        }
+
+        const data = await response.json();
+        // On nettoie la réponse en cas de succès
+        return cleanResponse(data.result);
+
+    } catch (error) {
+        console.error("Error calling Cloud Function:", error);
+        const errorMessage = `Impossible de contacter le service d'IA. (${error.message})`;
+        // On nettoie aussi le message d'erreur au cas où
+        return cleanResponse(errorMessage);
+    }
+}
+        
+    // REMPLACEZ VOTRE showView EXISTANTE PAR CELLE-CI :
+async function showView(viewName) {
+    mainApp.innerHTML = '';
+    
+    if (viewName === 'menu') {
+        triggerSurpriseMoment();
+    }
+    const chatbotToggle = document.getElementById('chatbot-toggle');
+    const floatingBackBtn = document.getElementById('floatingBackBtn');
+
+    const showChatbotOn = ['menu', 'home', 'step0', 'step1', 'step2', 'step3', 'step4', 'step5', 'step6', 'step7', 'step8', 'step9', 'step10', 'step11', 'step12', 'retroplanning', 'journal'];
+    const showBackButtonOn = ['step0', 'step1', 'step2', 'step3', 'step4', 'step5', 'step6', 'step7', 'step8', 'step9', 'step10', 'step11', 'step12', 'retroplanning', 'journal', 'guide'];
+
+    if (chatbotToggle) {
+        if (showChatbotOn.includes(viewName)) {
+            chatbotToggle.style.display = 'flex';
+        } else {
+            chatbotToggle.style.display = 'none';
+        }
+    }
+    
+    if (floatingBackBtn) {
+        // La condition "!(viewName === 'guide' && cameFromLogin)" est cruciale ici
+        // Elle cache le bouton sur le guide si on vient de la page de connexion
+        if (showBackButtonOn.includes(viewName) && !(viewName === 'guide' && cameFromLogin)) {
+            floatingBackBtn.style.display = 'flex';
+        } else {
+            floatingBackBtn.style.display = 'none';
+        }
+    }
+
+    let newView;
+    switch(viewName) {
+        case 'home': newView = createHomeView(); break;
+        case 'menu': newView = createMenuView(); break;
+        case 'step0': newView = createStep0View(); break;
+        case 'step1': newView = createStep1View(); break;
+        case 'step2': newView = createStep2View(); break;
+        case 'step3': newView = createStep3View(); break;
+        case 'step4': newView = createStep4View(); break;
+        case 'step5': newView = createStep5View(); break;
+        case 'step6': newView = createStep6View(); break;
+        case 'step7': newView = createStep7View(); break;
+        case 'step8': newView = createStep8View(); break;
+        case 'step9': newView = createStep9View(); break;
+        case 'step10': newView = createStep10View(); break;
+        case 'step11': newView = createStep11View(); break;
+        case 'step12': newView = createStep12View(); break;
+        case 'guide': newView = createGuideView(); break;
+        case 'retroplanning': newView = createRetroplanningView(); break;
+        case 'journal': newView = await createJournalView(); break; 
+        default: newView = createHomeView();
+    }
+    if (newView) mainApp.appendChild(newView);
+    window.scrollTo(0, 0);
+}
+
+        function createHomeView() {
+            return createMenuView();
+        }
+        
+
+function createMenuView() {
+    const div = document.createElement('div');
+    div.className = 'fade-in';
+
+    // --- Calculs et préparation des données (inchangés) ---
+    const currentLevel = journalData.level || 1;
+    const currentXp = journalData.xp || 0;
+    const xpForCurrentLevel = levelConfig[currentLevel];
+    const xpForNextLevel = levelConfig[currentLevel + 1];
+    const xpInCurrentLevel = currentXp - xpForCurrentLevel;
+    const xpNeededForLevel = xpForNextLevel - xpForCurrentLevel;
+    const userGender = currentUserInfo.gender || 'autre';
+    const rankTitle = rankNames[currentLevel][userGender] || rankNames[currentLevel]['autre'];
+    
+    let badgesHTML = '<h3 class="font-bold text-slate-800 text-center text-xs mb-1">Mes Badges</h3>';
+    const earnedBadges = journalData.earned_badges || [];
+    if (earnedBadges.length > 0) {
+        badgesHTML += '<div class="flex justify-center gap-2">';
+        badgesHTML += earnedBadges.map(key => {
+            const badge = badgesConfig[key];
+            return badge ? `<span title="${badge.title}" class="text-3xl cursor-default">${badge.icon}</span>` : '';
+        }).join('');
+        badgesHTML += '</div>';
+    } else {
+        badgesHTML += '<p class="text-xs text-slate-500 text-center">Aucun badge débloqué.</p>';
+    }
+
+
+    // --- NOUVELLE STRUCTURE HTML AVEC MISE EN PAGE ADAPTATIVE ---
+    const levelDisplayHTML = `
+        <div class="mb-10 bg-white p-6 rounded-2xl shadow-lg border border-slate-200 grid grid-cols-2 md:grid-cols-3 gap-6 items-center">
+            
+            <div class="text-center col-span-2 md:col-span-1 md:col-start-2 md:row-start-1">
+                <h1 class="text-3xl font-bold text-slate-800">Bienvenue, ${currentUserInfo.firstName} !</h1>
+                <p class="text-slate-500 mt-1 text-sm">Classe : <span class="font-semibold text-cyan-600">${userGradeLevel ? userGradeLevel.charAt(0).toUpperCase() + userGradeLevel.slice(1) : ''}</span> à <span class="font-semibold text-cyan-600">${capitalizeWords(currentUserInfo.schoolName)}</span></p>
+                <h2 class="text-xl font-bold text-cyan-700 mt-3">Niveau d'Exploration ${currentLevel} : ${rankTitle}</h2>
+                    <div class="flex justify-center items-center gap-2 mt-3 text-sm whitespace-nowrap">
+                    <button id="changeGradeButton" class="text-cyan-600 hover:underline">Modifier ma classe</button>
+                    <span class="text-slate-400">|</span>
+                    <button id="logoutButton" class="text-sm text-cyan-600 hover:underline">Se déconnecter</button>
+                </div>
+            </div>
+
+            <div id="xp-gauge-container" class="relative w-32 h-32 mx-auto cursor-pointer md:col-start-1 md:row-start-1">
+                <canvas id="xp-chart"></canvas>
+                <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+                    <span class="font-bold text-2xl text-slate-800">${xpInCurrentLevel}</span>
+                    <span class="text-xs text-slate-500">/${xpNeededForLevel} XP</span>
+                </div>
+            </div>
+
+            <div id="badges-container" class="w-32 h-32 mx-auto bg-slate-50 rounded-full border border-slate-200 flex flex-col items-center justify-center p-2 cursor-pointer">
+                ${badgesHTML}
+            </div>
+
+        </div>
+    `;
+    
+    // --- 4. Le reste de votre code (barre de progression, grille, etc.) ---
+    // (J'inclus le reste du code pour être sûr que tout est complet)
+    const allStepsForLevel = allSteps.filter(step => step.levels.includes(userGradeLevel));
+    const completedStepsCount = allStepsForLevel.filter(step => !['journal', 'retroplanning', 'step12'].includes(step.id) && isStepComplete(step.id)).length;
+    const totalTrackableSteps = allStepsForLevel.filter(step => !['journal', 'retroplanning', 'step12'].includes(step.id)).length;
+    const progressPercentage = totalTrackableSteps > 0 ? (completedStepsCount / totalTrackableSteps) * 100 : 0;
+    const progressBarHTML = `
+        <div class="max-w-xl mx-auto mb-8">
+            <div class="flex justify-between mb-1">
+                <span class="text-base font-medium text-cyan-700">Progression des Étapes</span>
+                <span class="text-sm font-medium text-cyan-700">${Math.round(progressPercentage)}%</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2.5">
+                <div class="bg-cyan-600 h-2.5 rounded-full" style="width: ${progressPercentage}%"></div>
+            </div>
+        </div>`;
+    const guideCardHTML = `
+        <div onclick="window.showView('guide')" class="step-card bg-white p-4 rounded-xl shadow-md border border-slate-200 cursor-pointer flex flex-col items-center space-y-2 mb-6 max-w-md mx-auto">
+            <div class="text-3xl">❓</div>
+            <div class="text-center">
+                <h2 class="text-lg font-semibold text-slate-800">Guide d'Utilisation</h2>
+                <p class="text-sm text-slate-500">Besoin d'aide pour commencer ?</p>
+            </div>
+        </div>`;
+    let steps = allStepsForLevel;
+    let gridContainerClasses = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8";
+    let gridItemClasses = "";
+    if (userGradeLevel === 'seconde' || userGradeLevel === 'terminale') {
+        gridContainerClasses = "flex flex-wrap justify-center gap-6 mt-8";
+        gridItemClasses = "w-full md:w-[48%] lg:w-[31%]";
+    }
+    let gridHTML = steps.map((step, index) => {
+        let statusSymbol = '';
+         if (!['journal', 'retroplanning', 'step12'].includes(step.id) && journalData[step.id]) {
+             if(isStepComplete(step.id)){
+                 statusSymbol = '<span class="ml-2 text-green-500 font-bold">✔</span>';
+             } else {
+                const stepData = journalData[step.id];
+                const values = Object.values(stepData);
+                const filledCount = values.filter(v => v && v.toString().trim() !== '').length;
+                if(filledCount > 0) {
+                    statusSymbol = '<span class="ml-2 text-orange-400 font-bold">✔</span>';
+                }
+             }
+        }
+        const isLastItemCentered = (steps.length % 3 === 1 && userGradeLevel === 'premiere');
+        const lastItemIndex = steps.length - 1;
+        const centeredClass = (isLastItemCentered && index === lastItemIndex) ? 'lg:col-start-2' : '';
+         return `
+        <div onclick="window.showView('${step.id}')" class="step-card bg-white p-6 rounded-xl shadow-md border border-slate-200 cursor-pointer flex flex-col items-center space-y-2 text-center ${centeredClass} ${gridItemClasses}">
+            <div class="text-3xl">${step.icon}</div>
+            <div>
+                <div class="flex justify-center items-center">
+                     <h2 class="text-lg font-semibold text-slate-800">${step.title}</h2>
+                     ${statusSymbol}
+                </div>
+                <p class="text-slate-500">${step.site}</p>
+            </div>
+        </div>`;
+    }).join('');
+    const radarHTML = `
+        <div class="mt-12 text-center fade-in">
+            <h2 class="text-2xl font-bold text-slate-800 mb-4">📡 Le Radar à Opportunités</h2>
+            <p class="text-slate-600 max-w-2xl mx-auto mb-6">Teste ici tes propres idées de métiers ou laisse l'IA t'en proposer une à laquelle tu n'aurais jamais pensé !</p>
+            <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                <div class="flex flex-col md:flex-row gap-4 items-center">
+                    <input type="text" id="radarInput" class="w-full md:flex-1 p-3 border border-slate-300 rounded-lg" placeholder="Propose un métier ou un domaine...">
+                    <button id="radarAnalyzeBtn" class="w-full md:w-auto bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">Analyser mon idée</button>
+                </div>
+                <div class="my-4 text-slate-500 font-semibold">OU</div>
+                <button id="radarSurpriseBtn" class="w-full bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition">Me surprendre !</button>
+            </div>
+            <div id="radarLoader" class="hidden"><div class="loader"></div></div>
+            <div id="radarResult" class="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg text-slate-700 whitespace-pre-wrap text-left hidden"></div>
+        </div>
+        </div>`;
+
+    div.innerHTML = levelDisplayHTML + progressBarHTML + guideCardHTML + `<div class="${gridContainerClasses}">${gridHTML}</div>` + radarHTML;
+    
+    setTimeout(() => {
+        const ctx = div.querySelector('#xp-chart')?.getContext('2d');
+        if (!ctx) return;
+        const xpRemaining = Math.max(0, xpNeededForLevel - xpInCurrentLevel);
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [xpInCurrentLevel, xpRemaining],
+                    backgroundColor: ['#f59e0b', '#e2e8f0'],
+                    borderColor: ['#ffffff', '#ffffff'],
+                    borderWidth: 2,
+                    circumference: 360,
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '80%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false }
+                }
+            }
+        });
+    }, 0);
+
+    const loader = div.querySelector('#radarLoader');
+    const resultDiv = div.querySelector('#radarResult');
+    const radarInput = div.querySelector('#radarInput');
+
+    div.querySelector('#radarAnalyzeBtn').addEventListener('click', async () => {
+        const userInput = radarInput.value.trim();
+        if (!userInput) {
+            alert("Veuillez entrer un métier ou un domaine à analyser.");
+            return;
+        }
+        loader.style.display = 'block';
+        resultDiv.innerHTML = '';
+        resultDiv.classList.add('hidden'); // On cache le résultat précédent
+
+        
+        const profileSummary = getProfileSummary();
+        const prompt = `Agis comme un conseiller d'orientation. Un lycéen te propose de considérer le métier : "${userInput}". Voici le résumé de son profil : ${profileSummary}. Donne un retour structuré en 3 points : 1. Points de Connexion. 2. Points de Vigilance. 3. Première Mission d'Exploration.`;
+        
+        const result = await callGeminiAPI(prompt);
+        loader.style.display = 'none';
+        resultDiv.classList.remove('hidden'); // On affiche le conteneur
+
+
+        // Affiche la réponse de l'IA AVEC les nouveaux boutons
+        resultDiv.innerHTML = `
+            <p class="whitespace-pre-wrap">${result}</p>
+            <div class="flex gap-4 mt-4 pt-4 border-t">
+                <button id="radar-save-btn" class="flex-1 bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700 transition">Enregistrer dans le journal</button>
+                <button id="radar-close-btn" class="flex-1 bg-slate-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-slate-600 transition">Fermer</button>
+            </div>
+        `;
+
+        // Ajoute l'écouteur pour le bouton "Enregistrer"
+        resultDiv.querySelector('#radar-save-btn').addEventListener('click', async () => {
+            if (!Array.isArray(journalData.radar_history)) { journalData.radar_history = []; }
+            journalData.radar_history.push({ type: 'Analyse', sujet: userInput, reponse: result });
+            await grantXp(25); // Le rafraîchissement se fait ici
+        });
+
+        // Ajoute l'écouteur pour le bouton "Fermer"
+        resultDiv.querySelector('#radar-close-btn').addEventListener('click', async () => {
+            await grantXp(25); // Le rafraîchissement se fait ici
+        });
+    });
+
+    div.querySelector('#radarSurpriseBtn').addEventListener('click', async () => {
+        loader.style.display = 'block';
+        resultDiv.innerHTML = '';
+        resultDiv.classList.add('hidden');
+        
+        if (!Array.isArray(journalData.radar_history)) { journalData.radar_history = []; }
+        const previousSuggestions = journalData.radar_history.map(h => h.sujet).filter(Boolean).join('", "');
+        let historyPrompt = "";
+        if (previousSuggestions) {
+            historyPrompt = `Important : pour garantir la diversité, évite de proposer les pistes suivantes qui ont déjà été suggérées : "${previousSuggestions}".`;
+        }
+        const appStepsList = allSteps.map(s => `'${s.icon} ${s.title}'`).join(', ');
+
+        // --- NOUVELLE LOGIQUE : Sélection d'un angle aléatoire ---
+        const randomAngle = creativeAngles[Math.floor(Math.random() * creativeAngles.length)];
+        const profileSummary = getProfileSummary();
+        
+        // --- NOUVEAU PROMPT : L'IA doit résoudre un "puzzle créatif" ---
+        const prompt = `Agis comme un coach d'orientation extrêmement créatif et perspicace. Tu t'adresses à un lycéen.
+        
+        Voici le résumé de son profil :
+        ${profileSummary}
+        ${historyPrompt}
+
+        Ta mission est de trouver un lien **surprenant et intelligent** entre le profil de l'élève et l'angle créatif suivant : **${randomAngle}**. sois enthousiaste et bienveillant. Base toi sur le site onisep.fr pour imaginer un métier ou un secteur d'activité qui pourrait correspondre, même de loin, à cet angle créatif.
+
+        Rédige ta réponse en 5 parties distinctes et bien visibles :
+        1.  **Piste Inattendue :** Commence ta phrase par "Tu pourrais envisager..." puis propose un nom de métier ou de secteur précis.
+        2.  **Décris une une dizaine de phrases ce métier ou secteur, en quoi il consiste, les activités principales, le contexte de travail, les qualités requises, les débouchés possibles. Utilise un langage simple et évocateur.**
+        3.  **Les études :** Précise les parcours scolaires et les formations nécessaires pour accéder à ce métier ou secteur.
+        4.  **Pourquoi je pense que c'est fait pour toi :** Justifie ton choix en 5 ou 6 phrases, en te basant sur les éléments du profil.
+        5.  **Pour aller plus loin dans l'appli :** Suggère 1 ou 2 étapes spécifiques de l'application "Mon Explor'Orientation" qui l'aideraient à approfondir cette piste. Tu dois utiliser les noms exacts des étapes disponibles, qui sont : ${appStepsList}.
+
+        Sois enthousiaste et bienveillant, comme un coach qui croit en son élève et adresse à lui en utilisant le tutoiement.`;
+        
+        const result = await callGeminiAPI(prompt);
+        loader.style.display = 'none';
+        resultDiv.classList.remove('hidden');
+
+        resultDiv.innerHTML = `
+            <p class="whitespace-pre-wrap">${result}</p>
+            <div class="flex gap-4 mt-4 pt-4 border-t">
+                <button id="radar-save-btn" class="flex-1 bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700 transition">Carrément, super idée, je garde</button>
+                <button id="radar-close-btn" class="flex-1 bg-slate-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-slate-600 transition">Pas intéressé</button>
+            </div>
+        `;
+
+        resultDiv.querySelector('#radar-save-btn').addEventListener('click', async () => {
+            const trackNameMatch = result.match(/(?:Piste Inattendue|Tu pourrais envisager)\s*:\s*(.*?)\n/);
+            const trackName = trackNameMatch && trackNameMatch[1] ? trackNameMatch[1].trim() : "Piste inattendue";
+            journalData.radar_history.push({ type: 'Surprise', sujet: trackName, reponse: result });
+            if (journalData.radar_history.length > 10) {
+                journalData.radar_history.shift();
+            }
+            await grantXp(25);
+        });
+
+        resultDiv.querySelector('#radar-close-btn').addEventListener('click', async () => {
+            await grantXp(25);
+        });
+    });
+
+
+    div.querySelector('#changeGradeButton').addEventListener('click', () => {
+        showGradeSelectionView();
+    });
+
+    div.querySelector('#logoutButton').addEventListener('click', async () => {
+        try {
+            await signOut(auth);
+        } catch (error) {
+            console.error("Erreur lors de la déconnexion :", error);
+            alert("Impossible de se déconnecter, veuillez réessayer.");
+        }
+    });
+
+
+    div.querySelector('#xp-gauge-container').addEventListener('click', () => {
+        const title = "⭐ Qu'est-ce que le système d'XP ?";
+        const contentHTML = `
+            <div class="space-y-4 text-slate-600">
+                <p>Le système de Points d'Expérience (XP) transforme ton parcours d'orientation en une aventure ! Chaque action importante te rapporte des points pour matérialiser ta progression.</p>
+                <div class="p-4 bg-slate-50 rounded-lg border">
+                    <h4 class="font-semibold text-slate-800 mb-2">Comment ça marche ?</h4>
+                    <p>Tes XP remplissent la jauge circulaire. Une fois pleine, tu passes au niveau supérieur et gagnes un nouveau rang, montrant que tu avances dans ta quête !</p>
+                </div>
+                <div class="p-4 bg-slate-50 rounded-lg border">
+                    <h4 class="font-semibold text-slate-800 mb-2">Comment gagner des XP ?</h4>
+                    <ul class="list-disc list-inside text-sm">
+                        <li>En analysant ton profil ("Mieux se connaître").</li>
+                        <li>En générant ton Rétroplanning.</li>
+                        <li>En valorisant une expérience dans ton Portfolio.</li>
+                        <li>En obtenant un bon score à un quiz "Fact Checking".</li>
+                        <li>En utilisant le Radar à Opportunités.</li>
+                    </ul>
+                </div>
+            </div>
+        `;
+        createSimpleModal(title, contentHTML);
+    });
+
+    div.querySelector('#badges-container').addEventListener('click', () => {
+        const title = "🏆 Qu'est-ce que le système de Badges ?";
+        let contentHTML = `
+            <div class="space-y-4 text-slate-600">
+                <p>Les badges sont des récompenses spéciales que tu débloques en accomplissant des ensembles d'étapes clés. Ils symbolisent tes grandes réussites dans ton parcours d'orientation !</p>
+                <div class="space-y-3">
+        `;
+        
+        for (const key in badgesConfig) {
+            const badge = badgesConfig[key];
+            const earned = earnedBadges.includes(key);
+            contentHTML += `
+                <div class="flex items-start gap-4 p-3 rounded-lg ${earned ? 'bg-amber-50 border border-amber-200' : 'bg-slate-50 border border-slate-200'}">
+                    <span class="text-4xl ${earned ? '' : 'opacity-40'}">${badge.icon}</span>
+                    <div>
+                        <h4 class="font-bold ${earned ? 'text-amber-800' : 'text-slate-800'}">${badge.title} ${earned ? '(Obtenu !)' : '(À débloquer)'}</h4>
+                        <p class="text-sm">${badge.description}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        contentHTML += `</div></div>`;
+        createSimpleModal(title, contentHTML);
+    });
+
+    return div;
+}
+        
+        function createStepView(config) {
+            const div = document.createElement('div');
+            div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200';
+            
+            let formFields = '';
+            if (config.fields) {
+                formFields = config.fields.map(field => {
+                    const value = (journalData[config.stepKey] && journalData[config.stepKey][field.id]) || '';
+                    const isReadonly = field.isReadonly ? 'readonly' : '';
+                    const bgColor = isReadonly ? 'bg-slate-50' : 'bg-white';
+                    return `
+                    <div class="mb-6">
+                        <label for="${field.id}" class="block text-md font-medium text-slate-700 mb-2">${field.label}</label>
+                        ${field.type === 'textarea' ? `<textarea id="${field.id}" name="${field.id}" rows="4" class="w-full p-3 border border-slate-300 rounded-lg ${bgColor}" placeholder="${field.placeholder}" ${isReadonly}>${value}</textarea>` : `<input type="text" id="${field.id}" name="${field.id}" class="w-full p-3 border border-slate-300 rounded-lg ${bgColor}" placeholder="${field.placeholder}" value="${value}" ${isReadonly}>`}
+                    </div>
+                `}).join('');
+            }
+
+            let description = config.description;
+            if(typeof description === 'object') {
+                description = description[userGradeLevel] || description['default'] || '';
+            }
+
+            let action = config.action;
+            if(typeof action === 'object') {
+                action = action[userGradeLevel] || action['default'] || '';
+            }
+
+            let linksHTML = '';
+    if (config.urls) {
+        linksHTML = config.urls.map(link => 
+            `<a href="${link.url}" target="_blank" class="inline-block bg-cyan-100 text-cyan-800 font-semibold py-2 px-4 rounded-lg hover:bg-cyan-200 transition mr-2 mb-2">Visiter ${link.site} ↗</a>`
+        ).join('');
+    } else if (config.url) {
+        linksHTML = `<a href="${config.url}" target="_blank" class="inline-block bg-cyan-100 text-cyan-800 font-semibold py-2 px-4 rounded-lg hover:bg-cyan-200 transition">Visiter ${config.site} ↗</a>`;
+    }
+
+    div.innerHTML = `
+        <div class="flex items-center mb-6"><button onclick="window.showView('menu')" class="text-cyan-600 hover:text-cyan-800 font-bold mr-4">← Retour</button><h1 class="text-2xl font-bold">${config.icon} ${config.title}</h1></div>
+        <div class="text-slate-600 mb-4 whitespace-pre-wrap">${description}</div>
+        <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6"><div class="font-semibold text-cyan-900">${action}</div></div>
+        <div class="mb-8">${linksHTML}</div>
+        <form id="stepForm">
+            ${formFields}
+            <button type="submit" class="w-full mt-4 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700 transition">✔️ Terminer et sauvegarder</button>
+        </form>
+    `;
+            
+            div.querySelector('#stepForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const stepKey = config.stepKey;
+                if (!journalData[stepKey]) journalData[stepKey] = {};
+
+                for (const [key, newValue] of formData.entries()) {
+                     journalData[stepKey][key] = newValue; 
+                }
+                
+                checkBadges();
+                await saveData();
+                showView('menu');
+            });
+
+            return div;
+        }
+        
+
+
+
+// REMPLACEZ VOTRE FONCTION createProfileInfographic EXISTANTE PAR CELLE-CI :
+function createProfileInfographic(step0Data, context = 'user') {
+    if (!step0Data || !step0Data.analysis) {
+        return document.createElement('div');
+    }
+
+    const container = document.createElement('div');
+    container.className = 'mb-8';
+
+    const titleText = context === 'user' ? 'Synthèse visuelle de mon profil' : 'Synthèse visuelle de son profil';
+
+    container.innerHTML = `
+        <h2 class="text-xl font-bold border-b pb-2 mb-4 text-cyan-700">${titleText}</h2>
+        <div class="bg-slate-50 p-4 md:p-6 rounded-xl border border-slate-200 mt-4">
+            <h3 class="text-lg font-bold text-slate-800 mb-2">Votre Profil d'Intérêts (RIASEC)</h3>
+            <canvas id="profileBarChart"></canvas>
+        </div>
+        <div id="riasec-legend" class="mt-6 text-sm text-slate-600 space-y-2">
+            <p><strong class="font-semibold text-slate-800">R (Réaliste) :</strong> Aime le travail concret, physique, avec des outils ou en plein air.</p>
+            <p><strong class="font-semibold text-slate-800">I (Investigateur) :</strong> Aime analyser, comprendre, résoudre des problèmes complexes.</p>
+            <p><strong class="font-semibold text-slate-800">A (Artistique) :</strong> Aime créer, imaginer, s'exprimer de manière non conventionnelle.</p>
+            <p><strong class="font-semibold text-slate-800">S (Social) :</strong> Aime aider, former, soigner, être en contact avec les autres.</p>
+            <p><strong class="font-semibold text-slate-800">E (Entreprenant) :</strong> Aime diriger, convaincre, mener des projets, prendre des décisions.</p>
+            <p><strong class="font-semibold text-slate-800">C (Conventionnel) :</strong> Aime organiser, gérer, respecter les règles, travailler avec des données.</p>
+        </div>
+    `;
+
+    // On attend un court instant que le canvas soit bien dans le DOM
+    setTimeout(() => {
+        const ctx = document.getElementById('profileBarChart')?.getContext('2d');
+        if (!ctx) return;
+
+        // Logique pour calculer les scores RIASEC à partir du nouveau questionnaire
+        const riasecScores = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
+        const riasecMapping = {
+            q15: { realiste: 'R', investigatif: 'I' },
+            q16: { artistique: 'A', social: 'S' },
+            q17: { entreprenant: 'E', conventionnel: 'C' },
+            q18: { social: 'S', entreprenant: 'E' },
+            q19: { artistique: 'A', conventionnel: 'C' },
+            q20: { realiste: 'R', artistique: 'A' },
+            q21: { social: 'S', investigatif: 'I', realiste: 'R' }
+        };
+
+        for (const [questionId, mapping] of Object.entries(riasecMapping)) {
+            const answer = step0Data[questionId];
+            if (answer && mapping[answer]) {
+                const type = mapping[answer];
+                riasecScores[type]++;
+            }
+        }
+        
+        const labels = ['Réaliste', 'Investigateur', 'Artistique', 'Social', 'Entreprenant', 'Conventionnel'];
+        const dataPoints = [riasecScores.R, riasecScores.I, riasecScores.A, riasecScores.S, riasecScores.E, riasecScores.C];
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Score d\'intérêt',
+                    data: dataPoints,
+                    backgroundColor: [
+                        'rgba(239, 68, 68, 0.6)',    // R - red
+                        'rgba(59, 130, 246, 0.6)',   // I - blue
+                        'rgba(251, 191, 36, 0.6)',  // A - amber
+                        'rgba(34, 197, 94, 0.6)',   // S - green
+                        'rgba(249, 115, 22, 0.6)',  // E - orange
+                        'rgba(148, 163, 184, 0.6)'  // C - slate
+                    ],
+                    borderColor: [
+                        'rgb(239, 68, 68)',
+                        'rgb(59, 130, 246)',
+                        'rgb(251, 191, 36)',
+                        'rgb(34, 197, 94)',
+                        'rgb(249, 115, 22)',
+                        'rgb(148, 163, 184)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }, 0);
+
+    return container;
+}
+
+
         function createQuestionHTML(id, label, options, selectedValue) {
             let optionsHTML = '<option value="">Choisir...</option>';
             for (const [value, data] of Object.entries(options)) {
@@ -1497,6 +2056,7 @@ function createStep0View() {
             renderArchetype(parsedArchetype);
             journalData.step0.archetype = parsedArchetype;
             await saveData();
+            await grantXp(100); 
         } catch(e) { console.error("Erreur de parsing pour l'archétype :", e); }
 
         loader.style.display = 'none';
@@ -1747,6 +2307,7 @@ function createStep1View() {
                 analysisTextInput.value = result;
             }
             checkComparisonState();
+            await grantXp(20);
         });
     });
 
@@ -3218,6 +3779,10 @@ function createStep7View() {
             newScoreEntry.notes = notes;
             scoreHistory.push(newScoreEntry);
             await saveData();
+            const xpGained = score * 5;
+            if (xpGained > 0) {
+                await grantXp(xpGained);
+            }
             renderChoiceView();
         });
     };
@@ -3584,24 +4149,20 @@ function createStep10View() {
     
     const form = div.querySelector('#stepForm');
     
-    // On récupère la description et l'action depuis l'objet de configuration
     const description = config.description;
     const action = config.action;
     
-    if (!journalData.step10 || !Array.isArray(journalData.step10.experiences)) {
-        const experiences = Array.isArray(journalData.step10) ? journalData.step10 : [];
-        journalData.step10 = {
-            experiences: experiences,
-            soft_skills_profile: ''
-        };
+    if (!journalData.step10 || typeof journalData.step10 !== 'object') {
+        journalData.step10 = { experiences: [], soft_skills_profile: '', skills_synthesis: '' };
+    }
+    if (!Array.isArray(journalData.step10.experiences)) {
+        journalData.step10.experiences = [];
     }
 
     let currentExperience = null;
     
-    // CORRECTION : Nouvelle structure HTML pour le contenu du formulaire
     form.innerHTML = `
         <div class="text-slate-600 mb-4 whitespace-pre-wrap">${description}</div>
-
         <div class="bg-cyan-50 p-4 rounded-r-lg border-l-4 border-cyan-400 my-6">
             <h3 class="font-bold text-cyan-800">🤔 Profil vs. Compétences : quelle est la différence ?</h3>
             <p class="text-sm text-slate-700 mt-2">
@@ -3611,23 +4172,19 @@ function createStep10View() {
                 Ton profil répond à la question **"Qui es-tu ?"**. Ton portfolio répond à la question **"Que sais-tu faire ?"**. Les deux sont essentiels pour un projet d'orientation solide et crédible !
             </p>
         </div>
-
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6">
             <div class="font-semibold text-cyan-900">${action}</div>
         </div>
-
         <div class="mb-12">
-            <h2 class="text-2xl font-bold text-slate-800 mb-4">Mes Expériences Significatives</h2>
+            <h2 class="text-2xl font-bold text-slate-800 mb-4">Atelier 1 : Mes Expériences Significatives</h2>
             <div id="experience-list-container" class="space-y-4 mb-6"></div>
             <button type="button" id="add-experience-btn" class="w-full bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">
                 + Ajouter une expérience
             </button>
         </div>
-
         <hr class="my-12 border-slate-300">
-
         <div>
-            <h2 class="text-2xl font-bold text-slate-800 mb-4">Mon Profil de Compétences</h2>
+            <h2 class="text-2xl font-bold text-slate-800 mb-4">Atelier 2 : Mon Profil de Compétences</h2>
             <div id="detector-container" class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
                 <p class="text-slate-600 mb-4">Réponds à quelques questions rapides pour révéler tes compétences transversales dominantes.</p>
                 <button type="button" id="start-detector-btn" class="w-full bg-teal-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-teal-600 transition">
@@ -3637,9 +4194,17 @@ function createStep10View() {
                 <div id="detector-results-container" class="hidden mt-4"></div>
             </div>
         </div>
-
+        
+        <div id="connector-section" class="hidden mt-12 border-t-4 border-cyan-500 pt-6">
+            <h2 class="text-2xl font-bold text-slate-800 mb-4">🔗 Le Connecteur de Compétences</h2>
+            <p class="text-slate-600 mb-4">Bravo ! Maintenant que tu as analysé tes expériences ET ton profil, clique sur le bouton pour que l'IA rédige une synthèse qui connecte tes savoir-faire (issus de tes expériences) et tes savoir-être (issus du quiz).</p>
+            <div class="text-center">
+                <button type="button" id="connect-skills-btn" class="w-full bg-purple-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-purple-700 transition">Connecter mes compétences</button>
+            </div>
+            <div id="loader-connector" class="hidden"><div class="loader"></div></div>
+            <textarea id="skills-synthesis" name="skills_synthesis" rows="8" class="w-full mt-4 p-3 border border-slate-300 rounded-lg bg-slate-50" readonly>${journalData.step10.skills_synthesis || ''}</textarea>
+        </div>
         <button type="submit" class="w-full mt-8 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700 transition">✔️ Terminer et sauvegarder le portfolio</button>
-
         <div id="portfolio-modal" class="portfolio-modal hidden fixed inset-0 z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
                 <div class="flex items-center justify-between p-4 border-b">
@@ -3661,7 +4226,6 @@ function createStep10View() {
         </div>
     `;
 
-    // --- LOGIQUE DU DÉTECTEUR DE COMPÉTENCES ---
     const detectorContainer = div.querySelector('#detector-container');
     const startDetectorBtn = div.querySelector('#start-detector-btn');
     const quizContainer = div.querySelector('#quiz-container');
@@ -3707,22 +4271,14 @@ function createStep10View() {
         quizContainer.classList.add('hidden');
         resultsContainer.classList.remove('hidden');
         resultsContainer.innerHTML = `<div class="loader"></div>`;
-
-        const skillCounts = userSoftSkills.reduce((acc, skill) => {
-            acc[skill] = (acc[skill] || 0) + 1;
-            return acc;
-        }, {});
+        const skillCounts = userSoftSkills.reduce((acc, skill) => { acc[skill] = (acc[skill] || 0) + 1; return acc; }, {});
         const topSkills = Object.entries(skillCounts).sort((a, b) => b[1] - a[1]).map(el => el[0]);
-
-        const prompt = `Un lycéen a passé un quiz de compétences transversales. Ses compétences les plus marquées sont : ${topSkills.join(', ')}. Rédige une analyse courte et positive (8-10 phrases) de son profil de compétences, en expliquant ce que cela signifie pour son orientation. Par exemple : "Ton profil suggère que tu es quelqu'un de très organisé (Planification, Rigueur) qui aime aussi explorer de nouvelles idées (Créativité). Cela t'ouvre des portes vers des métiers qui allient structure et innovation."Tu dois t'adresser directement à l'élève, en utilisant "tu"`;
-        
+        const prompt = `Un lycéen a passé un quiz de compétences transversales. Ses compétences les plus marquées sont : ${topSkills.join(', ')}. Rédige une analyse courte et positive (8-10 phrases) de son profil de compétences, en expliquant ce que cela signifie pour son orientation. Tu dois t'adresser directement à l'élève, en utilisant "tu"`;
         const result = await callGeminiAPI(prompt);
         journalData.step10.soft_skills_profile = result;
-
-        resultsContainer.innerHTML = `
-            <h4 class="font-bold text-slate-800 mb-2">Analyse de ton profil :</h4>
-            <div class="p-4 bg-slate-50 rounded-lg border whitespace-pre-wrap">${result}</div>
-        `;
+        await saveData();
+        resultsContainer.innerHTML = `<h4 class="font-bold text-slate-800 mb-2">Analyse de ton profil :</h4><div class="p-4 bg-slate-50 rounded-lg border whitespace-pre-wrap">${result}</div>`;
+        checkConnectorState();
     };
 
     startDetectorBtn.addEventListener('click', () => {
@@ -3735,13 +4291,9 @@ function createStep10View() {
     if (journalData.step10.soft_skills_profile) {
         startDetectorBtn.classList.remove('hidden');
         resultsContainer.classList.remove('hidden');
-        resultsContainer.innerHTML = `
-            <h4 class="font-bold text-slate-800 mb-2">Analyse de ton profil :</h4>
-            <div class="p-4 bg-slate-50 rounded-lg border whitespace-pre-wrap">${journalData.step10.soft_skills_profile}</div>
-        `;
+        resultsContainer.innerHTML = `<h4 class="font-bold text-slate-800 mb-2">Analyse de ton profil :</h4><div class="p-4 bg-slate-50 rounded-lg border whitespace-pre-wrap">${journalData.step10.soft_skills_profile}</div>`;
     }
 
-    // --- LOGIQUE DU GESTIONNAIRE D'EXPÉRIENCES (dans le modal) ---
     const modal = div.querySelector('#portfolio-modal');
     const experienceListContainer = div.querySelector('#experience-list-container');
 
@@ -3762,10 +4314,12 @@ function createStep10View() {
                 const index = parseInt(e.target.dataset.index, 10);
                 if (confirm("Es-tu sûr de vouloir supprimer cette expérience ?")) {
                     journalData.step10.experiences.splice(index, 1);
+                    saveData();
                     renderExperienceCards();
                 }
             });
         });
+        checkConnectorState();
     };
     
     div.querySelector('#add-experience-btn').addEventListener('click', () => {
@@ -3791,7 +4345,7 @@ function createStep10View() {
         showStep(2);
         div.querySelector('#loader-2').classList.remove('hidden');
         div.querySelector('#skill-tags-container').innerHTML = '';
-        const prompt = `Analyse la description de l'expérience suivante fournie par un lycéen. Identifie les 5 à 7 compétences clés (savoir-être ou savoir-faire) les plus importantes qui en ressortent. Ta réponse doit être **uniquement un objet JSON valide** contenant un unique tableau de chaînes de caractères. Ne fournis aucun texte d'introduction ou de conclusion. Exemple de réponse attendue : ["Gestion de projet", "Communication d'équipe", "Créativité", "Autonomie", "Résolution de problèmes"]. Voici l'expérience à analyser : "${description}"`;
+        const prompt = `Analyse la description de l'expérience suivante fournie par un lycéen. Identifie les 5 à 7 compétences clés (savoir-être ou savoir-faire) les plus importantes qui en ressortent. Ta réponse doit être **uniquement un objet JSON valide** contenant un unique tableau de chaînes de caractères. Exemple : ["Gestion de projet", "Communication"]. Voici l'expérience : "${description}"`;
         const result = await callGeminiAPI(prompt, false, true);
         div.querySelector('#loader-2').classList.add('hidden');
         const skillTagsContainer = div.querySelector('#skill-tags-container');
@@ -3802,7 +4356,10 @@ function createStep10View() {
                 tag.type = 'button';
                 tag.className = 'bg-white border-cyan-500 border-2 text-cyan-700 font-semibold py-1 px-3 rounded-full cursor-pointer transition hover:bg-cyan-100';
                 tag.textContent = skill;
-                tag.addEventListener('click', () => tag.classList.toggle('bg-cyan-500') && tag.classList.toggle('text-white'));
+                tag.addEventListener('click', () => {
+                    tag.classList.toggle('bg-cyan-500');
+                    tag.classList.toggle('text-white');
+                });
                 skillTagsContainer.appendChild(tag);
             });
         } catch (e) {
@@ -3819,21 +4376,53 @@ function createStep10View() {
         showStep(3);
         div.querySelector('#loader-3').classList.remove('hidden');
         div.querySelector('#portfolio-result').textContent = '';
-        const prompt = `Agis en tant que coach carrière expert aidant un lycéen à valoriser une expérience pour son dossier Parcoursup. En te basant sur la description initiale de l'expérience et sur la liste des compétences clés que l'élève a lui-même validées, rédige un paragraphe percutant et concis (3-4 phrases). Ce paragraphe doit être structuré selon la méthode STAR (Situation, Tâche, Action, Résultat) et mettre en avant les compétences sélectionnées. Le ton doit être professionnel et le texte prêt à être copié dans une lettre de motivation. **Description de l'expérience :** "${currentExperience.description}" **Compétences clés à valoriser :** ${JSON.stringify(selectedSkills)}`;
+        const prompt = `Agis en tant que coach carrière expert. Rédige un paragraphe percutant (3-4 phrases) basé sur la méthode STAR (Situation, Tâche, Action, Résultat) pour valoriser une expérience. **Description de l'expérience :** "${currentExperience.description}" **Compétences clés à valoriser :** ${JSON.stringify(selectedSkills)}`;
         const result = await callGeminiAPI(prompt);
         div.querySelector('#loader-3').classList.add('hidden');
         div.querySelector('#portfolio-result').textContent = result;
         currentExperience.analysis = result;
     });
 
-    div.querySelector('#save-experience-btn').addEventListener('click', () => {
+    div.querySelector('#save-experience-btn').addEventListener('click', async () => {
         if (currentExperience && currentExperience.analysis) {
             journalData.step10.experiences.push(currentExperience);
+            await saveData();
+            await grantXp(50);
             renderExperienceCards();
             modal.classList.add('hidden');
         }
     });
     
+    const checkConnectorState = () => {
+        const connectorSection = div.querySelector('#connector-section');
+        const experiencesDone = journalData.step10.experiences && journalData.step10.experiences.length > 0;
+        const detectorDone = journalData.step10.soft_skills_profile && journalData.step10.soft_skills_profile.trim() !== '';
+        if (experiencesDone && detectorDone) {
+            connectorSection.classList.remove('hidden');
+        } else {
+            connectorSection.classList.add('hidden');
+        }
+    };
+
+    div.querySelector('#connect-skills-btn').addEventListener('click', async () => {
+        const loader = div.querySelector('#loader-connector');
+        const resultTextarea = div.querySelector('#skills-synthesis');
+        loader.style.display = 'block';
+        resultTextarea.value = '';
+        const experienceSummaries = journalData.step10.experiences.map(exp => exp.analysis).join('\n- ');
+        const profileAnalysis = journalData.step10.soft_skills_profile;
+        const prompt = `Agis comme un coach carrière expert. Voici le profil et les expériences d'un élève :
+        **Profil de savoir-être :** ${profileAnalysis}
+        **Expériences concrètes :** - ${experienceSummaries}
+        Ta mission est de rédiger une synthèse (2-3 paragraphes) qui connecte ces deux aspects. Montre comment ses savoir-être se manifestent dans ses savoir-faire. Utilise des phrases comme "Ta compétence en [savoir-être] se voit clairement lorsque tu as..." pour créer des ponts. Le but est de l'aider à formuler un discours cohérent sur ses atouts. Adresse-toi directement à lui.`;
+        const result = await callGeminiAPI(prompt);
+        loader.style.display = 'none';
+        resultTextarea.value = result;
+        journalData.step10.skills_synthesis = result;
+        await saveData();
+        await grantXp(75);
+    });
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         checkBadges();
@@ -3842,6 +4431,7 @@ function createStep10View() {
     });
 
     renderExperienceCards();
+    checkConnectorState();
 
     return div;
 }
@@ -4342,6 +4932,7 @@ Ta mission est la suivante :
                         rawText: parsedResult.conseilDetaille
                     };
                     await saveData();
+                    await grantXp(100);
                     renderTimeline();
                 } catch (e) {
                     console.error("Erreur de parsing du JSON du rétroplanning:", e);
@@ -4360,17 +4951,29 @@ Ta mission est la suivante :
             return div;
         }
 
-     // REMPLACEZ VOTRE FONCTION createJournalView EXISTANTE PAR CELLE-CI :
-// REMPLACEZ VOTRE FONCTION createJournalView EXISTANTE PAR CELLE-CI :
-// REMPLACEZ VOTRE FONCTION createJournalView EXISTANTE PAR CELLE-CI :
 async function createJournalView() {
+
     // 1. Création du conteneur principal de la page
     const div = document.createElement('div');
     div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200';
 
-    // 2. Création de chaque section de la page
-    
-    // -- En-tête --
+    const allStepsForLevel = allSteps.filter(step => step.levels.includes(userGradeLevel));
+    const completedStepsCount = allStepsForLevel.filter(step => !['journal', 'retroplanning', 'step12'].includes(step.id) && isStepComplete(step.id)).length;
+    const totalTrackableSteps = allStepsForLevel.filter(step => !['journal', 'retroplanning', 'step12'].includes(step.id)).length;
+    const progressPercentageSteps = totalTrackableSteps > 0 ? (completedStepsCount / totalTrackableSteps) * 100 : 0;
+
+    const progressBarHTML = `
+        <div class="max-w-xl mx-auto mb-8">
+            <div class="flex justify-between mb-1">
+                <span class="text-base font-medium text-cyan-700">Progression des Étapes</span>
+                <span class="text-sm font-medium text-cyan-700">${Math.round(progressPercentageSteps)}%</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2.5">
+                <div class="bg-cyan-600 h-2.5 rounded-full" style="width: ${progressPercentageSteps}%"></div>
+            </div>
+        </div>
+    `;
+
     const headerEl = document.createElement('div');
     headerEl.innerHTML = `
         <div class="flex flex-col sm:flex-row items-start justify-between mb-6 gap-4">
@@ -4422,6 +5025,7 @@ async function createJournalView() {
 
     // 3. Assemblage de la page dans le bon ordre
     div.appendChild(headerEl);
+    div.innerHTML += progressBarHTML;
     div.appendChild(sharePanelEl);
 
     const earnedBadges = journalData.earned_badges || [];
@@ -4455,8 +5059,15 @@ async function createJournalView() {
     const stepTitles = {
         step10: '💼 Mon Portfolio de Compétences',
         step1: '📚 Les Fondations',
-        step2: '🧭 Le simulateur de spécialités',
         step3: '🎓 Le Catalogue',
+        radar_history: '📡 Mon Radar à Opportunités',
+        step2: '🧭 Le simulateur de spécialités',
+        step5: "📰 L'Actu & Tests",
+        step7: '🚀 Passer à l\'action',
+        step8: '🤝 Rencontres sur mon Territoire',
+        step9: '📝 Préparer sa candidature',
+        step12: '🎯 Anticiper la suite'
+
     };
 
     // MODIFICATION : Nouvelle boucle pour créer les blocs pliables
@@ -4467,31 +5078,92 @@ async function createJournalView() {
         let sectionHTML = '';
         let hasContentInSection = false;
 
-        // Logique pour générer le contenu HTML de chaque section
-        if (stepKey === 'step10') {
+        // --- NOUVELLE LOGIQUE GÉNÉRIQUE POUR LES ÉTAPES À ENTRÉES MULTIPLES ---
+        let entries = [];
+        // On définit ici toutes les étapes qui ont des entrées répétitives
+        if (['step1', 'step3', 'step4', 'step5', 'step6', 'step9'].includes(stepKey)) {
+            // On regroupe les données en paires "titre/contenu"
+            if (stepKey === 'step1') {
+                for (let i = 1; i <= 3; i++) if (stepData[`metier${i}`]) entries.push({ title: stepData[`metier${i}`], content: { 'Notes': stepData[`notes${i}`], 'Analyse IA': stepData[`analysisText${i}`] } });
+            }
+            if (stepKey === 'step3') {
+                for (let i = 1; i <= 2; i++) if (stepData[`formation${i}`]) entries.push({ title: stepData[`formation${i}`], content: { 'Attendus': stepData[`attendus${i}`], 'Rapport de compatibilité': stepData[`compatibilite${i}`], 'Mots-clés': stepData[`mots_cles${i}`], 'Analyse des mots-clés': stepData[`analyse_mots_cles${i}`] } });
+            }
+            if (stepKey === 'step4') {
+                for (let i = 1; i <= 2; i++) if (stepData[`theme${i}`]) entries.push({ title: stepData[`theme${i}`], content: { 'Ma question': stepData[`question${i}`], 'Suggestions IA': stepData[`suggestions${i}`] } });
+            }
+            if (stepKey === 'step5') {
+                 for (let i = 1; i <= 3; i++) if (stepData[`article${i}`]) entries.push({ title: stepData[`article${i}`], content: { 'Ce que j\'ai appris': stepData[`apprentissage${i}`] } });
+            }
+            if (stepKey === 'step6') {
+                for (let i = 1; i <= 2; i++) if (stepData[`lettre${i}`]?.formation) entries.push({ title: stepData[`lettre${i}`].formation, content: { 'Motivations': stepData[`lettre${i}`].motivations, 'Structure proposée': stepData[`lettre${i}`].structure } });
+            }
+            if (stepKey === 'step9') {
+                if (stepData.formation_reve) entries.push({ title: 'Simulation : Mon Plan B', content: { 'Formation "rêvée"': stepData.formation_reve, 'Historique de la conversation': (stepData.planb_chat_history || []).map(msg => `<strong>${msg.role === 'user' ? 'Moi' : 'Coach'} :</strong> ${msg.text}`).join('<br>') } });
+                if (stepData.reussite_type) entries.push({ title: 'Coach de Réussite', content: { 'Formation': stepData.reussite_type, 'Conseils': stepData.reussite_conseils } });
+            }
+            
+            // On génère le HTML pour ces entrées
+            const validEntries = entries.filter(e => e.title && e.title.trim() !== '');
+            if (validEntries.length > 0) {
+                hasContentInSection = true;
+                sectionHTML += '<div class="space-y-3">';
+                validEntries.forEach(entry => {
+                    let contentHTML = '';
+                    for (const [label, value] of Object.entries(entry.content)) {
+                        if (value && value.toString().trim() !== '') {
+                            contentHTML += `<div class="mb-2"><p class="font-semibold text-slate-700">${label} :</p><div class="whitespace-pre-wrap text-slate-600">${value}</div></div>`;
+                        }
+                    }
+                    if (contentHTML) {
+                        sectionHTML += `
+                            <details class="bg-slate-50 rounded-lg border border-slate-200">
+                                <summary class="p-3 font-semibold text-slate-700 cursor-pointer">${entry.title}</summary>
+                                <div class="p-3 border-t border-slate-200">${contentHTML}</div>
+                            </details>`;
+                    }
+                });
+                sectionHTML += '</div>';
+            }
+        }
+        // --- CAS SPÉCIAUX (Radar, Portfolio, Spécialités) ---
+        else if (stepKey === 'radar_history') {
+            if (Array.isArray(stepData) && stepData.length > 0) {
+                hasContentInSection = true;
+                sectionHTML += '<div class="space-y-3">';
+                stepData.forEach(item => {
+                    sectionHTML += `<details class="bg-slate-50 rounded-lg border border-slate-200"><summary class="p-3 font-semibold text-slate-700 cursor-pointer">${item.type} : ${item.sujet}</summary><div class="p-3 border-t border-slate-200"><p class="whitespace-pre-wrap text-slate-600">${item.reponse}</p></div></details>`;
+                });
+                sectionHTML += '</div>';
+            }
+        } else if (stepKey === 'step10') {
             if (stepData.experiences && Array.isArray(stepData.experiences) && stepData.experiences.length > 0) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mb-2">Expériences Significatives :</h4>`; stepData.experiences.forEach((exp, index) => { sectionHTML += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`; }); }
             if (stepData.soft_skills_profile) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Profil de Compétences Transversales :</h4>`; sectionHTML += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>`; }
+            if (stepData.skills_synthesis) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Synthèse du Connecteur de Compétences :</h4>`; sectionHTML += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.skills_synthesis}</p></div>`; }
         } else if (stepKey === 'step2') {
             const renderedContent = renderStep2InJournal(stepData);
             if (renderedContent) { hasContentInSection = true; sectionHTML = renderedContent; }
-        } else {
-    const config = Object.values(stepsConfig).find(c => c.stepKey === stepKey);
-    // On vérifie que la configuration existe bien
-    if (config && config.fields) {
-        // On parcourt les champs dans l'ordre défini dans stepsConfig
-        config.fields.forEach(field => {
-            const value = stepData[field.id];
-            if (value && typeof value === 'string' && value.trim() !== '') {
-                hasContentInSection = true;
-                // On utilise directement le "label" du champ pour le titre
-                sectionHTML += `<div class="mb-3"><p class="font-semibold text-slate-700">${field.label}</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${value}</p></div>`;
+        }
+        // --- LOGIQUE PAR DÉFAUT POUR LES AUTRES ÉTAPES ---
+        else {
+            const config = Object.values(stepsConfig).find(c => c.stepKey === stepKey);
+            if (config && config.fields) {
+                config.fields.forEach(field => {
+                    const value = stepData[field.id];
+                    if (value && typeof value === 'string' && value.trim() !== '') {
+                        hasContentInSection = true;
+                        sectionHTML += `<div class="mb-3"><p class="font-semibold text-slate-700">${field.label}</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${value}</p></div>`;
+                    }
+                });
             }
-        });
-    }
-}
+        }
         
-        // On crée le bloc pliable si la section a du contenu
-        if (hasContentInSection) {
+        // --- Logique pour créer le bloc pliable (inchangée) ---
+        if (hasContentInSection || stepKey === 'radar_history') {
+            let finalSectionHTML = sectionHTML;
+            if (stepKey === 'radar_history' && !hasContentInSection) {
+                finalSectionHTML = '<p class="text-slate-500 italic p-2">Vous n\'avez pas encore enregistré de résultat du Radar.</p>';
+            }
             const sectionContainer = document.createElement('div');
             sectionContainer.className = 'border border-slate-200 rounded-lg overflow-hidden';
             sectionContainer.innerHTML = `
@@ -4499,12 +5171,9 @@ async function createJournalView() {
                     <h3 class="text-lg font-bold text-cyan-700">${stepTitles[stepKey]}</h3>
                     <span class="transform transition-transform duration-200 text-cyan-700">▼</span>
                 </div>
-                <div class="journal-section-content p-4 border-t border-slate-200 hidden">
-                    ${sectionHTML}
-                </div>
+                <div class="journal-section-content p-4 border-t border-slate-200 hidden">${finalSectionHTML}</div>
             `;
             journalContentDiv.appendChild(sectionContainer);
-            hasAnyContent = true;
         }
     }
 
@@ -4535,17 +5204,24 @@ async function createJournalView() {
 
     div.querySelector('#toggle-share-btn').addEventListener('click', async () => {
         if (journalData.share_token) {
-            if (confirm("Es-tu sûr de vouloir désactiver le partage ? Le lien ne fonctionnera plus.")) {
-                journalData.share_token = null; await saveData(); showView('journal');
+            const userConfirmed = await showConfirmationModal("Es-tu sûr de vouloir désactiver le partage ? Le lien ne fonctionnera plus.");
+            if (userConfirmed) {
+                journalData.share_token = null; 
+                await saveData(); 
+                showView('journal');
             }
         } else {
-            journalData.share_token = 'shr_' + Math.random().toString(36).substr(2, 16); await saveData(); showView('journal');
+            journalData.share_token = 'shr_' + Math.random().toString(36).substr(2, 16); 
+            await saveData(); 
+            showView('journal');
         }
     });
 
     if (shareToken) {
         div.querySelector('#copy-share-link').addEventListener('click', () => {
-            navigator.clipboard.writeText(shareLink).then(() => alert("Lien copié !"));
+            navigator.clipboard.writeText(shareLink).then(() => {
+                showSurpriseModal("C'est fait !", '<p>Le lien de partage a été copié dans votre presse-papiers.</p>', 2000); // Disparaît après 2 secondes
+            });
         });
     }
 
@@ -4562,9 +5238,7 @@ async function createJournalView() {
 
     return div;
 }
-// REMPLACEZ VOTRE FONCTION createPublicShareView ACTUELLE PAR CELLE-CI :
-// REMPLACEZ VOTRE FONCTION createPublicShareView EXISTANTE PAR CELLE-CI :
-// REMPLACEZ VOTRE FONCTION createPublicShareView EXISTANTE PAR CELLE-CI :
+
 async function createPublicShareView(userId, token) {
     const mainApp = document.getElementById('mainApp');
     mainApp.innerHTML = `<div class="loader"></div>`;
@@ -4573,154 +5247,183 @@ async function createPublicShareView(userId, token) {
         const userDocRef = doc(db, "users", userId);
         const docSnap = await getDoc(userDocRef);
 
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            
-            if (!data.journal || data.journal.share_token !== token) {
-                throw new Error("Lien de partage invalide ou désactivé.");
-            }
-
-            const publicJournalData = data.journal;
-            const userInfo = {
-                firstName: data.firstName || 'L\'élève',
-                lastName: data.lastName || '',
-                schoolName: data.schoolName || 'son lycée',
-                gradeLevel: data.gradeLevel || 'sa classe'
-            };
-            
-            const pageContainer = document.createElement('div');
-            pageContainer.className = 'bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200';
-
-            pageContainer.innerHTML = `
-                <h1 class="text-2xl font-bold text-cyan-700 mb-2">Journal de Bord de ${userInfo.firstName}</h1>
-                <p class="text-slate-500 mb-8 text-center">Élève en ${userInfo.gradeLevel} à ${userInfo.schoolName}.</p>
-            `;
-            
-            if (publicJournalData.earned_badges && publicJournalData.earned_badges.length > 0) {
-                const tempJournalData = journalData;
-                journalData = publicJournalData;
-                const badgesElement = document.createElement('div');
-                badgesElement.innerHTML = createBadgesDisplay('journal');
-                pageContainer.appendChild(badgesElement);
-                journalData = tempJournalData;
-            }
-
-            const mapViewElement = document.createElement('div');
-            mapViewElement.innerHTML = createOrientationMapView(publicJournalData, 'public');
-            pageContainer.appendChild(mapViewElement);
-
-            if (publicJournalData.fil_rouge) {
-                const filRougeElement = document.createElement('div');
-                filRougeElement.innerHTML = `
-                    <div class="mb-8 p-6 bg-cyan-50 border-l-4 border-cyan-500 rounded-r-lg">
-                        <h2 class="text-xl font-bold text-cyan-800 mb-4">✨ Son Fil Rouge</h2>
-                        <p class="text-slate-700 whitespace-pre-wrap">${publicJournalData.fil_rouge}</p>
-                    </div>`;
-                pageContainer.appendChild(filRougeElement);
-            }
-
-            const journalContentDiv = document.createElement('div');
-            journalContentDiv.id = 'journalContent';
-            journalContentDiv.className = 'mt-8 space-y-4';
-            pageContainer.appendChild(journalContentDiv);
-
-            if (publicJournalData.step0 && publicJournalData.step0.analysis) {
-                const infographicElement = createProfileInfographic(publicJournalData.step0, 'public');
-                journalContentDiv.appendChild(infographicElement);
-            }
-
-            const stepTitles = {
-                step10: '💼 Son Portfolio de Compétences',
-                step1: '📚 Les Fondations',
-                step2: '🧭 Le simulateur de spécialités',
-                step3: '🎓 Le Catalogue',
-            };
-            
-            for (const stepKey in stepTitles) {
-                const stepData = publicJournalData[stepKey];
-                if (!stepData) continue;
-                let sectionHTML = '';
-                let hasContentInSection = false;
-
-                if (stepKey === 'step10') {
-                    if (stepData.experiences && Array.isArray(stepData.experiences) && stepData.experiences.length > 0) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mb-2">Expériences Significatives :</h4>`; stepData.experiences.forEach((exp, index) => { sectionHTML += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`; }); }
-                    if (stepData.soft_skills_profile) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Profil de Compétences Transversales :</h4>`; sectionHTML += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>`; }
-                } else if (stepKey === 'step2') {
-                    const renderedContent = renderStep2InJournal(stepData);
-                    if(renderedContent){ hasContentInSection = true; sectionHTML = renderedContent; }
-                } else {
-    const config = Object.values(stepsConfig).find(c => c.stepKey === stepKey);
-    // On vérifie que la configuration existe bien
-    if (config && config.fields) {
-        // On parcourt les champs dans l'ordre défini dans stepsConfig
-        config.fields.forEach(field => {
-            const value = stepData[field.id];
-            if (value && typeof value === 'string' && value.trim() !== '') {
-                hasContentInSection = true;
-                // On utilise directement le "label" du champ pour le titre
-                sectionHTML += `<div class="mb-3"><p class="font-semibold text-slate-700">${field.label}</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${value}</p></div>`;
-            }
-        });
-    }
-}
-
-                if (hasContentInSection) {
-                    const sectionContainer = document.createElement('div');
-                    sectionContainer.className = 'border border-slate-200 rounded-lg overflow-hidden';
-                    sectionContainer.innerHTML = `
-                        <div class="journal-section-header flex justify-between items-center bg-slate-50 p-4 cursor-pointer hover:bg-slate-100 transition">
-                            <h3 class="text-lg font-bold text-cyan-700">${stepTitles[stepKey]}</h3>
-                            <span class="transform transition-transform duration-200 text-cyan-700">▼</span>
-                        </div>
-                        <div class="journal-section-content p-4 border-t border-slate-200 hidden">
-                            ${sectionHTML}
-                        </div>
-                    `;
-                    journalContentDiv.appendChild(sectionContainer);
-                }
-            }
-
-            const discussionSection = document.createElement('div');
-            discussionSection.innerHTML = `
-                <div class="mt-8 border-t pt-6 text-center">
-                    <button id="publicShareBtn" class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">🤝 Préparer une discussion</button>
-                </div>
-                <div id="publicGeminiShareLoader" class="hidden"><div class="loader"></div></div>
-                <div id="publicGeminiShareResult" class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg text-slate-700 whitespace-pre-wrap"></div>
-            `;
-            pageContainer.appendChild(discussionSection);
-
-            mainApp.innerHTML = '';
-            mainApp.appendChild(pageContainer);
-
-            journalContentDiv.addEventListener('click', (e) => {
-                const header = e.target.closest('.journal-section-header');
-                if (!header) return;
-                const content = header.nextElementSibling;
-                const icon = header.querySelector('span');
-                if (content) content.classList.toggle('hidden');
-                if (icon) icon.classList.toggle('rotate-180');
-            });
-
-            // MODIFICATION : Le code du listener est restauré
-            mainApp.querySelector('#publicShareBtn').addEventListener('click', async () => {
-                const loader = mainApp.querySelector('#publicGeminiShareLoader');
-                const resultDiv = mainApp.querySelector('#publicGeminiShareResult');
-                loader.style.display = 'block'; resultDiv.textContent = '';
-                const prompt = 'Agis en tant que coach d\'orientation et médiateur familial expert. Analyse le journal de bord de cet élève : ' + JSON.stringify(publicJournalData) + '.\n\n' +
-                'Ta mission est de générer 5 "points de dialogue" pour aider les parents ou professeurs à avoir une discussion constructive.\n\n' +
-                'Pour chaque point, tu dois fournir deux éléments bien distincts :\n' +
-                '1.  **Piste de discussion :** Une question ouverte et bienveillante qui ouvre le dialogue sur un point clé du journal (un doute, une force, une contradiction).\n' +
-                '2.  **Action de résolution :** Une suggestion d\'action simple et concrète que l\'élève pourrait entreprendre pour avancer sur ce point précis (ex: utiliser une étape spécifique de l\'application, faire une recherche ciblée, contacter quelqu\'un).\n\n' +
-                'Utilise un ton encourageant et présente clairement les deux parties pour chaque point.';
-                const result = await callGeminiAPI(prompt);
-                loader.style.display = 'none';
-                resultDiv.textContent = result;
-            });
-
-        } else {
+        if (!docSnap.exists()) {
             throw new Error("Utilisateur non trouvé.");
         }
+
+        const data = docSnap.data();
+        if (!data.journal || data.journal.share_token !== token) {
+            throw new Error("Lien de partage invalide ou désactivé.");
+        }
+
+        const pageContainer = document.createElement('div');
+        pageContainer.className = 'bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200';
+
+        const publicJournalData = data.journal;
+        const userInfo = {
+            firstName: data.firstName || 'L\'élève',
+            lastName: data.lastName || '',
+            schoolName: data.schoolName || 'son lycée',
+            gradeLevel: data.gradeLevel || 'sa classe'
+        };
+
+        const tempJournalData = journalData;
+        journalData = publicJournalData;
+        const allStepsForLevel = allSteps.filter(step => step.levels.includes(userInfo.gradeLevel));
+        const completedStepsCount = allStepsForLevel.filter(step => !['journal', 'retroplanning', 'step12'].includes(step.id) && isStepComplete(step.id)).length;
+        const totalTrackableSteps = allStepsForLevel.filter(step => !['journal', 'retroplanning', 'step12'].includes(step.id)).length;
+        const progressPercentageSteps = totalTrackableSteps > 0 ? (completedStepsCount / totalTrackableSteps) * 100 : 0;
+        const progressBarHTML = `
+            <div class="max-w-xl mx-auto my-8">
+                <div class="flex justify-between mb-1"><span class="text-base font-medium text-cyan-700">Progression des Étapes</span><span class="text-sm font-medium text-cyan-700">${Math.round(progressPercentageSteps)}%</span></div>
+                <div class="w-full bg-slate-200 rounded-full h-2.5"><div class="bg-cyan-600 h-2.5 rounded-full" style="width: ${progressPercentageSteps}%"></div></div>
+            </div>`;
+        journalData = tempJournalData;
+
+        let finalHTML = `
+            <h1 class="text-2xl font-bold text-cyan-700 mb-2">Journal de Bord de ${userInfo.firstName}</h1>
+            <p class="text-slate-500 mb-8 text-center">Élève en ${userInfo.gradeLevel} à ${userInfo.schoolName}.</p>
+            ${progressBarHTML}`;
+
+        if (publicJournalData.earned_badges && publicJournalData.earned_badges.length > 0) {
+            const tempJournalData = journalData;
+            journalData = publicJournalData;
+            finalHTML += createBadgesDisplay('journal');
+            journalData = tempJournalData;
+        }
+
+        finalHTML += createOrientationMapView(publicJournalData, 'public');
+
+        if (publicJournalData.fil_rouge) {
+            finalHTML += `<div class="mb-8 p-6 bg-cyan-50 border-l-4 border-cyan-500 rounded-r-lg"><h2 class="text-xl font-bold text-cyan-800 mb-4">✨ Son Fil Rouge</h2><p class="text-slate-700 whitespace-pre-wrap">${publicJournalData.fil_rouge}</p></div>`;
+        }
+        
+        pageContainer.innerHTML = finalHTML;
+
+        const journalContentDiv = document.createElement('div');
+        journalContentDiv.id = 'journalContent';
+        journalContentDiv.className = 'mt-8 space-y-4';
+        
+        if (publicJournalData.step0 && publicJournalData.step0.analysis) {
+            const infographicElement = createProfileInfographic(publicJournalData.step0, 'public');
+            journalContentDiv.appendChild(infographicElement);
+        }
+
+        // --- BOUCLE COMPLÈTE ET CORRIGÉE ---
+        const stepTitles = {
+        step10: '💼 Mon Portfolio de Compétences',
+        step1: '📚 Les Fondations',
+        step3: '🎓 Le Catalogue',
+        radar_history: '📡 Mon Radar à Opportunités',
+        step2: '🧭 Le simulateur de spécialités',
+        step5: "📰 L'Actu & Tests",
+        step7: '🚀 Passer à l\'action',
+        step8: '🤝 Rencontres sur mon Territoire',
+        step9: '📝 Préparer sa candidature',
+        step12: '🎯 Anticiper la suite'
+
+    };
+
+        
+        for (const stepKey in stepTitles) {
+            const stepData = publicJournalData[stepKey];
+            let sectionHTML = '';
+            let hasContentInSection = false;
+
+            if (stepKey === 'radar_history') {
+                if (stepData && Array.isArray(stepData) && stepData.length > 0) {
+                    hasContentInSection = true;
+                    sectionHTML += '<div class="space-y-3">';
+                    stepData.forEach(item => { sectionHTML += `<details class="bg-slate-50 rounded-lg border border-slate-200"><summary class="p-3 font-semibold text-slate-700 cursor-pointer">${item.type} : ${item.sujet}</summary><div class="p-3 border-t border-slate-200"><p class="whitespace-pre-wrap text-slate-600">${item.reponse}</p></div></details>`; });
+                    sectionHTML += '</div>';
+                }
+            } else if (['step1', 'step3', 'step4', 'step5', 'step6', 'step9'].includes(stepKey)) {
+                let entries = [];
+                if(stepData) {
+                    if (stepKey === 'step1') { for (let i = 1; i <= 3; i++) if (stepData[`metier${i}`]) entries.push({ title: stepData[`metier${i}`], content: { 'Notes': stepData[`notes${i}`], 'Analyse IA': stepData[`analysisText${i}`] } }); }
+                    if (stepKey === 'step3') { for (let i = 1; i <= 2; i++) if (stepData[`formation${i}`]) entries.push({ title: stepData[`formation${i}`], content: { 'Attendus': stepData[`attendus${i}`], 'Rapport de compatibilité': stepData[`compatibilite${i}`], 'Mots-clés': stepData[`mots_cles${i}`], 'Analyse des mots-clés': stepData[`analyse_mots_cles${i}`] } }); }
+                    if (stepKey === 'step4') { for (let i = 1; i <= 2; i++) if (stepData[`theme${i}`]) entries.push({ title: stepData[`theme${i}`], content: { 'Ma question': stepData[`question${i}`], 'Suggestions IA': stepData[`suggestions${i}`] } }); }
+                    if (stepKey === 'step5') { for (let i = 1; i <= 3; i++) if (stepData[`article${i}`]) entries.push({ title: stepData[`article${i}`], content: { 'Ce que j\'ai appris': stepData[`apprentissage${i}`] } }); }
+                    if (stepKey === 'step6') { for (let i = 1; i <= 2; i++) if (stepData[`lettre${i}`]?.formation) entries.push({ title: stepData[`lettre${i}`].formation, content: { 'Motivations': stepData[`lettre${i}`].motivations, 'Structure proposée': stepData[`lettre${i}`].structure } }); }
+                    if (stepKey === 'step9') {
+                        if (stepData.formation_reve) entries.push({ title: 'Simulation : Mon Plan B', content: { 'Formation "rêvée"': stepData.formation_reve, 'Historique de la conversation': (stepData.planb_chat_history || []).map(msg => `<strong>${msg.role === 'user' ? 'L\'élève' : 'Coach'} :</strong> ${msg.text}`).join('<br>') } });
+                        if (stepData.reussite_type) entries.push({ title: 'Coach de Réussite', content: { 'Formation': stepData.reussite_type, 'Conseils': stepData.reussite_conseils } });
+                    }
+                }
+                const validEntries = entries.filter(e => e.title && e.title.trim() !== '');
+                if (validEntries.length > 0) {
+                    hasContentInSection = true;
+                    sectionHTML += '<div class="space-y-3">';
+                    validEntries.forEach(entry => {
+                        let contentHTML = '';
+                        for (const [label, value] of Object.entries(entry.content)) { if (value && value.toString().trim() !== '') { contentHTML += `<div class="mb-2"><p class="font-semibold text-slate-700">${label} :</p><div class="whitespace-pre-wrap text-slate-600">${value}</div></div>`; } }
+                        if (contentHTML) { sectionHTML += `<details class="bg-slate-50 rounded-lg border border-slate-200"><summary class="p-3 font-semibold text-slate-700 cursor-pointer">${entry.title}</summary><div class="p-3 border-t border-slate-200">${contentHTML}</div></details>`; }
+                    });
+                    sectionHTML += '</div>';
+                }
+            } else if (stepKey === 'step10') {
+                if(stepData) {
+                    if (stepData.experiences && Array.isArray(stepData.experiences) && stepData.experiences.length > 0) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mb-2">Expériences Significatives :</h4>`; stepData.experiences.forEach((exp, index) => { sectionHTML += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`; }); }
+                    if (stepData.soft_skills_profile) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Profil de Compétences Transversales :</h4>`; sectionHTML += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>`; }
+                    if (stepData.skills_synthesis) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Synthèse du Connecteur de Compétences :</h4>`; sectionHTML += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.skills_synthesis}</p></div>`; }
+                }
+            } else if (stepKey === 'step2') {
+                const renderedContent = renderStep2InJournal(stepData);
+                if (renderedContent) { hasContentInSection = true; sectionHTML = renderedContent; }
+            } else {
+                if (stepData) {
+                    const config = Object.values(stepsConfig).find(c => c.stepKey === stepKey);
+                    if (config && config.fields) { config.fields.forEach(field => { const value = stepData[field.id]; if (value && typeof value === 'string' && value.trim() !== '') { hasContentInSection = true; sectionHTML += `<div class="mb-3"><p class="font-semibold text-slate-700">${field.label}</p><p class="whitespace-pre-wrap text-slate-600 bg-slate-50 p-2 rounded">${value}</p></div>`; } }); }
+                }
+            }
+            
+            if (hasContentInSection || stepKey === 'radar_history') {
+                let finalSectionHTML = sectionHTML;
+                if (stepKey === 'radar_history' && !hasContentInSection) { finalSectionHTML = '<p class="text-slate-500 italic p-2">L\'élève n\'a pas encore enregistré de résultat du Radar.</p>'; }
+                const sectionContainer = document.createElement('div');
+                sectionContainer.className = 'border border-slate-200 rounded-lg overflow-hidden';
+                sectionContainer.innerHTML = `
+                    <div class="journal-section-header flex justify-between items-center bg-slate-50 p-4 cursor-pointer hover:bg-slate-100 transition">
+                        <h3 class="text-lg font-bold text-cyan-700">${stepTitles[stepKey]}</h3>
+                        <span class="transform transition-transform duration-200 text-cyan-700">▼</span>
+                    </div>
+                    <div class="journal-section-content p-4 border-t border-slate-200 hidden">${finalSectionHTML}</div>`;
+                journalContentDiv.appendChild(sectionContainer);
+            }
+        }
+        
+        pageContainer.appendChild(journalContentDiv);
+
+        const discussionSection = document.createElement('div');
+        discussionSection.innerHTML = `
+            <div class="mt-8 border-t pt-6 text-center">
+                <button id="publicShareBtn" class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">🤝 Préparer une discussion</button>
+            </div>
+            <div id="publicGeminiShareLoader" class="hidden"><div class="loader"></div></div>
+            <div id="publicGeminiShareResult" class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg text-slate-700 whitespace-pre-wrap"></div>`;
+        pageContainer.appendChild(discussionSection);
+
+        mainApp.innerHTML = '';
+        mainApp.appendChild(pageContainer);
+
+        pageContainer.querySelector('#journalContent').addEventListener('click', (e) => {
+            const header = e.target.closest('.journal-section-header');
+            if (!header) return;
+            const content = header.nextElementSibling;
+            const icon = header.querySelector('span');
+            if (content) content.classList.toggle('hidden');
+            if (icon) icon.classList.toggle('rotate-180');
+        });
+        pageContainer.querySelector('#publicShareBtn').addEventListener('click', async () => {
+            const loader = pageContainer.querySelector('#publicGeminiShareLoader');
+            const resultDiv = pageContainer.querySelector('#publicGeminiShareResult');
+            loader.style.display = 'block'; resultDiv.textContent = '';
+            const prompt = `Agis comme un coach d'orientation et médiateur familial expert. Analyse le journal de bord de cet élève : ${JSON.stringify(publicJournalData)}. Ta mission est de générer 5 "points de dialogue" pour aider les parents ou professeurs à avoir une discussion constructive. Pour chaque point, fournis : 1. Une question ouverte et bienveillante. 2. Une suggestion d'action concrète.`;
+            const result = await callGeminiAPI(prompt);
+            loader.style.display = 'none';
+            resultDiv.textContent = result;
+        });
+
     } catch (error) {
         mainApp.innerHTML = `<div class="text-center p-8 bg-white rounded-lg shadow-md"><h2 class="text-xl font-bold text-red-600">Erreur</h2><p class="text-slate-600 mt-2">${error.message}</p></div>`;
     }
