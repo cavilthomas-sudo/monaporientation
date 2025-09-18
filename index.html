@@ -127,7 +127,7 @@
 
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800">
+<body class="bg-slate-50 text-slate-800 text-center">
 
     <div id="authContainer" class="max-w-md mx-auto p-4 md:p-8 mt-10">
         <!-- L'interface d'authentification sera injectée ici -->
@@ -166,13 +166,7 @@
             <button id="chatbot-close" class="text-slate-500 hover:text-slate-800">&times;</button>
         </div>
         <div id="chat-messages" class="flex-1 p-4 overflow-y-auto chat-message-container">
-            <!-- Messages will be appended here -->
-             <div class="flex mb-4">
-                <div class="bg-cyan-100 text-cyan-800 p-3 rounded-lg max-w-xs">
-                    <p>Bonjour ! Pose-moi une question sur l'orientation, une formation ou un métier.</p>
-                </div>
-            </div>
-        </div>
+    </div>
         <form id="chatbot-form" class="p-4 border-t flex items-center gap-2">
             <input type="text" id="chatbot-input" placeholder="Quelle est ta question ?" class="flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none">
             <button type="submit" class="bg-cyan-600 text-white p-2 rounded-lg font-semibold hover:bg-cyan-700">Envoyer</button>
@@ -879,11 +873,22 @@ window.showView = showView;
         }
 
         async function triggerSurpriseMoment() {
-            // Règle simple pour ne pas surcharger l'élève : 25% de chance de se déclencher
-            if (Math.random() > 0.25) return;
+            // Règle 1: Ne pas afficher de surprise si la dernière date de moins de 2 heures
+            const now = new Date().getTime();
+            const lastSurprise = journalData.last_surprise_timestamp || 0;
+            const hoursSinceLastSurprise = (now - lastSurprise) / (1000 * 60 * 60);
+            if (hoursSinceLastSurprise < 1) { // 1 heure de délai
+                return;
+            }
+
+            // Règle 2: Réduire la probabilité d'apparition (15% de chance au lieu de 25%)
+            if (Math.random() > 0.15) {
+                return;
+            }
             
             // Pour éviter les conflits, ne pas lancer si un autre modal est déjà ouvert
             if (document.querySelector('.simulation-modal, .portfolio-modal, #simple-info-modal, #surprise-modal')) return;
+
 
             const currentLevel = journalData.level || 1;
             const currentXp = journalData.xp || 0;
@@ -1112,7 +1117,9 @@ window.showView = showView;
                 radar_history: [],
                 earned_badges: [],
                 xp: 0,
-                level: 1
+                level: 1,
+                chatbot_last_interaction: null,
+                chatbot_saves: []
             };
             
             let data = docSnap.exists() ? docSnap.data() : {};
@@ -1125,7 +1132,8 @@ window.showView = showView;
                 gender: data.gender || 'autre' // <-- AJOUTEZ CETTE LIGNE (avec une valeur par défaut)
 
             };
-            
+
+        
             const loadedJournal = data.journal || {};
             
             journalData = {};
@@ -1192,6 +1200,43 @@ window.showView = showView;
                 return "L'élève n'a pas encore rempli suffisamment son profil. Base-toi sur le bon sens et l'idée qu'il propose.";
             }
 
+            return summary;
+        }
+
+        function getCompletionSummary() {
+            let completed = [];
+            let inProgress = [];
+
+            allSteps.forEach(step => {
+                if (['journal', 'retroplanning', 'guide'].includes(step.id)) return;
+
+                if (isStepComplete(step.id)) {
+                    completed.push(`'${step.icon} ${step.title}'`);
+                } else {
+                    const stepData = journalData[step.id];
+                    if (stepData) {
+                        const values = Object.values(stepData);
+                        const filledCount = values.filter(v => {
+                            if (Array.isArray(v)) return v.length > 0;
+                            return v && v.toString().trim() !== '';
+                        }).length;
+                        if (filledCount > 0) {
+                            inProgress.push(`'${step.icon} ${step.title}'`);
+                        }
+                    }
+                }
+            });
+
+            let summary = "Voici un résumé de sa progression dans l'application :\n";
+            if (completed.length > 0) {
+                summary += `- Étapes déjà terminées : ${completed.join(', ')}.\n`;
+            }
+            if (inProgress.length > 0) {
+                summary += `- Étapes actuellement en cours : ${inProgress.join(', ')}.\n`;
+            }
+            if (completed.length === 0 && inProgress.length === 0) {
+                summary += "- L'élève n'a pas encore commencé à explorer les étapes.\n";
+            }
             return summary;
         }
 
@@ -1542,8 +1587,8 @@ function createMenuView() {
 
         
         const profileSummary = getProfileSummary();
-        const prompt = `Agis comme un conseiller d'orientation. Un lycéen te propose de considérer le métier : "${userInput}". Voici le résumé de son profil : ${profileSummary}. Donne un retour structuré en 3 points : 1. Points de Connexion. 2. Points de Vigilance. 3. Première Mission d'Exploration.`;
-        
+        const prompt = `Agis comme un conseiller d'orientation bienveillant mais réaliste. Un lycéen te propose de considérer le métier : "${userInput}". Voici le résumé de son profil : ${profileSummary}. Donne un retour structuré en 3 points : 1. Points de Connexion. 2. Points de Vigilance. 3. Première Mission d'Exploration. sois enthousiaste et bienveillant, comme un coach qui croit en son élève et adresse à lui en utilisant le tutoiement.`;
+
         const result = await callGeminiAPI(prompt);
         loader.style.display = 'none';
         resultDiv.classList.remove('hidden'); // On affiche le conteneur
@@ -1554,7 +1599,7 @@ function createMenuView() {
             <p class="whitespace-pre-wrap">${result}</p>
             <div class="flex gap-4 mt-4 pt-4 border-t">
                 <button id="radar-save-btn" class="flex-1 bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700 transition">Enregistrer dans le journal</button>
-                <button id="radar-close-btn" class="flex-1 bg-slate-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-slate-600 transition">Fermer</button>
+                <button id="radar-close-btn" class="flex-1 bg-slate-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-slate-600 transition">Je vais réfléchir à autre chose</button>
             </div>
         `;
 
@@ -1739,8 +1784,8 @@ function createMenuView() {
     }
 
     div.innerHTML = `
-        <div class="flex items-center mb-6"><button onclick="window.showView('menu')" class="text-cyan-600 hover:text-cyan-800 font-bold mr-4">← Retour</button><h1 class="text-2xl font-bold">${config.icon} ${config.title}</h1></div>
-        <div class="text-slate-600 mb-4 whitespace-pre-wrap">${description}</div>
+<h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 md:whitespace-nowrap mb-6">${config.icon} ${config.title}</h1>
+<div class="text-slate-600 mb-4 whitespace-pre-wrap">${description}</div>
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6"><div class="font-semibold text-cyan-900">${action}</div></div>
         <div class="mb-8">${linksHTML}</div>
         <form id="stepForm">
@@ -2379,11 +2424,8 @@ function createStep2View() {
     let description = config.description[userGradeLevel] || config.description['default'] || '';
     let action = config.action[userGradeLevel] || config.action['default'] || '';
 
-    div.innerHTML = `
-        <div class="flex items-center mb-6">
-            <button onclick="window.showView('menu')" class="text-cyan-600 hover:text-cyan-800 font-bold mr-4">← Retour</button>
-            <h1 class="text-2xl font-bold">${config.icon} ${config.title}</h1>
-        </div>
+    div.innerHTML = `     
+        <h1 class="text-2xl font-bold text-center col-span-1 flex justify-center items-center gap-2 md:whitespace-nowrap">${config.icon} ${config.title}</h1>
         <div class="text-slate-600 mb-4 whitespace-pre-wrap">${description}</div>
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6">
             <div class="font-semibold text-cyan-900">${action}</div>
@@ -2405,15 +2447,15 @@ function createStep2View() {
             <div class="p-4 bg-slate-50 rounded-lg border border-slate-200 mb-4">
                 <h4 class="font-bold text-slate-700 mb-2">Domaine d'activité #${domaineIndex}</h4>
                 <div class="mb-4">
-                    <label for="${domaineKey}_${comboIndex}" class="block text-sm font-medium text-slate-700 mb-1">Nom du domaine</label>
+<label for="${domaineKey}_${comboIndex}" class="block text-md font-medium text-slate-700 mb-2">Nom du domaine</label>
                     <textarea id="${domaineKey}_${comboIndex}" name="${domaineKey}_${comboIndex}" rows="1" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Ex: Sciences de la santé">${data[domaineKey] || ''}</textarea>
                 </div>
                 <div class="mb-4">
-                    <label for="${diplomesKey}_${comboIndex}" class="block text-sm font-medium text-slate-700 mb-1">Diplômes possibles</label>
+<label for="${diplomesKey}_${comboIndex}" class="block text-md font-medium text-slate-700 mb-2">Diplômes possibles</label>
                     <textarea id="${diplomesKey}_${comboIndex}" name="${diplomesKey}_${comboIndex}" rows="3" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Ex: PASS, Licence Sciences de la Vie...">${data[diplomesKey] || ''}</textarea>
                 </div>
                 <div>
-                    <label for="${metiersKey}_${comboIndex}" class="block text-sm font-medium text-slate-700 mb-1">Métiers possibles</label>
+<label for="${metiersKey}_${comboIndex}" class="block text-md font-medium text-slate-700 mb-2">Métiers possibles</label>
                     <textarea id="${metiersKey}_${comboIndex}" name="${metiersKey}_${comboIndex}" rows="3" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Ex: Médecin, Pharmacien, Chercheur...">${data[metiersKey] || ''}</textarea>
                 </div>
             </div>
@@ -2538,49 +2580,55 @@ function createStep2View() {
 
 // Nouvelle fonction pour un rendu lisible dans le journal de bord
 function renderStep2InJournal(data) {
-    if (!data || Object.keys(data).length === 0) return '';
+    if (!data) return '';
     
-    let html = '';
+    let finalHTML = '<div class="space-y-3">';
+    let hasAnyContent = false;
+
     for (let i = 1; i <= 2; i++) {
         const combo = data[`combo_${i}`];
         if (combo && combo.name) {
-            html += `<div class="mb-4">
-                        <p class="font-bold text-lg text-cyan-700">Combinaison de spécialités #${i} : <span class="text-slate-800 font-normal">${combo.name}</span></p>`;
-            
+            hasAnyContent = true;
+            let comboContentHTML = '';
+
+            // Ajoute l'analyse de l'IA si elle existe
             if (combo.analysis) {
-                html += `<div class="p-3 bg-cyan-50 rounded-lg border border-cyan-200 mt-2">
-                            <p class="whitespace-pre-wrap text-slate-600">${combo.analysis}</p>
-                         </div>`;
+                comboContentHTML += `<div class="mb-3"><p class="font-semibold text-slate-700">Analyse du profil :</p><p class="whitespace-pre-wrap text-slate-600">${combo.analysis}</p></div>`;
             }
 
-            let hasDomaines = false;
+            // Ajoute le témoignage de l'IA s'il existe
+            if (combo.testimonial) {
+                comboContentHTML += `<div class="mb-3"><p class="font-semibold text-slate-700">Témoignage d'étudiant :</p><p class="whitespace-pre-wrap text-slate-600">${combo.testimonial}</p></div>`;
+            }
+
+            // Ajoute les trouvailles sur Horizons21
+            let domainesHTML = '';
             for (let j = 1; j <= 5; j++) {
                 if (combo[`domaine_${j}`]) {
-                    hasDomaines = true;
-                    break;
+                    domainesHTML += `<li class="mb-2">
+                                        <p class="font-medium text-slate-700">Domaine : <span class="font-normal text-slate-600">${combo[`domaine_${j}`]}</span></p>
+                                        <p class="text-sm ml-4">Diplômes : <span class="font-normal text-slate-600">${combo[`diplomes_${j}`]}</span></p>
+                                        <p class="text-sm ml-4">Métiers : <span class="font-normal text-slate-600">${combo[`metiers_${j}`]}</span></p>
+                                    </li>`;
                 }
             }
-
-            if (hasDomaines) {
-                html += `<div class="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                            <h5 class="font-semibold text-slate-800 mb-2">Trouvailles sur Horizons21 :</h5>
-                            <ul class="list-none space-y-3">`;
-                for (let j = 1; j <= 5; j++) {
-                    if (combo[`domaine_${j}`]) {
-                        html += `<li>
-                                    <p class="font-bold text-slate-700">Domaine #${j} : <span class="font-normal text-slate-600">${combo[`domaine_${j}`]}</span></p>
-                                    <p class="font-bold text-slate-700 ml-4">Diplômes : <span class="font-normal text-slate-600">${combo[`diplomes_${j}`]}</span></p>
-                                    <p class="font-bold text-slate-700 ml-4">Métiers : <span class="font-normal text-slate-600">${combo[`metiers_${j}`]}</span></p>
-                                </li>`;
-                    }
-                }
-                html += `</ul></div>`;
+            if (domainesHTML) {
+                comboContentHTML += `<div class="mt-4"><p class="font-semibold text-slate-700 mb-2">Trouvailles sur Horizons21 :</p><ul class="list-none space-y-2">${domainesHTML}</ul></div>`;
             }
-            html += `</div>`;
+            
+            finalHTML += `
+                <details class="bg-slate-50 rounded-lg border border-slate-200">
+                    <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Combinaison #${i} : ${combo.name}</summary>
+                    <div class="p-3 border-t border-slate-200">${comboContentHTML}</div>
+                </details>
+            `;
         }
     }
-    return html;
-} 
+
+    finalHTML += '</div>';
+
+    return hasAnyContent ? finalHTML : '';
+}
 
        // REMPLACEZ VOTRE FONCTION createStep3View EXISTANTE PAR CELLE-CI :
 function createStep3View() {
@@ -2745,7 +2793,7 @@ Le ton doit être constructif et encourageant. Adresse-toi directement à l'él�
 
     return div;
 }
-// REMPLACEZ VOTRE FONCTION createStep12View EXISTANTE PAR CETTE VERSION FINALE ET COMPLÈTE :
+
 function createStep12View() {
     const config = stepsConfig.step12;
     const div = createStepView(config);
@@ -2828,22 +2876,22 @@ function createStep12View() {
                     <div class="space-y-6">
                         <div>
                             <div class="flex justify-between items-center">
-                                <label for="loyer-slider" class="font-semibold text-slate-700">🏠 Loyer</label>
+                            <label for="loyer-slider" class="font-semibold text-slate-700 text-md">🏠 Loyer</label>
                                 <span id="loyer-value" class="font-bold text-cyan-600 text-lg">${loyer_avg}€</span>
                             </div>
                             <input id="loyer-slider" type="range" min="${budget.loyer_crous}" max="${budget.loyer_prive_studio}" value="${loyer_avg}" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
                         </div>
                         <div>
                             <div class="flex justify-between items-center">
-                                <label for="alim-slider" class="font-semibold text-slate-700">🛒 Alimentation & Vie courante</label>
+                        <label for="alim-slider" class="font-semibold text-slate-700 text-md">🛒 Alimentation & Vie courante</label>
                                 <span id="alim-value" class="font-bold text-cyan-600 text-lg">${alim_avg}€</span>
                             </div>
                             <input id="alim-slider" type="range" min="${budget.alimentation_min}" max="${budget.alimentation_max}" value="${alim_avg}" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
                         </div>
                         <div>
                             <div class="flex justify-between items-center">
-                                <label for="loisirs-slider" class="font-semibold text-slate-700">🎉 Loisirs & Sorties</label>
-                                <span id="loisirs-value" class="font-bold text-cyan-600 text-lg">${loisirs_avg}€</span>
+                            <label for="loisirs-slider" class="font-semibold text-slate-700 text-md">🎉 Loisirs & Sorties</label>                               
+                            <span id="loisirs-value" class="font-bold text-cyan-600 text-lg">${loisirs_avg}€</span>
                             </div>
                             <input id="loisirs-slider" type="range" min="${budget.loisirs_min}" max="${budget.loisirs_max}" value="${loisirs_avg}" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
                         </div>
@@ -2906,8 +2954,16 @@ function createGuideView() {
             .guide-container h2 { border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; color: #1e293b; margin-top: 60px; font-size: 1.75em; font-weight: 700; text-align: center; }
             .guide-container h3 { color: #334155; font-size: 1.3em; margin-top: 40px; font-weight: 600; text-align: center; }
             .guide-container .centered-subtitle { text-align: center; margin-bottom: 30px; }
-            .guide-container h4 { margin-top: 0; font-size: 1.1em; font-weight: 600; display: flex; align-items: center; gap: 0.75rem; text-align: left; }
-            .guide-container .logo { display: block; margin: 0 auto 10px auto; width: 350px; }
+.guide-container h4 { 
+    margin-top: 0; 
+    font-size: 1.1em; 
+    font-weight: 600; 
+    display: flex; 
+    align-items: center; 
+    gap: 0.75rem; 
+    justify-content: center; /* Ajouté pour centrer l'icône et le texte */
+    text-align: center;      /* Ajouté pour les titres des encarts */
+}            .guide-container .logo { display: block; margin: 0 auto 10px auto; width: 350px; }
             .guide-container .info-box { padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid; }
             .guide-container .info-box-parents { background-color: #f7fee7; border-color: #84cc16; }
             .guide-container .info-box-parents h4 { color: #4d7c0f; display: block; }
@@ -3116,10 +3172,13 @@ const partie4FonctionnalitesHTML_enseignants = `
     }
     // 3. Injection dans le DOM et gestion du bouton retour
     div.innerHTML = `
-        <div class="flex items-center mb-6">
-            <button id="guideBackBtn" class="text-cyan-600 hover:text-cyan-800 font-bold mr-4">← Retour</button>
-            <h1 class="text-2xl font-bold">❓ Guide d'Utilisation</h1>
-        </div>
+      <div class="grid grid-cols-3 items-center mb-6">
+    <div class="text-left">
+        <button id="guideBackBtn" class="text-cyan-600 hover:text-cyan-800 font-bold">← Retour</button>
+    </div>
+    <h1 class="text-2xl font-bold text-center col-span-1 flex justify-center items-center gap-2 md:whitespace-nowrap">❓ Guide d'Utilisation</h1>
+    <div></div>
+</div>
         <div class="guide-container">
             ${styleHTML}
             ${finalGuideHTML}
@@ -3140,10 +3199,8 @@ function createStep4View() {
 
     // --- HTML de la nouvelle interface (Cartes + Fenêtre de simulation cachée) ---
     div.innerHTML = `
-        <div class="flex items-center mb-6">
-            <button onclick="window.showView('menu')" class="text-cyan-600 hover:text-cyan-800 font-bold mr-4">← Retour</button>
-            <h1 class="text-2xl font-bold">${config.icon} ${config.title}</h1>
-        </div>
+        
+<h1 class="text-2xl font-bold flex justify-center items-center gap-2 md:whitespace-nowrap mb-6">${config.icon} ${config.title}</h1>
         <div class="text-slate-600 mb-4 whitespace-pre-wrap">${config.description}</div>
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6">
             <div class="font-semibold text-cyan-800"><b>Ta mission :</b> Choisis un domaine, pose une question de base, puis utilise l'IA pour obtenir des questions plus pertinentes et t'entraîner avec le simulateur.Enfin clique sur le lien du site pour échanger avec des étudiants.</div>
@@ -3156,11 +3213,11 @@ function createStep4View() {
                 <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 flex flex-col space-y-4">
                     <h2 class="text-lg font-bold text-slate-800">Exploration #1</h2>
                     <div>
-                        <label for="theme1" class="block text-sm font-medium text-slate-700 mb-1">Formation ou domaine</label>
+<label for="theme1" class="block text-md font-medium text-slate-700 mb-2">Formation ou domaine</label>
                         <input type="text" id="theme1" name="theme1" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Ex: Écoles d'ingénieurs" value="${journalData.step4.theme1 || ''}">
                     </div>
                     <div>
-                        <label for="question1" class="block text-sm font-medium text-slate-700 mb-1">Ma question principale</label>
+<label for="question1" class="block text-md font-medium text-slate-700 mb-2">Ma question principale</label>
                         <textarea id="question1" name="question1" rows="2" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Quelle est la plus grande différence avec le lycée ?">${journalData.step4.question1 || ''}</textarea>
                     </div>
                     <div class="text-center">
@@ -3439,11 +3496,8 @@ function createStep6View() {
     div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200';
 
     div.innerHTML = `
-        <div class="flex items-center mb-6">
-            <button onclick="window.showView('menu')" class="text-cyan-600 hover:text-cyan-800 font-bold mr-4">← Retour</button>
-            <h1 class="text-2xl font-bold">${config.icon} ${config.title}</h1>
-        </div>
-        <div class="text-slate-600 mb-4 whitespace-pre-wrap">${config.description}</div>
+<h1 class="text-2xl font-bold flex justify-center items-center gap-2 md:whitespace-nowrap mb-6">${config.icon} ${config.title}</h1>        
+<div class="text-slate-600 mb-4 whitespace-pre-wrap">${config.description}</div>
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6">
             <div class="font-semibold text-cyan-900">${config.action}</div>
         </div>
@@ -3570,9 +3624,6 @@ function createStep6View() {
     return div;
 }
 
-  
-// REMPLACEZ VOTRE FONCTION createStep7View EXISTANTE PAR CELLE-CI :
-// REMPLACEZ VOTRE FONCTION createStep7View EXISTANTE PAR CE CODE COMPLET ET FINAL :
 function createStep7View() {
     const config = stepsConfig.step7;
     const div = createStepView(config);
@@ -3810,10 +3861,9 @@ function createStep8View() {
     }
 
     div.innerHTML = `
-        <div class="flex items-center mb-6">
-            <button onclick="window.showView('menu')" class="text-cyan-600 hover:text-cyan-800 font-bold mr-4">← Retour</button>
-            <h1 class="text-2xl font-bold">${config.icon} ${config.title}</h1>
-        </div>
+        
+        <h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 md:whitespace-nowrap mb-6">${config.icon} ${config.title}</h1>
+        
         <div class="text-slate-600 mb-4 whitespace-pre-wrap">${config.description}</div>
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6">
             <div class="font-semibold text-cyan-900">${config.action}</div>
@@ -3822,19 +3872,19 @@ function createStep8View() {
             <h3 class="font-bold text-slate-800 mb-2">Ajouter et trouver des contacts</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
-                    <label class="text-sm font-medium text-slate-700">Contact personnel</label>
+                        <label class="block text-md font-medium text-slate-700 mb-2">Contact personnel</label>
                     <div class="flex gap-2 mt-1">
                         <input type="text" id="new-contact-name" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Nom, lien de parenté...">
                         <button type="button" id="add-contact-btn" class="bg-cyan-600 text-white font-semibold py-2 px-3 rounded-lg hover:bg-cyan-700">+</button>
                     </div>
                 </div>
                 <div>
-                    <label for="pro_departement" class="text-sm font-medium text-slate-700">Département de recherche</label>
+                    <label for="pro_departement" class="block text-md font-medium text-slate-700 mb-2">Département de recherche</label>
                     <input type="text" id="pro_departement" class="w-full p-2 border border-slate-300 rounded-lg mt-1" placeholder="Ex: 75, Morbihan..." value="${journalData.step8.departement || ''}">
                 </div>
             </div>
             <div class="space-y-2 mb-4">
-                <label class="text-sm font-medium text-slate-700">Métiers recherchés (jusqu'à 3)</label>
+                <label class="block text-md font-medium text-slate-700 mb-2">Métiers recherchés (jusqu'à 3)</label>
                 <input type="text" id="pro_metier1" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Métier #1 (Ex: Architecte)" value="${journalData.step8.metier1 || ''}">
                 <input type="text" id="pro_metier2" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Métier #2 (optionnel)" value="${journalData.step8.metier2 || ''}">
                 <input type="text" id="pro_metier3" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Métier #3 (optionnel)" value="${journalData.step8.metier3 || ''}">
@@ -3996,9 +4046,7 @@ function createStep8View() {
     return div;
 }
 
-// REMPLACEZ VOTRE FONCTION createStep9View EXISTANTE PAR CE CODE FINAL :
-// REMPLACEZ VOTRE FONCTION createStep9View PAR CETTE VERSION DE DÉBOGAGE :
-// REMPLACEZ VOTRE FONCTION createStep9View EXISTANTE PAR CETTE VERSION FINALE :
+
 function createStep9View() {
     const config = stepsConfig.step9;
     const div = document.createElement('div');
@@ -4016,10 +4064,9 @@ function createStep9View() {
     }
     
     div.innerHTML = `
-        <div class="flex items-center mb-6">
-            <button onclick="window.showView('menu')" class="text-cyan-600 hover:text-cyan-800 font-bold mr-4">← Retour</button>
-            <h1 class="text-2xl font-bold">${config.icon} ${config.title}</h1>
-        </div>
+        
+        <h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 md:whitespace-nowrap mb-6">${config.icon} ${config.title}</h1>
+       
         <div class="text-slate-600 mb-4 whitespace-pre-wrap">${config.description}</div>
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6">
             <div class="font-semibold text-cyan-900">${config.action}</div>
@@ -4140,10 +4187,9 @@ function createStep10View() {
     div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200';
 
     div.innerHTML = `
-        <div class="flex items-center mb-6">
-            <button onclick="window.showView('menu')" class="text-cyan-600 hover:text-cyan-800 font-bold mr-4">← Retour</button>
-            <h1 class="text-2xl font-bold">${config.icon} ${config.title}</h1>
-        </div>
+        
+        <h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 md:whitespace-nowrap mb-6">${config.icon} ${config.title}</h1>
+    
         <form id="stepForm"></form> 
     `;
     
@@ -4493,8 +4539,7 @@ function createOrientationMapView(data, context = 'user') {
     return mapHTML;
 }
 
-// REMPLACEZ VOTRE FONCTION createStep11View EXISTANTE PAR CELLE-CI :
-// REMPLACEZ VOTRE FONCTION createStep11View EXISTANTE PAR CE CODE COMPLET ET FINAL :
+
 function createStep11View() {
     const config = stepsConfig.step11;
     const div = createStepView(config);
@@ -4688,7 +4733,7 @@ function createStep11View() {
             div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-slate-200';
             
             div.innerHTML = `
-                <div class="flex items-center mb-6"><button onclick="window.showView('menu')" class="text-cyan-600 hover:text-cyan-800 font-bold mr-4">← Retour</button><h1 class="text-2xl font-bold">🗓️ Mon Rétroplanning</h1></div>
+              <h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 md:whitespace-nowrap mb-6">🗓️ Mon Rétroplanning</h1>
         
         <div class="text-slate-600 mb-4 space-y-2">
             <p>Pour ton orientation, un bon planning est essentiel ! Cet outil part des grandes échéances de ton année et te propose un plan d'action mois par mois pour y arriver sans stress.</p>
@@ -4976,16 +5021,11 @@ async function createJournalView() {
 
     const headerEl = document.createElement('div');
     headerEl.innerHTML = `
-        <div class="flex flex-col sm:flex-row items-start justify-between mb-6 gap-4">
-            <div class="flex items-center">
-                <button onclick="window.showView('menu')" class="text-cyan-600 hover:text-cyan-800 font-bold mr-4 self-start mt-1">← Retour</button>
-                <div>
-                    <h1 class="text-2xl font-bold">📓 Mon Journal de Bord</h1>
-                    <p class="text-slate-500">Pour ${currentUserInfo.firstName} ${currentUserInfo.lastName}, élève de ${userGradeLevel}.</p>
-                </div>
-            </div>
-            </div>
-    `;
+    <div class="text-center mb-6">
+        <h1 class="text-2xl font-bold flex justify-center items-center gap-2 md:whitespace-nowrap">📓 Mon Journal de Bord</h1>
+        <p class="text-slate-500">Pour ${currentUserInfo.firstName} ${currentUserInfo.lastName}, élève de ${userGradeLevel}.</p>
+    </div>
+`;
 
     // -- Panneau de Partage --
     const shareToken = journalData.share_token || null;
@@ -5058,70 +5098,95 @@ async function createJournalView() {
     // On prépare les titres de toutes les sections, y compris le portfolio
     const stepTitles = {
         step10: '💼 Mon Portfolio de Compétences',
-        step1: '📚 Les Fondations',
-        step3: '🎓 Le Catalogue',
+        step2: '🧭 Mes simulations de spécialités',
+        step1: '📚 Mes Fondations',
+        step3: '🎓 Mon Catalogue',
+        step8: '🚀 Mes passages à l\'action',
         radar_history: '📡 Mon Radar à Opportunités',
-        step2: '🧭 Le simulateur de spécialités',
-        step5: "📰 L'Actu & Tests",
-        step7: '🚀 Passer à l\'action',
-        step8: '🤝 Rencontres sur mon Territoire',
-        step9: '📝 Préparer sa candidature',
-        step12: '🎯 Anticiper la suite'
-
+        chatbot_saves: '💬 Mes Discussions avec le Coach',
+        step4: '💬 L\'expérience',
+        step11: '🌍 Mes rencontres sur le territoire',
+        step6: '✍️ Mes préparations de candidatures',
+        step9: '🔮 Mon anticipation de la suite',
+        step12: '💶 Mes simulations de vie étudiante',
+        step5: '📰 Mon Actu',
+        step7: '✅ Mes Scores (Fact Checking)',
     };
 
     // MODIFICATION : Nouvelle boucle pour créer les blocs pliables
     for (const stepKey in stepTitles) {
         const stepData = journalData[stepKey];
-        if (!stepData) continue;
-
         let sectionHTML = '';
         let hasContentInSection = false;
 
-        // --- NOUVELLE LOGIQUE GÉNÉRIQUE POUR LES ÉTAPES À ENTRÉES MULTIPLES ---
+        if (stepKey === 'chatbot_saves') {
+            if (Array.isArray(stepData) && stepData.length > 0) {
+                hasContentInSection = true;
+                sectionHTML += '<div class="space-y-3">';
+                stepData.forEach(item => {
+                    sectionHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Question : "${item.question}"</summary>
+                            <div class="p-3 border-t border-slate-200">
+                                <p class="whitespace-pre-wrap text-slate-600">${linkify(item.reponse)}</p>
+                            </div>
+                        </details>
+                    `;
+                });
+                sectionHTML += '</div>';
+            }
+        } 
+
         let entries = [];
-        // On définit ici toutes les étapes qui ont des entrées répétitives
+        // On gère les étapes à entrées multiples
         if (['step1', 'step3', 'step4', 'step5', 'step6', 'step9'].includes(stepKey)) {
-            // On regroupe les données en paires "titre/contenu"
-            if (stepKey === 'step1') {
-                for (let i = 1; i <= 3; i++) if (stepData[`metier${i}`]) entries.push({ title: stepData[`metier${i}`], content: { 'Notes': stepData[`notes${i}`], 'Analyse IA': stepData[`analysisText${i}`] } });
+            if(stepData) {
+                if (stepKey === 'step1') { for (let i = 1; i <= 3; i++) if (stepData[`metier${i}`]) entries.push({ title: stepData[`metier${i}`], fieldsToDelete: [`metier${i}`, `notes${i}`, `analysisText${i}`], content: { 'Notes': stepData[`notes${i}`], 'Analyse IA': stepData[`analysisText${i}`] } }); }
+                if (stepKey === 'step3') { for (let i = 1; i <= 2; i++) if (stepData[`formation${i}`]) entries.push({ title: stepData[`formation${i}`], fieldsToDelete: [`formation${i}`, `attendus${i}`, `compatibilite${i}`, `mots_cles${i}`, `analyse_mots_cles${i}`], content: { 'Attendus': stepData[`attendus${i}`], 'Rapport de compatibilité': stepData[`compatibilite${i}`], 'Mots-clés': stepData[`mots_cles${i}`], 'Analyse des mots-clés': stepData[`analyse_mots_cles${i}`] } }); }
+                if (stepKey === 'step4') { for (let i = 1; i <= 2; i++) if (stepData[`theme${i}`]) entries.push({ title: stepData[`theme${i}`], fieldsToDelete: [`theme${i}`, `question${i}`, `suggestions${i}`], content: { 'Ma question': stepData[`question${i}`], 'Suggestions IA': stepData[`suggestions${i}`] } }); }
+                if (stepKey === 'step5') { for (let i = 1; i <= 3; i++) if (stepData[`article${i}`]) entries.push({ title: stepData[`article${i}`], fieldsToDelete: [`article${i}`, `apprentissage${i}`], content: { 'Ce que j\'ai appris': stepData[`apprentissage${i}`] } }); }
+                if (stepKey === 'step6') { for (let i = 1; i <= 2; i++) if (stepData[`lettre${i}`]?.formation) entries.push({ title: stepData[`lettre${i}`].formation, fieldsToDelete: [`lettre${i}`], content: { 'Motivations': stepData[`lettre${i}`].motivations, 'Structure proposée': stepData[`lettre${i}`].structure } }); }
+                if (stepKey === 'step9') {
+                    if (stepData.formation_reve) entries.push({ title: 'Simulation : Mon Plan B', fieldsToDelete: ['formation_reve', 'planb_chat_history'], content: { 'Formation "rêvée"': stepData.formation_reve, 'Historique': (stepData.planb_chat_history || []).map(msg => `<strong>${msg.role === 'user' ? 'Moi' : 'Coach'}:</strong> ${msg.text}`).join('<br>') } });
+                    if (stepData.reussite_type) entries.push({ title: 'Coach de Réussite', fieldsToDelete: ['reussite_type', 'reussite_conseils'], content: { 'Formation': stepData.reussite_type, 'Conseils': stepData.reussite_conseils } });
+                }
             }
-            if (stepKey === 'step3') {
-                for (let i = 1; i <= 2; i++) if (stepData[`formation${i}`]) entries.push({ title: stepData[`formation${i}`], content: { 'Attendus': stepData[`attendus${i}`], 'Rapport de compatibilité': stepData[`compatibilite${i}`], 'Mots-clés': stepData[`mots_cles${i}`], 'Analyse des mots-clés': stepData[`analyse_mots_cles${i}`] } });
-            }
-            if (stepKey === 'step4') {
-                for (let i = 1; i <= 2; i++) if (stepData[`theme${i}`]) entries.push({ title: stepData[`theme${i}`], content: { 'Ma question': stepData[`question${i}`], 'Suggestions IA': stepData[`suggestions${i}`] } });
-            }
-            if (stepKey === 'step5') {
-                 for (let i = 1; i <= 3; i++) if (stepData[`article${i}`]) entries.push({ title: stepData[`article${i}`], content: { 'Ce que j\'ai appris': stepData[`apprentissage${i}`] } });
-            }
-            if (stepKey === 'step6') {
-                for (let i = 1; i <= 2; i++) if (stepData[`lettre${i}`]?.formation) entries.push({ title: stepData[`lettre${i}`].formation, content: { 'Motivations': stepData[`lettre${i}`].motivations, 'Structure proposée': stepData[`lettre${i}`].structure } });
-            }
-            if (stepKey === 'step9') {
-                if (stepData.formation_reve) entries.push({ title: 'Simulation : Mon Plan B', content: { 'Formation "rêvée"': stepData.formation_reve, 'Historique de la conversation': (stepData.planb_chat_history || []).map(msg => `<strong>${msg.role === 'user' ? 'Moi' : 'Coach'} :</strong> ${msg.text}`).join('<br>') } });
-                if (stepData.reussite_type) entries.push({ title: 'Coach de Réussite', content: { 'Formation': stepData.reussite_type, 'Conseils': stepData.reussite_conseils } });
-            }
+
             
-            // On génère le HTML pour ces entrées
             const validEntries = entries.filter(e => e.title && e.title.trim() !== '');
             if (validEntries.length > 0) {
                 hasContentInSection = true;
                 sectionHTML += '<div class="space-y-3">';
                 validEntries.forEach(entry => {
                     let contentHTML = '';
-                    for (const [label, value] of Object.entries(entry.content)) {
-                        if (value && value.toString().trim() !== '') {
-                            contentHTML += `<div class="mb-2"><p class="font-semibold text-slate-700">${label} :</p><div class="whitespace-pre-wrap text-slate-600">${value}</div></div>`;
-                        }
-                    }
+                    for (const [label, value] of Object.entries(entry.content)) { if (value && value.toString().trim() !== '') { contentHTML += `<div class="mb-2"><p class="font-semibold text-slate-700">${label} :</p><div class="whitespace-pre-wrap text-slate-600">${value}</div></div>`; } }
                     if (contentHTML) {
                         sectionHTML += `
                             <details class="bg-slate-50 rounded-lg border border-slate-200">
-                                <summary class="p-3 font-semibold text-slate-700 cursor-pointer">${entry.title}</summary>
+                                <summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center">
+                                    <span>${entry.title}</span>
+                                    <button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer cette entrée" data-step-key="${stepKey}" data-fields-to-delete='${JSON.stringify(entry.fieldsToDelete)}'>🗑️</button>
+                                </summary>
                                 <div class="p-3 border-t border-slate-200">${contentHTML}</div>
                             </details>`;
                     }
+                });
+                sectionHTML += '</div>';
+            }
+        }
+        else if (stepKey === 'radar_history') {
+            if (stepData && Array.isArray(stepData) && stepData.length > 0) {
+                hasContentInSection = true;
+                sectionHTML += '<div class="space-y-3">';
+                stepData.forEach((item, index) => {
+                    sectionHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center">
+                                <span>${item.type} : ${item.sujet}</span>
+                                <button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer cette entrée" data-step-key="radar_history" data-entry-index="${index}">🗑️</button>
+                            </summary>
+                            <div class="p-3 border-t border-slate-200"><p class="whitespace-pre-wrap text-slate-600">${item.reponse}</p></div>
+                        </details>`;
                 });
                 sectionHTML += '</div>';
             }
@@ -5136,13 +5201,142 @@ async function createJournalView() {
                 });
                 sectionHTML += '</div>';
             }
+
+            } else if (stepKey === 'step8') { // --- NOUVEAU BLOC POUR L'ÉTAPE 8 ---
+            if (stepData) {
+                sectionHTML += '<div class="space-y-3">';
+                let hasSubContent = false;
+
+                // 1. Sous-menu pour la liste des contacts
+                if (stepData.contacts && Array.isArray(stepData.contacts) && stepData.contacts.length > 0) {
+                    hasSubContent = true;
+                    let contactsContent = '<ul class="list-disc list-inside text-slate-600">';
+                    stepData.contacts.forEach(contact => {
+                        contactsContent += `<li>${contact.nom} ${contact.search_link ? `<a href="${contact.search_link}" target="_blank" class="text-cyan-600 hover:underline text-xs">(voir sur Google ↗)</a>` : ''}</li>`;
+                    });
+                    contactsContent += '</ul>';
+                    sectionHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Ma Liste de Contacts</summary>
+                            <div class="p-3 border-t border-slate-200">${contactsContent}</div>
+                        </details>`;
+                }
+
+                // 2. Sous-menu pour la stratégie de contact
+                if (stepData.pro_strategie && stepData.pro_strategie.trim() !== '') {
+                    hasSubContent = true;
+                    sectionHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Ma Préparation de Prise de Contact</summary>
+                            <div class="p-3 border-t border-slate-200"><p class="whitespace-pre-wrap text-slate-600">${stepData.pro_strategie}</p></div>
+                        </details>`;
+                }
+
+                sectionHTML += '</div>';
+                if (hasSubContent) {
+                    hasContentInSection = true;
+                }
+            }
+
         } else if (stepKey === 'step10') {
-            if (stepData.experiences && Array.isArray(stepData.experiences) && stepData.experiences.length > 0) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mb-2">Expériences Significatives :</h4>`; stepData.experiences.forEach((exp, index) => { sectionHTML += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`; }); }
-            if (stepData.soft_skills_profile) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Profil de Compétences Transversales :</h4>`; sectionHTML += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>`; }
-            if (stepData.skills_synthesis) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Synthèse du Connecteur de Compétences :</h4>`; sectionHTML += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.skills_synthesis}</p></div>`; }
-        } else if (stepKey === 'step2') {
+                sectionHTML += '<div class="space-y-3">';
+                let hasSubContent = false;
+
+                // 1. Sous-menu pour les Expériences Significatives
+                if (stepData.experiences && Array.isArray(stepData.experiences) && stepData.experiences.length > 0) {
+                    hasSubContent = true;
+                    let experiencesContent = '<div class="space-y-2">';
+                    stepData.experiences.forEach((exp, index) => {
+                        experiencesContent += `<div class="p-3 bg-white rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`;
+                    });
+                    experiencesContent += '</div>';
+                    sectionHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Mes Expériences Significatives</summary>
+                            <div class="p-3 border-t border-slate-200">${experiencesContent}</div>
+                        </details>`;
+                }
+
+                // 2. Sous-menu pour le Profil de Compétences
+                if (stepData.soft_skills_profile) {
+                    hasSubContent = true;
+                    sectionHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Mon Profil de Compétences Transversales</summary>
+                            <div class="p-3 border-t border-slate-200"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>
+                        </details>`;
+                }
+
+                // 3. Sous-menu pour le Connecteur de Compétences
+                if (stepData.skills_synthesis) {
+                    hasSubContent = true;
+                    sectionHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Synthèse du Connecteur de Compétences</summary>
+                            <div class="p-3 border-t border-slate-200"><p class="whitespace-pre-wrap text-slate-600">${stepData.skills_synthesis}</p></div>
+                        </details>`;
+                }
+
+                sectionHTML += '</div>';
+                if (hasSubContent) {
+                    hasContentInSection = true;
+                }
+            }
+
+             else if (stepKey === 'step2') {
             const renderedContent = renderStep2InJournal(stepData);
-            if (renderedContent) { hasContentInSection = true; sectionHTML = renderedContent; }
+            if (renderedContent) {
+                hasContentInSection = true;
+                sectionHTML = renderedContent;
+            }
+  }
+            else if (stepKey === 'step11') {
+            if (stepData) {
+                let subContentHTML = '<div class="space-y-3">';
+                let hasSubContent = false;
+
+                // Rubrique 1 : "Les structures pour t'accompagner"
+                if (stepData.structures && Array.isArray(stepData.structures) && stepData.structures.length > 0) {
+                    hasSubContent = true;
+                    let structuresContent = '<ul class="list-disc list-inside text-slate-600">';
+                    stepData.structures.forEach(struct => {
+                        const searchQuery = encodeURIComponent(`${struct.nom}, ${struct.adresse}`);
+                        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${searchQuery}`;
+                        structuresContent += `<li>${struct.nom} - ${struct.adresse} <a href="${mapsUrl}" target="_blank" class="text-cyan-600 hover:underline text-xs">(voir sur Google Maps ↗)</a></li>`;
+                    });
+                    structuresContent += '</ul>';
+
+                    subContentHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Les structures pour t'accompagner</summary>
+                            <div class="p-3 border-t border-slate-200">${structuresContent}</div>
+                        </details>`;
+                }
+
+                // Rubrique 2 : "Préparation des visites"
+                let preparationContent = '';
+                if (stepData.jpo_questions && stepData.jpo_questions.trim() !== '') {
+                    preparationContent += `<div class="mb-2"><p class="font-semibold text-slate-700">Préparation JPO pour ${stepData.jpo_ecole || 'une école'}:</p><p class="whitespace-pre-wrap text-slate-600">${stepData.jpo_questions}</p></div>`;
+                }
+                if (stepData.salon_preparation && stepData.salon_preparation.trim() !== '') {
+                    preparationContent += `<div><p class="font-semibold text-slate-700">Préparation pour le salon ${stepData.salon_nom || ''}:</p><p class="whitespace-pre-wrap text-slate-600">${stepData.salon_preparation}</p></div>`;
+                }
+
+                if (preparationContent !== '') {
+                    hasSubContent = true;
+                    subContentHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Ma préparation des JPO et Salons</summary>
+                            <div class="p-3 border-t border-slate-200">${preparationContent}</div>
+                        </details>`;
+                }
+
+                subContentHTML += '</div>';
+                if (hasSubContent) {
+                    hasContentInSection = true;
+                    sectionHTML = subContentHTML;
+                }
+            }
         }
         // --- LOGIQUE PAR DÉFAUT POUR LES AUTRES ÉTAPES ---
         else {
@@ -5186,19 +5380,45 @@ async function createJournalView() {
     // 5. Ajout des écouteurs d'événements
     
     // MODIFICATION : Ajout de l'écouteur d'événement pour l'accordéon
-    journalContentDiv.addEventListener('click', (e) => {
+    journalContentDiv.addEventListener('click', async (e) => {
         const header = e.target.closest('.journal-section-header');
-        if (!header) return;
+        const deleteBtn = e.target.closest('.delete-journal-entry');
 
-        const content = header.nextElementSibling;
-        const icon = header.querySelector('span');
-
-        if (content) {
-            content.classList.toggle('hidden');
+        // Gère l'ouverture/fermeture de l'accordéon
+        if (header && !deleteBtn) {
+            const content = header.nextElementSibling;
+            const icon = header.querySelector('span');
+            if (content) content.classList.toggle('hidden');
+            if (icon) icon.classList.toggle('rotate-180');
+            return;
         }
-        if (icon) {
-            // Fait tourner la flèche de 180 degrés
-            icon.classList.toggle('rotate-180');
+
+        // Gère le clic sur un bouton supprimer
+        if (deleteBtn) {
+            e.stopPropagation(); // Empêche l'accordéon de s'ouvrir/fermer
+            
+            const confirmed = await showConfirmationModal('Es-tu sûr de vouloir supprimer cette entrée ? Cette action est irréversible.');
+            if (!confirmed) return;
+
+            const stepKey = deleteBtn.dataset.stepKey;
+            const entryIndex = deleteBtn.dataset.entryIndex;
+            const fieldsToDelete = deleteBtn.dataset.fieldsToDelete ? JSON.parse(deleteBtn.dataset.fieldsToDelete) : null;
+
+            if (stepKey === 'radar_history' && entryIndex !== undefined) {
+                journalData.radar_history.splice(entryIndex, 1);
+            } 
+            else if (fieldsToDelete) {
+                if (stepKey === 'step6') { // Cas spécial pour les lettres qui sont des objets
+                    journalData[stepKey][fieldsToDelete[0]] = {};
+                } else {
+                    fieldsToDelete.forEach(field => {
+                        journalData[stepKey][field] = '';
+                    });
+                }
+            }
+
+            await saveData();
+            showView('journal'); // Rafraîchit la vue pour montrer les changements
         }
     });
 
@@ -5312,16 +5532,19 @@ async function createPublicShareView(userId, token) {
         // --- BOUCLE COMPLÈTE ET CORRIGÉE ---
         const stepTitles = {
         step10: '💼 Mon Portfolio de Compétences',
-        step1: '📚 Les Fondations',
-        step3: '🎓 Le Catalogue',
+        step2: '🧭 Mes simulations de spécialités',
+        step1: '📚 Mes Fondations',
+        step3: '🎓 Mon Catalogue',
+        step8: '🚀 Mes passages à l\'action',
         radar_history: '📡 Mon Radar à Opportunités',
-        step2: '🧭 Le simulateur de spécialités',
-        step5: "📰 L'Actu & Tests",
-        step7: '🚀 Passer à l\'action',
-        step8: '🤝 Rencontres sur mon Territoire',
-        step9: '📝 Préparer sa candidature',
-        step12: '🎯 Anticiper la suite'
-
+        chatbot_saves: '💬 Mes Discussions avec le Coach',
+        step4: '💬 L\'expérience',
+        step11: '🌍 Mes rencontres sur le territoire',
+        step6: '✍️ Mes préparations de candidatures',
+        step9: '🔮 Mon anticipation de la suite',
+        step12: '💶 Mes simulations de vie étudiante',
+        step5: '📰 Mon Actu',
+        step7: '✅ Mes Scores (Fact Checking)',
     };
 
         
@@ -5330,6 +5553,23 @@ async function createPublicShareView(userId, token) {
             let sectionHTML = '';
             let hasContentInSection = false;
 
+         if (stepKey === 'chatbot_saves') {
+            if (Array.isArray(stepData) && stepData.length > 0) {
+                hasContentInSection = true;
+                sectionHTML += '<div class="space-y-3">';
+                stepData.forEach(item => {
+                    sectionHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Question : "${item.question}"</summary>
+                            <div class="p-3 border-t border-slate-200">
+                                <p class="whitespace-pre-wrap text-slate-600">${linkify(item.reponse)}</p>
+                            </div>
+                        </details>
+                    `;
+                });
+                sectionHTML += '</div>';
+            }
+        } 
             if (stepKey === 'radar_history') {
                 if (stepData && Array.isArray(stepData) && stepData.length > 0) {
                     hasContentInSection = true;
@@ -5361,15 +5601,140 @@ async function createPublicShareView(userId, token) {
                     });
                     sectionHTML += '</div>';
                 }
-            } else if (stepKey === 'step10') {
-                if(stepData) {
-                    if (stepData.experiences && Array.isArray(stepData.experiences) && stepData.experiences.length > 0) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mb-2">Expériences Significatives :</h4>`; stepData.experiences.forEach((exp, index) => { sectionHTML += `<div class="mb-2 p-3 bg-slate-50 rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`; }); }
-                    if (stepData.soft_skills_profile) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Profil de Compétences Transversales :</h4>`; sectionHTML += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>`; }
-                    if (stepData.skills_synthesis) { hasContentInSection = true; sectionHTML += `<h4 class="font-semibold text-slate-700 mt-4 mb-2">Synthèse du Connecteur de Compétences :</h4>`; sectionHTML += `<div class="p-3 bg-slate-50 rounded-lg"><p class="whitespace-pre-wrap text-slate-600">${stepData.skills_synthesis}</p></div>`; }
+
+                } else if (stepKey === 'step8') { // --- NOUVEAU BLOC POUR L'ÉTAPE 8 ---
+            if (stepData) {
+                sectionHTML += '<div class="space-y-3">';
+                let hasSubContent = false;
+
+                // 1. Sous-menu pour la liste des contacts
+                if (stepData.contacts && Array.isArray(stepData.contacts) && stepData.contacts.length > 0) {
+                    hasSubContent = true;
+                    let contactsContent = '<ul class="list-disc list-inside text-slate-600">';
+                    stepData.contacts.forEach(contact => {
+                        contactsContent += `<li>${contact.nom} ${contact.search_link ? `<a href="${contact.search_link}" target="_blank" class="text-cyan-600 hover:underline text-xs">(voir sur Google ↗)</a>` : ''}</li>`;
+                    });
+                    contactsContent += '</ul>';
+                    sectionHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Ma Liste de Contacts</summary>
+                            <div class="p-3 border-t border-slate-200">${contactsContent}</div>
+                        </details>`;
                 }
+
+                // 2. Sous-menu pour la stratégie de contact
+                if (stepData.pro_strategie && stepData.pro_strategie.trim() !== '') {
+                    hasSubContent = true;
+                    sectionHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Ma Préparation de Prise de Contact</summary>
+                            <div class="p-3 border-t border-slate-200"><p class="whitespace-pre-wrap text-slate-600">${stepData.pro_strategie}</p></div>
+                        </details>`;
+                }
+
+                sectionHTML += '</div>';
+                if (hasSubContent) {
+                    hasContentInSection = true;
+                }
+            }
+            
+            } else if (stepKey === 'step10') {
+                sectionHTML += '<div class="space-y-3">';
+                let hasSubContent = false;
+
+                // 1. Sous-menu pour les Expériences Significatives
+                if (stepData.experiences && Array.isArray(stepData.experiences) && stepData.experiences.length > 0) {
+                    hasSubContent = true;
+                    let experiencesContent = '<div class="space-y-2">';
+                    stepData.experiences.forEach((exp, index) => {
+                        experiencesContent += `<div class="p-3 bg-white rounded-lg"><p class="font-medium text-slate-800">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`;
+                    });
+                    experiencesContent += '</div>';
+                    sectionHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Mes Expériences Significatives</summary>
+                            <div class="p-3 border-t border-slate-200">${experiencesContent}</div>
+                        </details>`;
+                }
+
+                // 2. Sous-menu pour le Profil de Compétences
+                if (stepData.soft_skills_profile) {
+                    hasSubContent = true;
+                    sectionHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Mon Profil de Compétences Transversales</summary>
+                            <div class="p-3 border-t border-slate-200"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>
+                        </details>`;
+                }
+
+                // 3. Sous-menu pour le Connecteur de Compétences
+                if (stepData.skills_synthesis) {
+                    hasSubContent = true;
+                    sectionHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Synthèse du Connecteur de Compétences</summary>
+                            <div class="p-3 border-t border-slate-200"><p class="whitespace-pre-wrap text-slate-600">${stepData.skills_synthesis}</p></div>
+                        </details>`;
+                }
+
+                sectionHTML += '</div>';
+                if (hasSubContent) {
+                    hasContentInSection = true;
+                }
+                
+
             } else if (stepKey === 'step2') {
                 const renderedContent = renderStep2InJournal(stepData);
                 if (renderedContent) { hasContentInSection = true; sectionHTML = renderedContent; }
+
+            } else if (stepKey === 'step11') {
+                if (stepData) {
+                    let subContentHTML = '<div class="space-y-3">';
+                    let hasSubContent = false;
+
+                // Rubrique 1 : "Les structures pour t'accompagner"
+                if (stepData.structures && Array.isArray(stepData.structures) && stepData.structures.length > 0) {
+                    hasSubContent = true;
+                    let structuresContent = '<ul class="list-disc list-inside text-slate-600">';
+                    stepData.structures.forEach(struct => {
+                        const searchQuery = encodeURIComponent(`${struct.nom}, ${struct.adresse}`);
+                        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${searchQuery}`;
+                        structuresContent += `<li>${struct.nom} - ${struct.adresse} <a href="${mapsUrl}" target="_blank" class="text-cyan-600 hover:underline text-xs">(voir sur Google Maps ↗)</a></li>`;
+                    });
+                    structuresContent += '</ul>';
+
+                    subContentHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Les structures pour t'accompagner</summary>
+                            <div class="p-3 border-t border-slate-200">${structuresContent}</div>
+                        </details>`;
+                }
+
+                // Rubrique 2 : "Préparation des visites"
+                let preparationContent = '';
+                if (stepData.jpo_questions && stepData.jpo_questions.trim() !== '') {
+                    preparationContent += `<div class="mb-2"><p class="font-semibold text-slate-700">Préparation JPO pour ${stepData.jpo_ecole || 'une école'}:</p><p class="whitespace-pre-wrap text-slate-600">${stepData.jpo_questions}</p></div>`;
+                }
+                if (stepData.salon_preparation && stepData.salon_preparation.trim() !== '') {
+                    preparationContent += `<div><p class="font-semibold text-slate-700">Préparation pour le salon ${stepData.salon_nom || ''}:</p><p class="whitespace-pre-wrap text-slate-600">${stepData.salon_preparation}</p></div>`;
+                }
+
+                if (preparationContent !== '') {
+                    hasSubContent = true;
+                    subContentHTML += `
+                        <details class="bg-slate-50 rounded-lg border border-slate-200">
+                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Ma préparation des JPO et Salons</summary>
+                            <div class="p-3 border-t border-slate-200">${preparationContent}</div>
+                        </details>`;
+                }
+
+                subContentHTML += '</div>';
+                if (hasSubContent) {
+                    hasContentInSection = true;
+                    sectionHTML = subContentHTML;
+                }
+            }
+    
             } else {
                 if (stepData) {
                     const config = Object.values(stepsConfig).find(c => c.stepKey === stepKey);
@@ -5515,22 +5880,106 @@ function isStepComplete(stepKey) {
 
 
         // --- Chatbot Logic ---
+        // --- Chatbot Logic ---
         const chatbotToggle = document.getElementById('chatbot-toggle');
         const chatbotContainer = document.getElementById('chatbot-container');
         const chatbotClose = document.getElementById('chatbot-close');
         const chatbotForm = document.getElementById('chatbot-form');
         const chatbotInput = document.getElementById('chatbot-input');
         const chatMessages = document.getElementById('chat-messages');
+        
+        let chatbotHistory = []; // On ajoute une mémoire pour la conversation
 
+        // 1. Message d'accueil personnalisé
         chatbotToggle.addEventListener('click', () => {
             chatbotContainer.classList.toggle('hidden');
+
+            const now = new Date().getTime();
+            const lastInteraction = journalData.chatbot_last_interaction || 0;
+            const minutesSinceLastInteraction = (now - lastInteraction) / (1000 * 60);
+
+            // Si plus de 30 minutes se sont écoulées, on réinitialise
+            if (minutesSinceLastInteraction > 30) {
+                chatbotHistory = [];
+                chatMessages.innerHTML = ''; // On vide aussi l'affichage
+            }
+
+            // On affiche le message d'accueil personnalisé si la conversation est vide
+            if (chatbotContainer.classList.contains('hidden') === false && chatbotHistory.length === 0) {
+                const welcomeText = `Salut ${currentUserInfo.firstName} ! Je suis ton coach personnel. Comment puis-je t'aider aujourd'hui ?`;
+                addMessage(welcomeText, 'ai');
+            }
         });
 
         chatbotClose.addEventListener('click', () => {
             chatbotContainer.classList.add('hidden');
         });
 
-       chatbotForm.addEventListener('submit', async (e) => {
+        // 2. Logique de conversation (qui gère l'historique)
+        const createChatbotPrompt = (userInput, history) => {
+            const userInfo = currentUserInfo;
+            const userJournal = journalData;
+            const appStepsList = allSteps.map(s => `- '${s.icon} ${s.title}'`).join('\n');
+            const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const currentSchoolYearStart = getCurrentSchoolYear();
+            const schoolYearString = `${currentSchoolYearStart}-${currentSchoolYearStart + 1}`;
+
+            // --- NOUVEAU : On génère le résumé de la progression ---
+            const completionSummary = getCompletionSummary();
+
+            const historyText = history.map(msg => {
+                return `${msg.role === 'user' ? '[PRÉNOM]' : 'Toi'}: ${msg.parts[0].text}`;
+            }).join('\n');
+
+            return `
+# Rôle et Persona (Ta seule identité)
+Tu es le "Copilote", l'IA conversationnelle de l'application "Mon Explor'Orientation". Ton unique but est d'aider [PRÉNOM] à utiliser l'application pour construire son projet. Pense à toi comme un mentor jeune, dynamique et super sympa.
+
+# Ton Style (TA PRIORITÉ ABSOLUE)
+- **Ton :** Parle comme un jeune adulte, pas comme un prof. Utilise "tu", sois direct, chaleureux et encourageant.
+- **Emojis :** Utilise beaucoup d'emojis pour rendre tes messages funs et visuels. C'est essentiel ! 👍🚀💡😉🤔
+- **Proactivité :** Propose TOUJOURS une action suivante, de préférence en suggérant une étape pertinente de l'application.
+- **Varie tes intros !** Ne commence pas toujours tes réponses par "Hey [PRÉNOM] ! Alors...". Sois plus créatif. Exemples d'intros alternatives : "Bonne question, [PRÉNOM] ! Parlons de ça.", "Ah, [le sujet] ! C'est un sujet super intéressant. Voyons voir...", "Ok, c'est parti ! Pour [le sujet]..."
+
+
+# Contexte Essentiel
+Tu dois te baser sur TOUT ce contexte pour chaque réponse.
+
+**1. L'élève que tu aides :**
+- Prénom : [PRÉNOM]
+- Genre : [GENRE]
+- Classe : [CLASSE]
+- Année Scolaire en cours ("cette année") : ${schoolYearString}
+- Son Journal de Bord (contient ses réponses et son profil) : [JOURNAL_DATA]
+
+**2. L'application que vous utilisez ensemble :**
+- Outils disponibles : [LISTE_ETAPES]
+- **Résumé de sa progression :** ${completionSummary}
+
+**3. L'historique de votre conversation :**
+[HISTORIQUE_CONVERSATION]
+
+# Ta Mission et tes Règles
+En respectant IMPÉRATIVEMENT ton style, réponds à la dernière question de [PRÉNOM]. Voici comment tu dois raisonner :
+
+1.  **Règle de pertinence :** Analyse le résumé de sa progression. **Ne lui suggère JAMAIS une étape qu'il a déjà terminée.** S'il a commencé une étape, encourage-le à la finir plutôt que d'en commencer une nouvelle.
+2.  **Priorité 1 : Guide dans l'appli.** Si sa question peut être résolue avec un outil de l'app, guide-le vers l'outil le plus pertinent (et non terminé !).
+3.  **Priorité 2 : Analyse son profil.** Si sa question est personnelle, utilise son Journal de Bord pour donner une réponse personnalisée.
+4.  **Priorité 3 : Expert Externe.** Si, et SEULEMENT si, sa question est très factuelle et externe, alors tu peux utiliser tes connaissances en priorisant les sites onisep.fr et surtout parcoursup.fr. Cite toujours tes sources.
+5.  **Règle de conversation :** Si la conversation a déjà commencé (si l'historique n'est pas vide), ne dis plus jamais "Salut [PRÉNOM]". Réponds directement.
+
+---
+Dernière question de [PRÉNOM] : "${userInput}"
+`
+            .replace(/\[PRÉNOM\]/g, userInfo.firstName)
+            .replace('[GENRE]', userInfo.gender || 'autre')
+            .replace('[CLASSE]', userGradeLevel)
+            .replace('[JOURNAL_DATA]', JSON.stringify(userJournal))
+            .replace('[LISTE_ETAPES]', appStepsList)
+            .replace('[HISTORIQUE_CONVERSATION]', historyText);
+        };
+        
+        chatbotForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const userInput = chatbotInput.value.trim();
             if (!userInput) return;
@@ -5538,54 +5987,61 @@ function isStepComplete(stepKey) {
             addMessage(userInput, 'user');
             chatbotInput.value = '';
             
-            const loaderDiv = addMessage('', 'loader');
-
-            const prompt = `gis comme un coach d'orientation dont la spécialité est la plateforme Parcoursup.fr. Tu es un expert absolu de son fonctionnement et de son catalogue de formations.
-
-Ta mission est de répondre aux questions des lycéens en te basant **prioritairement et quasi exclusivement** sur les informations présentes sur le site officiel Parcoursup.fr.
-
-Lorsque la question d'un lycéen porte sur une **formation spécifique** (ex: "BUT Informatique à Villetaneuse" ou "Licence de Droit à Assas"), tu dois utiliser la recherche web pour trouver sa fiche officielle sur Parcoursup et synthétiser avec une grande précision les éléments clés. Ta réponse doit être structurée et inclure systématiquement :
-
-* **Attendus :** Résume les attendus nationaux et locaux (les compétences et connaissances requises).
-* **Critères d'analyse :** Liste les critères que l'établissement utilise pour examiner les candidatures.
-* **Débouchés :** Mentionne les débouchés professionnels et les poursuites d'études possibles après la formation.
-* **Chiffres clés :** Si possible, donne le taux d'accès de l'année précédente et le nombre de places disponibles.
-
-Si la question est plus **générale** sur le fonctionnement de Parcoursup (ex: "c'est quoi un vœu multiple ?" ou "comment fonctionne la phase complémentaire ?"), ta réponse doit être pédagogique, précise et toujours basée sur les règles officielles de la plateforme.
-
-Si la question porte sur un métier précis tu dois utliser comme source https://www.onisep.fr/, si la question porte sur les examens et les études au lycée tu dois utiliser comme source https://www.education.gouv.fr/ et https://www.letudiant.fr/. Tu dois toujours répondre en francais aux élèves
-
-Réponds maintenant à la question suivante : "${userInput}"`;
+            const loaderDiv = addMessage('', 'loader', false);
+            const prompt = createChatbotPrompt(userInput, chatbotHistory);
             const aiResponse = await callGeminiAPI(prompt, true);
-            
             loaderDiv.remove();
-            addMessage(aiResponse, 'ai');
+            
+            // On récupère le conteneur du message de l'IA qu'on vient de créer
+            const aiMessageWrapper = addMessage(aiResponse, 'ai');
+            const saveBtn = aiMessageWrapper.querySelector('.save-chat-btn');
+
+            if (saveBtn) {
+                saveBtn.addEventListener('click', async () => {
+                    if (!Array.isArray(journalData.chatbot_saves)) {
+                        journalData.chatbot_saves = [];
+                    }
+                    // On sauvegarde la question de l'élève ET la réponse de l'IA
+                    journalData.chatbot_saves.push({
+                        question: userInput,
+                        reponse: aiResponse
+                    });
+                    await saveData();
+                    
+                    // Feedback visuel
+                    saveBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`;
+                    saveBtn.disabled = true;
+                    saveBtn.title = "Enregistré !";
+                });
+            }
         });
 
-        function addMessage(text, sender) {
+        function addMessage(text, sender, addToHistory = true) {
             const messageWrapper = document.createElement('div');
-            messageWrapper.className = 'flex mb-4';
+            messageWrapper.className = 'flex mb-4 group'; // On ajoute la classe "group" pour le survol
             
+            if (addToHistory) {
+                chatbotHistory.push({ role: sender === 'user' ? 'user' : 'model', parts: [{ text }] });
+                journalData.chatbot_last_interaction = new Date().getTime(); 
+            }
+
             let messageContent;
             if (sender === 'user') {
                 messageWrapper.classList.add('justify-end');
-                messageContent = `
-                    <div class="bg-blue-500 text-white p-3 rounded-lg max-w-xs">
-                        <p>${text}</p>
-                    </div>
-                `;
+                messageContent = `<div class="bg-blue-500 text-white p-3 rounded-lg max-w-xs"><p>${text}</p></div>`;
             } else if (sender === 'ai') {
+                 // On ajoute un conteneur flex pour le message et le bouton
+                 messageWrapper.classList.add('items-end', 'gap-2');
                  messageContent = `
                     <div class="bg-cyan-100 text-cyan-800 p-3 rounded-lg max-w-xs">
-                        <p>${text}</p>
+                        <p>${linkify(text)}</p>
                     </div>
-                `;
+                    <button class="save-chat-btn opacity-0 group-hover:opacity-100 transition text-slate-400 hover:text-cyan-600 p-1" title="Enregistrer dans le journal">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v12l-5-3-5 3V4z" /></svg>
+                    </button>
+                 `;
             } else if (sender === 'loader') {
-                 messageContent = `
-                    <div class="bg-cyan-100 text-cyan-800 p-3 rounded-lg">
-                        <div class="chatbot-loader"></div>
-                    </div>
-                `;
+                 messageContent = `<div class="bg-cyan-100 text-cyan-800 p-3 rounded-lg"><div class="chatbot-loader"></div></div>`;
             }
 
             messageWrapper.innerHTML = messageContent;
@@ -5593,6 +6049,8 @@ Réponds maintenant à la question suivante : "${userInput}"`;
             chatMessages.scrollTop = chatMessages.scrollHeight;
             return messageWrapper;
         }
+
+        // Le reste de votre code reste inchangé...
 
         window.showView = showView;
 
