@@ -54,6 +54,14 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        #footer-privacy-link {
+            display: none; /* Caché par défaut */
+        }
+        body.logged-in #footer-privacy-link {
+            display: block; /* Visible si l'utilisateur est connecté */
+        }
+
         #mainApp { display: none; }
 
         
@@ -151,12 +159,13 @@
 
     </style>
 </head>
+
 <body class="bg-background-light text-azimut-darkblue text-center">
 
     <div id="authContainer" class="max-w-md mx-auto p-4 md:p-8 mt-10">
         <!-- L'interface d'authentification sera injectée ici -->
     </div>
-    
+
     <div id="mainApp" class="max-w-4xl mx-auto p-4 md:p-8">
     </div>
         
@@ -194,8 +203,8 @@
 </div>
 
     <footer class="text-center text-sm text-slate-500 py-6 space-y-2">
-    <p>Application créée par Thomas Cavil, enseignant au Lycée Benjamin Franklin.</p>
-    <div>
+    <p>Application créée par Thomas Cavil, enseignant au lycée Benjamin Franklin</p>
+    <div id="footer-privacy-link">
         <button onclick="showView('privacy')" class="font-semibold text-primary-action hover:underline">Politique de Confidentialité</button>
     </div>
 </footer>
@@ -227,9 +236,11 @@
 
     <!-- SDKs Firebase -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+       import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, deleteUser } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+       import { getFirestore, doc, setDoc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+       import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+
 
         const levelConfig = {
             1: 0,
@@ -951,6 +962,7 @@ onAuthStateChanged(auth, user => {
         currentUserId = user.uid;
         authContainer.style.display = 'none';
         mainApp.style.display = 'block';
+        document.body.classList.add('logged-in');
         loadData();
 
     } else {
@@ -965,6 +977,7 @@ onAuthStateChanged(auth, user => {
         journalData = {}; 
         authContainer.style.display = 'block';
         mainApp.style.display = 'none';
+        document.body.classList.remove('logged-in')
         showLoginView();
     }
 });
@@ -993,6 +1006,34 @@ onAuthStateChanged(auth, user => {
                 return null;
             }
         }
+
+        async function deleteUserAccount() {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    // Étape 1 : Confirmation
+    const confirmed = await showConfirmationModal("Êtes-vous certain de vouloir supprimer votre compte ? Toutes vos données seront définitivement effacées. Cette action est irréversible.");
+    
+    if (confirmed) {
+        try {
+            // Étape 2 : Suppression des données
+            await deleteDoc(doc(db, "users", user.uid)); // Supprime le document Firestore
+            await deleteUser(user); // Supprime l'utilisateur de l'authentification
+            
+            // Étape 3 : Confirmation et déconnexion
+            alert("Votre compte et toutes vos données ont été supprimés avec succès.");
+            // onAuthStateChanged se chargera de la redirection
+        } catch (error) {
+            console.error("Erreur lors de la suppression du compte:", error);
+            if (error.code === 'auth/requires-recent-login') {
+                alert("Cette opération est sensible et requiert une connexion récente. Veuillez vous déconnecter, vous reconnecter, puis réessayer.");
+                signOut(auth);
+            } else {
+                alert("Une erreur est survenue lors de la suppression. Veuillez réessayer.");
+            }
+        }
+    }
+}
 
             
         // 🔹 Fonction utilitaire
@@ -1176,6 +1217,7 @@ function showSignupView() {
 
 // 🔹 Rendre la fonction showView accessible globalement
 window.showView = showView;
+window.deleteUserAccount = deleteUserAccount; 
 
            function getCurrentSchoolYear() {
     const today = new Date();
@@ -1313,7 +1355,8 @@ window.showView = showView;
             if (isTerminale && isParcoursupTime && candidatureVide) {
                 surprisesPossibles.push({
                     title: "Parcoursup approche !",
-                    content: "La période de formulation des vœux est ouverte ! Pense à utiliser l'étape <strong>'Préparer sa candidature'</strong> pour commencer à rédiger tes projets de formation motivés. Chaque minute passée dessus est un bon investissement !"
+                    content: "La période de formulation des vœux est ouverte ! Pense à utiliser l'étape <strong>'Préparer sa candidature'</strong> pour commencer à rédiger tes projets de formation motivés. Chaque minute passée dessus est un bon investissement !",
+                    levels: ['terminale']
                 });
             }
             
@@ -1348,7 +1391,8 @@ window.showView = showView;
             if(isTerminale && aExploreFormations && planBVide) {
                  surprisesPossibles.push({
                     title: "Et si... ?",
-                    content: "C'est super d'avoir des objectifs clairs ! Mais les meilleurs stratèges ont toujours un plan B. Prends 5 minutes pour lancer la simulation de <strong>'Plan B'</strong> dans l'étape 'Anticiper la suite'. Mieux vaut prévenir que guérir !"
+                    content: "C'est super d'avoir des objectifs clairs ! Mais les meilleurs stratèges ont toujours un plan B. Prends 5 minutes pour lancer la simulation de <strong>'Plan B'</strong> dans l'étape 'Anticiper la suite'. Mieux vaut prévenir que guérir !",
+                    levels: ['terminale']
                 });
             }
 
@@ -1357,7 +1401,8 @@ window.showView = showView;
             if(aExploreFormations && !aUtiliseSimulateurVieEtu) {
                 surprisesPossibles.push({
                     title: "Un détail qui compte...",
-                    content: "Tu as trouvé des formations qui t'intéressent, bravo ! As-tu pensé au coût de la vie sur place ? Utilise le <strong>'Simulateur Vie Étudiante'</strong> pour te faire une idée concrète."
+                    content: "Tu as trouvé des formations qui t'intéressent, bravo ! As-tu pensé au coût de la vie sur place ? Utilise le <strong>'Simulateur Vie Étudiante'</strong> pour te faire une idée concrète.",
+                    levels: ['terminale']
                 });
             }
             
@@ -1516,72 +1561,66 @@ window.showView = showView;
 }
 
     function getProfileSummary() {
-            let summary = "Voici un résumé du profil de l'élève :\n";
-
-            if (journalData.step0 && journalData.step0.archetype) {
-                summary += `- Son archétype de personnalité : ${journalData.step0.archetype.titre}\n`;
-            }
-            if (journalData.step0 && journalData.step0.analysis) {
-                summary += `- Analyse de son profil : "${journalData.step0.analysis}"\n`;
-            }
-
-            const metiers = [journalData.step1.metier1, journalData.step1.metier2, journalData.step1.metier3].filter(m => m && m.trim());
-            if (metiers.length > 0) {
-                summary += `- Métiers déjà explorés : ${metiers.join(', ')}\n`;
-            }
-
-            const formations = [journalData.step3.formation1, journalData.step3.formation2].filter(f => f && f.trim());
-            if (formations.length > 0) {
-                summary += `- Formations déjà explorées : ${formations.join(', ')}\n`;
-            }
-
-            if (journalData.step10 && journalData.step10.soft_skills_profile) {
-                summary += `- Résumé de ses compétences : "${journalData.step10.soft_skills_profile}"\n`;
-            }
-            
-            if (summary === "Voici un résumé du profil de l'élève :\n") {
-                return "L'élève n'a pas encore rempli suffisamment son profil. Base-toi sur le bon sens et l'idée qu'il propose.";
-            }
-
-            return summary;
-        }
-
+    let summary = "Voici un résumé du profil de l'élève :\n";
+    // On utilise '?' (optional chaining) pour éviter les erreurs si les données n'existent pas
+    if (journalData.step0?.archetype?.titre) {
+        summary += `- Son archétype de personnalité : ${journalData.step0.archetype.titre}\n`;
+    }
+    if (journalData.step0?.analysis) {
+        summary += `- Analyse de son profil : "${journalData.step0.analysis}"\n`;
+    }
+    const metiers = [journalData.step1?.metier1, journalData.step1?.metier2, journalData.step1?.metier3].filter(m => m && m.trim());
+    if (metiers.length > 0) {
+        summary += `- Métiers déjà explorés : ${metiers.join(', ')}\n`;
+    }
+    const formations = [journalData.step3?.formation1, journalData.step3?.formation2].filter(f => f && f.trim());
+    if (formations.length > 0) {
+        summary += `- Formations déjà explorées : ${formations.join(', ')}\n`;
+    }
+    if (journalData.step10?.soft_skills_profile) {
+        summary += `- Résumé de ses compétences : "${journalData.step10.soft_skills_profile}"\n`;
+    }
+    if (summary === "Voici un résumé du profil de l'élève :\n") {
+        return "L'élève n'a pas encore rempli suffisamment son profil. Base-toi sur le bon sens et l'idée qu'il propose.";
+    }
+    return summary;
+}
         function getCompletionSummary() {
-            let completed = [];
-            let inProgress = [];
+    let completed = [];
+    let inProgress = [];
 
-            allSteps.forEach(step => {
-                if (['journal', 'retroplanning', 'guide'].includes(step.id)) return;
+    allSteps.forEach(step => {
+        if (['journal', 'retroplanning', 'guide'].includes(step.id)) return;
 
-                if (isStepComplete(step.id)) {
-                    completed.push(`'${step.icon} ${step.title}'`);
-                } else {
-                    const stepData = journalData[step.id];
-                    if (stepData) {
-                        const values = Object.values(stepData);
-                        const filledCount = values.filter(v => {
-                            if (Array.isArray(v)) return v.length > 0;
-                            return v && v.toString().trim() !== '';
-                        }).length;
-                        if (filledCount > 0) {
-                            inProgress.push(`'${step.icon} ${step.title}'`);
-                        }
-                    }
+        if (isStepComplete(step.id)) {
+            completed.push(`'${step.title}'`);
+        } else {
+            const stepData = journalData[step.id];
+            if (stepData && typeof stepData === 'object') { // On vérifie que stepData est un objet
+                const values = Object.values(stepData);
+                const filledCount = values.filter(v => {
+                    if (Array.isArray(v)) return v.length > 0;
+                    return v && v.toString().trim() !== '';
+                }).length;
+                if (filledCount > 0) {
+                    inProgress.push(`'${step.title}'`);
                 }
-            });
-
-            let summary = "Voici un résumé de sa progression dans l'application :\n";
-            if (completed.length > 0) {
-                summary += `- Étapes déjà terminées : ${completed.join(', ')}.\n`;
             }
-            if (inProgress.length > 0) {
-                summary += `- Étapes actuellement en cours : ${inProgress.join(', ')}.\n`;
-            }
-            if (completed.length === 0 && inProgress.length === 0) {
-                summary += "- L'élève n'a pas encore commencé à explorer les étapes.\n";
-            }
-            return summary;
         }
+    });
+
+    let summary = "Voici un résumé de sa progression dans l'application :\n";
+    if (completed.length > 0) {
+        summary += `- Étapes déjà terminées : ${completed.join(', ')}.\n`;
+    }
+    if (inProgress.length > 0) {
+        summary += `- Étapes actuellement en cours : ${inProgress.join(', ')}.\n`;
+    }
+    if (completed.length === 0 && inProgress.length === 0) {
+        summary += "- L'élève n'a pas encore commencé à explorer les étapes.\n";
+    }
+    return summary;
+}
 
     async function grantXp(points) {
             if (!journalData) return;
@@ -1689,7 +1728,9 @@ async function callGeminiAPI(prompt, useGrounding = false, isJson = false) {
     }
 }
        
-async function showView(viewName) {    
+async function showView(viewName) {  
+    authContainer.style.display = 'none';
+    mainApp.style.display = 'block';
     mainApp.innerHTML = '';
     
     if (viewName === 'menu') {
@@ -1763,21 +1804,23 @@ function createMenuView() {
     const userGender = currentUserInfo.gender || 'autre';
     const rankTitle = rankNames[currentLevel] ? (rankNames[currentLevel][userGender] || rankNames[currentLevel]['autre']) : 'Débutant';
     
-let badgesHTML = '<div class="flex flex-col items-center justify-center h-full w-full">';
+let badgesHTML = '<div class="flex flex-col items-center justify-center h-full w-full text-center p-2">';
 const earnedBadges = journalData.earned_badges || [];
 
 if (earnedBadges.length > 0) {
-    // S'il y a des badges, on affiche le titre et les icônes
-    badgesHTML += '<h3 class="font-bold text-azimut-darkblue text-xs mb-3">Mes Badges</h3>';
-    badgesHTML += '<div class="flex justify-center gap-2">';
-    badgesHTML += earnedBadges.map(key => {
-        const badge = badgesConfig[key];
-        return badge ? `<span title="${badge.title}" class="text-3xl cursor-default">${badge.icon}</span>` : '';
-    }).join('');
-    badgesHTML += '</div>';
+    // On récupère le DERNIER badge obtenu dans la liste
+    const lastBadgeKey = earnedBadges[earnedBadges.length - 1];
+    const lastBadge = badgesConfig[lastBadgeKey];
+
+    if (lastBadge) {
+        // On affiche l'icône et le titre du dernier badge
+        badgesHTML += `<span class="text-5xl">${lastBadge.icon}</span>`;
+        badgesHTML += `<p class="font-bold text-azimut-darkblue text-xs mt-2 leading-tight">${lastBadge.title}</p>`;
+    }
 } else {
-    // Sinon, on affiche votre logo
-badgesHTML += `<img src="logo-badges.png" alt="Badge à débloquer" class="w-full h-full object-cover rounded-full">`;}
+    // S'il n'y a aucun badge, on affiche le logo
+    badgesHTML += `<img src="logo-badges.png" alt="Badge à débloquer" class="w-full h-full object-cover rounded-full">`;
+}
 badgesHTML += '</div>';
 
 
@@ -1966,10 +2009,47 @@ div.innerHTML = levelDisplayHTML + progressBarHTML + guideCardHTML + `<div class
     });
 
     div.querySelector('#radarSurpriseBtn').addEventListener('click', async () => {
-        loader.style.display = 'block';
-        resultDiv.classList.add('hidden');
-        // ... (le reste du code du radar surprise est long et reste inchangé)
-    });
+    loader.style.display = 'block';
+    resultDiv.classList.add('hidden');
+    let previousSuggestions = "Aucune suggestion précédente.";
+    if (journalData.radar_history && journalData.radar_history.length > 0) {
+        const suggestionNames = journalData.radar_history.map(item => item.sujet);
+        previousSuggestions = `L'élève a déjà reçu les suggestions suivantes : ${suggestionNames.join(', ')}.`;
+    }
+    
+    
+    const profileSummary = getProfileSummary();
+    const completionSummary = getCompletionSummary();
+    const randomAngle = creativeAngles[Math.floor(Math.random() * creativeAngles.length)];
+
+    const prompt = `Agis comme un conseiller d'orientation et coach créatif. Ta mission est de débloquer la réflexion d'un lycéen en lui proposant une piste inattendue mais pertinente.
+
+    Voici les données sur l'élève :
+    1.  Son Profil : ${profileSummary}
+    2.  Sa progression : ${completionSummary}
+    3.  IMPORTANT : ${previousSuggestions}
+
+    Ta mission est de lui proposer UNE seule piste (un métier ou un secteur) en lien avec cet angle créatif que tu dois obligatoirement utiliser : "${randomAngle}".
+
+        **RÈGLE D'OR : Ta proposition doit être IMPÉRATIVEMENT différente des suggestions précédentes.** Ne te répète jamais.
+
+    Structure ta réponse en 4 points clairs :
+    1.  **La Piste Suggérée :** (Nom du métier/secteur)
+    2.  **Pourquoi ça pourrait "matcher" avec toi :** (Explique en 5-6 phrases le lien entre son profil et ta suggestion).
+    3.  **Les études à envisager :** (Propose des filières ou des formations en lien avec la piste suggérée).
+    4.  **Ta Première Mission d'Exploration :** (Donne 2 petites actions concrètes et simples dans le monde réel et propose lui d'explorer cette piste, en citant une ou deux étapes de l'application comme "Les Fondations" ou "L'Expérience" ou le "catalogue" et encore "l'actu").
+
+    Le ton doit être percutant, bienveillant et donner envie d'explorer. Adresse-toi directement à lui en utilisant "tu".`;
+
+    const result = await callGeminiAPI(prompt, true)
+    
+    loader.style.display = 'none';
+    resultDiv.classList.remove('hidden');
+    
+    // Vous devez ajouter ici le code pour afficher le résultat, similaire à celui du bouton "Analyser"
+    // Par exemple :
+    resultDiv.innerHTML = `<p class="whitespace-pre-wrap">${result}</p><div class="flex gap-4 mt-4 pt-4 border-t"><button class="flex-1 bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700 transition" onclick="this.textContent='Enregistré !'; this.disabled=true;">Carrément, super idée, je garde</button><button class="flex-1 bg-slate-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-slate-600 transition" onclick="this.parentElement.parentElement.classList.add('hidden')">Pas intéressé</button></div>`;
+});
 
     // On cible tous les boutons de déconnexion (mobile et desktop)
     div.querySelectorAll('.js-logout').forEach(button => {
@@ -2993,6 +3073,7 @@ function createStep3View() {
             resultDiv.value = ''; loader.style.display = 'block';
 
             const prompt = `Agis comme un examinateur bienveillant. Un lycéen s'intéresse à la formation : "${formation}". Il pense que les 3 mots-clés qui la décrivent le mieux sont : "${keywords}". Évalue sa réponse en te basant sur les "attendus" officiels de cette formation. Dis-lui si ses mots sont pertinents et propose des alternatives plus précises.`;
+            console.log("--- PROMPT ENVOYÉ À L'IA ---", prompt);
             const result = await callGeminiAPI(prompt, true);
             
             loader.style.display = 'none'; resultDiv.value = result;
@@ -5398,7 +5479,7 @@ async function createJournalView() {
                 </button>
             </div>
         </div>
-    `;
+`;
 
     // -- Fil Rouge --
     const filRougeEl = document.createElement('div');
@@ -5843,6 +5924,15 @@ async function createJournalView() {
             targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     });
+
+    const deleteSection = document.createElement('div');
+    deleteSection.className = 'text-center mt-12 pt-8 border-t border-border-subtle';
+    deleteSection.innerHTML = `
+        <button onclick="deleteUserAccount()" class="text-sm text-slate-500 hover:text-red-600 hover:underline transition-colors">
+            Supprimer mon compte et toutes mes données
+        </button>
+    `;
+    div.appendChild(deleteSection);
 
     return div;
 }
