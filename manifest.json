@@ -1,6 +1,6 @@
 {
-  "name": "Mon Explor'Orientation",
-  "short_name": "Explor'O",
+  "name": "OrIAntation",
+  "short_name": "OrIAntation",
   "description": "Votre compagnon d'orientation personnel pour le lycée.",
   "start_url": "/index.html",
   "display": "standalone",
