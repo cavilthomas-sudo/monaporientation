@@ -2,7 +2,7 @@
 
 // sw.js
 
-const CACHE_VERSION = 'v5'; // <-- NOTEZ LE NOUVEAU NUMÉRO DE VERSION
+const CACHE_VERSION = 'v6'; // <-- NOTEZ LE NOUVEAU NUMÉRO DE VERSION
 const CACHE_NAME = `oriantation-cache-${CACHE_VERSION}`;
 const URLS_TO_CACHE = [
   '/',
