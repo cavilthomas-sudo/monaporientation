@@ -2144,12 +2144,20 @@ badgesHTML += '</div>';
                     statusSymbol = '<span class="ml-2 text-green-500 font-bold">✔</span>';
                 } else {
                     const stepData = journalData[step.id];
-                    const values = Object.values(stepData);
-                    const filledCount = values.filter(v => v && v.toString().trim() !== '').length;
-                    if (filledCount > 0) {
-                        // Coche orange pour les étapes en cours
-                        statusSymbol = '<span class="ml-2 text-orange-400 font-bold">✔</span>';
-                    }
+const values = Object.values(stepData);
+const filledCount = values.filter(v => {
+    // On ignore les valeurs nulles ou indéfinies
+    if (v === null || v === undefined) return false;
+    // Si c'est un objet (ou un tableau), on vérifie qu'il n'est pas vide
+    if (typeof v === 'object') {
+        return Object.keys(v).length > 0;
+    }
+    // Pour les chaînes de caractères et les nombres, on vérifie qu'ils ne sont pas vides
+    return v.toString().trim() !== '';
+}).length;
+if(filledCount > 0) {
+    statusSymbol = '<span class="ml-2 text-orange-400 font-bold">✔</span>';
+}
                 }
             }
         
