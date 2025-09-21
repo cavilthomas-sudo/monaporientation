@@ -7066,6 +7066,58 @@ backBtn.addEventListener('click', backAction);
     
     return div;
 }
+
+let newWorker;
+
+// 1. On vérifie les mises à jour du Service Worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg) {
+            reg.addEventListener('updatefound', () => {
+                newWorker = reg.installing;
+                newWorker.addEventListener('statechange', () => {
+                    // Si un nouveau SW est prêt et en attente, on prépare la notification
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        showUpdateNotification();
+                    }
+                });
+            });
+        }
+    });
+}
+
+// 2. Fonction pour afficher la bannière
+function showUpdateNotification() {
+    const notification = document.getElementById('update-notification');
+    const reloadButton = document.getElementById('reload-button');
+
+    if (notification && reloadButton) {
+        notification.classList.remove('hidden');
+        reloadButton.addEventListener('click', () => {
+            // On envoie un message au SW pour qu'il s'active, puis on recharge la page
+            newWorker.postMessage({ action: 'skipWaiting' });
+            window.location.reload();
+        });
+    }
+}
+
+// 3. (Optionnel mais recommandé) Recharger la page quand un nouveau SW prend le contrôle
+//    Ceci garantit que la page est toujours synchronisée avec le SW actif.
+let refreshing;
+navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    window.location.reload();
+    refreshing = true;
+});
     </script>
+    
 </body>
+
+<div id="update-notification" class="hidden fixed bottom-4 right-4 bg-OrIAntation-darkblue text-white p-4 rounded-lg shadow-lg flex items-center gap-4 z-50">
+    <span>Une nouvelle version est disponible !</span>
+    <button id="reload-button" class="bg-OrIAntation-orange font-bold py-1 px-3 rounded hover:bg-amber-600">
+        Mettre à jour
+    </button>
+</div>
+
 </html>

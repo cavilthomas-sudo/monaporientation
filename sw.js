@@ -1,9 +1,10 @@
-// sw.js
+// sw.js - Version améliorée avec Stale-While-Revalidate
 
-// sw.js
-
-const CACHE_VERSION = 'v6'; // <-- NOTEZ LE NOUVEAU NUMÉRO DE VERSION
+// On incrémente la version pour déclencher la mise à jour
+const CACHE_VERSION = 'v7';
 const CACHE_NAME = `oriantation-cache-${CACHE_VERSION}`;
+
+// Vos fichiers essentiels restent les mêmes
 const URLS_TO_CACHE = [
   '/',
   '/index.html',
@@ -13,56 +14,68 @@ const URLS_TO_CACHE = [
   '/manifest.json'
 ];
 
+// L'étape d'installation ne change pas, elle est déjà très bien
 self.addEventListener('install', event => {
-  console.log(`[SW v${CACHE_VERSION}] Installation...`);
+  console.log(`[SW ${CACHE_NAME}] Installation...`);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log(`[SW v${CACHE_VERSION}] Mise en cache des fichiers de base.`);
+        console.log(`[SW ${CACHE_NAME}] Mise en cache de l'App Shell.`);
         return cache.addAll(URLS_TO_CACHE);
       })
-      .then(() => self.skipWaiting())
+      .then(() => self.skipWaiting()) // Force l'activation
   );
 });
 
+// L'étape d'activation ne change pas non plus, elle est parfaite
 self.addEventListener('activate', event => {
-  console.log(`[SW v${CACHE_VERSION}] Activation...`);
+  console.log(`[SW ${CACHE_NAME}] Activation...`);
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheName !== CACHE_NAME) {
-            console.log(`[SW v${CACHE_VERSION}] Ancien cache supprimé :`, cacheName);
+            console.log(`[SW ${CACHE_NAME}] Ancien cache supprimé :`, cacheName);
             return caches.delete(cacheName);
           }
         })
       );
-    }).then(() => {
-        console.log(`[SW v${CACHE_VERSION}] Prêt à prendre le contrôle !`);
-        return self.clients.claim();
-    })
+    }).then(() => self.clients.claim()) // Prend le contrôle
   );
 });
 
+// --- C'EST ICI QUE TOUT CHANGE : L'ÉVÉNEMENT FETCH ---
 self.addEventListener('fetch', event => {
-  const log = msg => console.log(`[SW v${CACHE_VERSION}] Fetch: ${msg}`);
-  
-  if (event.request.mode === 'navigate') {
-    log(`Requête de navigation (Network First) pour ${event.request.url}`);
-    event.respondWith(
-      fetch(event.request).catch(() => {
-        log(`Échec réseau, service depuis le cache : index.html`);
-        return caches.match('index.html');
-      })
-    );
+  const { request } = event;
+
+  // On ignore les requêtes qui ne sont pas des GET (ex: POST vers Firebase)
+  // On ignore aussi les requêtes des extensions Chrome, qui peuvent causer des erreurs.
+  if (request.method !== 'GET' || request.url.startsWith('chrome-extension://')) {
     return;
   }
 
-  log(`Requête d'asset (Cache First) pour ${event.request.url}`);
+  // Stratégie Stale-While-Revalidate
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        return response || fetch(event.request);
-      })
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.match(request).then(cachedResponse => {
+        
+        // 1. On lance la requête réseau en parallèle
+        const fetchPromise = fetch(request).then(networkResponse => {
+          // Si la requête réussit, on met à jour le cache avec la nouvelle version
+          if (networkResponse.ok) {
+            cache.put(request, networkResponse.clone());
+          }
+          return networkResponse;
+        }).catch(error => {
+          // La requête réseau a échoué, on ne fait rien, l'utilisateur a déjà la version en cache (si elle existe)
+          console.warn(`[SW ${CACHE_NAME}] Échec de la requête réseau pour ${request.url}`, error);
+        });
+
+        // 2. On retourne la réponse du cache immédiatement si elle existe.
+        // Si elle n'existe pas, on attend la réponse du réseau.
+        // C'est ce qui rend l'application fonctionnelle hors ligne dès le premier chargement.
+        return cachedResponse || fetchPromise;
+      });
+    })
   );
 });
