@@ -2155,25 +2155,18 @@ const filledCount = values.filter(v => {
     // Pour les chaînes de caractères et les nombres, on vérifie qu'ils ne sont pas vides
     return v.toString().trim() !== '';
 }).length;
+
+if (step.id === 'step7') {
+            console.log("--- DÉBOGAGE OBLIGATOIRE --- Étape 'Fact Checking' (step7)");
+            console.log("Valeurs analysées :", values);
+            console.log("Nombre de champs considérés comme remplis :", filledCount);
+        }
+
 if(filledCount > 0) {
     statusSymbol = '<span class="ml-2 text-orange-400 font-bold">✔</span>';
 }
                 }
             }
-        
-        
-        if (!['journal', 'retroplanning', 'step12'].includes(step.id) && journalData[step.id]) {
-             if(isStepComplete(step.id)){
-                 statusSymbol = '<span class="ml-2 text-green-500 font-bold">✔</span>';
-             } else {
-                const stepData = journalData[step.id];
-                const values = Object.values(stepData);
-                const filledCount = values.filter(v => v && v.toString().trim() !== '').length;
-                if(filledCount > 0) {
-                    statusSymbol = '<span class="ml-2 text-orange-400 font-bold">✔</span>';
-                }
-             }
-        }
         
         return `
          <div onclick="window.showView('${step.id}')" class="step-card bg-white p-6 rounded-xl shadow-md border border-border-subtle cursor-pointer flex flex-col items-center space-y-4 text-center w-full sm:w-[calc(50%-1.5rem)] lg:w-[calc(33.333%-1rem)]">
