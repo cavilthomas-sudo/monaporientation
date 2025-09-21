@@ -9,6 +9,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="logo_180.png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
     tailwind.config = {
         theme: {
@@ -1081,62 +1082,53 @@ function createSimpleModal(title, contentHTML) {
             }
 
            onAuthStateChanged(auth, user => {
-               const chatbotToggle = document.getElementById('chatbot-toggle');
-               const floatingBackBtn = document.getElementById('floatingBackBtn');
+    const chatbotToggle = document.getElementById('chatbot-toggle');
+    const floatingBackBtn = document.getElementById('floatingBackBtn');
+    
+    // ... (Le code de vérification d'email dans l'URL ne change pas)...
 
-                // On gère la vérification d'email ici car elle peut se produire
-                // alors que l'utilisateur est techniquement "connecté mais non vérifié"
-               if (mode === 'verifyEmail' && actionCode) {
-                    try {
-                        applyActionCode(auth, actionCode).then(async () => {
-                             if (auth.currentUser) {
-                                await auth.currentUser.reload();
-                             }
-                             showInfoModal(
-                                "Vérification Réussie !",
-                                "Votre adresse e-mail a été validée. Vous allez maintenant être redirigé vers l'application.",
-                                window.location.pathname, // Redirige vers la page de base
-                                3000
-                            );
-                        });
-                    } catch (error) {
-                        showInfoModal("Erreur", "Le lien de vérification est invalide ou a expiré.");
-                    }
-                    return; // On arrête le traitement pour laisser la modale s'afficher
-               }
+    if (user) {
+        // --- NOUVEAU : On ajoute le "Mode Développeur" ---
+        const isDevMode = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-
-               if (user) {
-                   if (user.emailVerified) {
-                       // --- UTILISATEUR CONNECTÉ ET VÉRIFIÉ ---
-                       if (chatbotToggle) chatbotToggle.style.display = 'flex';
-                       currentUserId = user.uid;
-                       authContainer.style.display = 'none';
-                       mainApp.style.display = 'block';
-                       document.body.classList.add('logged-in');
-                       loadData();
-                   } else {
-                       // --- UTILISATEUR CONNECTÉ MAIS NON VÉRIFIÉ ---
-                       if (chatbotToggle) chatbotToggle.style.display = 'none';
-                       if (floatingBackBtn) floatingBackBtn.style.display = 'none';
-                       document.body.classList.remove('logged-in');
-                       showVerificationView(user); // On affiche la page d'attente
-                   }
-               } else {
-                   // --- UTILISATEUR DÉCONNECTÉ (et sans action spéciale dans l'URL) ---
-                   if (chatbotToggle) chatbotToggle.style.display = 'none';
-                   if (floatingBackBtn) floatingBackBtn.style.display = 'none';
-                   
-                   currentUserId = null;
-                   userGradeLevel = null;
-                   currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
-                   journalData = {}; 
-                   authContainer.style.display = 'block';
-                   mainApp.style.display = 'none';
-                   document.body.classList.remove('logged-in')
-                   showLoginView();
-               }
-           });
+        // --- MODIFIÉ : On ajoute la condition "|| isDevMode" ---
+        if (user.emailVerified || isDevMode) {
+            
+            // NOUVEAU : Un message s'affichera dans la console du navigateur pour vous le rappeler
+            if (isDevMode) {
+                console.log('%c⚠️ MODE DÉVELOPPEUR ACTIF : Vérification d\'email contournée.', 'color: orange; font-weight: bold;');
+            }
+            
+            // --- UTILISATEUR CONNECTÉ ET VÉRIFIÉ (ou en mode dev) ---
+            if (chatbotToggle) chatbotToggle.style.display = 'flex';
+            currentUserId = user.uid;
+            authContainer.style.display = 'none';
+            mainApp.style.display = 'block';
+            document.body.classList.add('logged-in');
+            loadData();
+            
+        } else {
+            // --- UTILISATEUR CONNECTÉ MAIS NON VÉRIFIÉ (en production) ---
+            if (chatbotToggle) chatbotToggle.style.display = 'none';
+            if (floatingBackBtn) floatingBackBtn.style.display = 'none';
+            document.body.classList.remove('logged-in');
+            showVerificationView(user);
+        }
+    } else {
+        // --- UTILISATEUR DÉCONNECTÉ ---
+        if (chatbotToggle) chatbotToggle.style.display = 'none';
+        if (floatingBackBtn) floatingBackBtn.style.display = 'none';
+        
+        currentUserId = null;
+        userGradeLevel = null;
+        currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
+        journalData = {}; 
+        authContainer.style.display = 'block';
+        mainApp.style.display = 'none';
+        document.body.classList.remove('logged-in')
+        showLoginView();
+    }
+});
        }
 
  function extractJsonFromString(str) {
@@ -2074,12 +2066,17 @@ badgesHTML += '</div>';
     const levelDisplayHTML = `
     <div class="mb-10 bg-white p-6 rounded-2xl shadow-lg border border-border-subtle">
     
-        <div class="hidden md:flex justify-between items-center gap-6">
-            <div class="relative w-32 h-32 mx-auto cursor-pointer flex-shrink-0 js-xp-gauge">
-                <canvas id="xp-chart-desktop"></canvas>
-                <div class="absolute inset-0 flex flex-col items-center justify-center text-center"><span class="font-bold text-2xl text-OrIAntation-darkblue">${xpInCurrentLevel}</span><span class="text-xs text-slate-500">/${xpNeededForLevel} XP</span></div>
+        <div class="flex flex-wrap justify-center items-center gap-6 md:flex-nowrap md:justify-between">
+
+            <div class="relative w-32 h-32 cursor-pointer flex-shrink-0 js-xp-gauge order-2 md:order-1">
+                <canvas id="xp-chart"></canvas>
+                <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+                    <span class="font-bold text-2xl text-OrIAntation-darkblue">${xpInCurrentLevel}</span>
+                    <span class="text-xs text-slate-500">/${xpNeededForLevel} XP</span>
+                </div>
             </div>
-            <div class="text-center">
+
+            <div class="text-center w-full md:w-auto order-1 md:order-2">
                 <h1 class="text-3xl font-bold text-OrIAntation-darkblue">Choisis ton cap, ${capitalizeWords(currentUserInfo.firstName)} !</h1>
                 <p class="text-slate-500 mt-2 text-sm">en classe de <span class="font-semibold text-cyan-700">${userGradeLevel ? userGradeLevel.charAt(0).toUpperCase() + userGradeLevel.slice(1) : ''}</span> à <span class="font-semibold text-cyan-700">${capitalizeWords(currentUserInfo.schoolName)}</span></p>
                 <h2 class="text-xl font-bold text-cyan-700 mt-4">Niveau d'Exploration ${currentLevel} : ${rankTitle}</h2>
@@ -2089,34 +2086,14 @@ badgesHTML += '</div>';
                     <button class="text-sm text-cyan-700 hover:underline js-logout">Se déconnecter</button>
                 </div>
             </div>
-            <div class="w-32 h-32 mx-auto bg-background-light rounded-full border flex-col items-center justify-center p-0 cursor-pointer flex-shrink-0 js-badges-container">
+
+            <div class="w-32 h-32 bg-background-light rounded-full border flex-col items-center justify-center p-0 cursor-pointer flex-shrink-0 js-badges-container order-3 md:order-3">
                 ${badgesHTML}
             </div>
-        </div>
-
-        <div class="flex flex-col items-center gap-6 md:hidden">
-            <div class="text-center">
-                <h1 class="text-3xl font-bold text-OrIAntation-darkblue whitespace-nowrap">Choisis ton cap, ${capitalizeWords(currentUserInfo.firstName)} !</h1>
-                <p class="text-slate-500 mt-2 text-sm">en classe de <span class="font-semibold text-cyan-700">${userGradeLevel ? userGradeLevel.charAt(0).toUpperCase() + userGradeLevel.slice(1) : ''}</span> à <span class="font-semibold text-cyan-700">${capitalizeWords(currentUserInfo.schoolName)}</span></p>
-                <h2 class="text-xl font-bold text-cyan-700 mt-4">Niveau d'Exploration ${currentLevel} : ${rankTitle}</h2>
-                <div class="flex justify-center items-center gap-2 mt-3 text-sm whitespace-nowrap">
-                    <button class="text-cyan-700 hover:underline js-change-grade">Modifier ma classe</button>
-                    <span class="text-slate-400">|</span>
-                    <button class="text-sm text-cyan-700 hover:underline js-logout">Se déconnecter</button>
-                </div>
-            </div>
-            <div class="w-full flex justify-around items-center">
-                <div class="relative w-32 h-32 cursor-pointer flex-shrink-0 js-xp-gauge">
-                    <canvas id="xp-chart-mobile"></canvas>
-                    <div class="absolute inset-0 flex flex-col items-center justify-center text-center"><span class="font-bold text-2xl text-OrIAntation-darkblue">${xpInCurrentLevel}</span><span class="text-xs text-slate-500">/${xpNeededForLevel} XP</span></div>
-                </div>
-                <div class="w-32 h-32 bg-background-light rounded-full border flex-col items-center justify-center p-0 cursor-pointer flex-shrink-0 js-badges-container">
-                    ${badgesHTML}
-                </div>
-            </div>
+            
         </div>
     </div>
-    `;
+`;
     
     const allStepsForLevel = allSteps.filter(step => step.levels.includes(userGradeLevel));
     const completedStepsCount = allStepsForLevel.filter(step => !['journal', 'retroplanning', 'step12'].includes(step.id) && isStepComplete(step.id)).length;
@@ -2212,33 +2189,32 @@ if(filledCount > 0) {
         </div>
     `;
 // On remplace "grid..." par "flex flex-wrap justify-center..."
-div.innerHTML = levelDisplayHTML + progressBarHTML + guideCardHTML + `<div class="flex flex-wrap justify-center gap-6 mt-8 w-full">${gridHTML}</div>` + radarHTML;    setTimeout(() => {
-        ['xp-chart-desktop', 'xp-chart-mobile'].forEach(chartId => {
-            const canvas = div.querySelector(`#${chartId}`);
-            if (canvas) {
-                const ctx = canvas.getContext('2d');
-                const xpRemaining = Math.max(0, xpNeededForLevel - xpInCurrentLevel);
-                new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        datasets: [{
-                            data: [xpInCurrentLevel, xpRemaining],
-                            backgroundColor: ['#f59e0b', '#e2e8f0'],
-                            borderColor: ['#ffffff', '#ffffff'],
-                            borderWidth: 2,
-                            circumference: 360,
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        cutout: '80%',
-                        plugins: { legend: { display: false }, tooltip: { enabled: false } }
-                    }
-                });
+div.innerHTML = levelDisplayHTML + progressBarHTML + guideCardHTML + `<div class="flex flex-wrap justify-center gap-6 mt-8 w-full">${gridHTML}</div>` + radarHTML;    
+
+setTimeout(() => {
+    const canvas = div.querySelector('#xp-chart'); // On cible le nouvel ID unique
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        const xpRemaining = Math.max(0, xpNeededForLevel - xpInCurrentLevel);
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [xpInCurrentLevel, xpRemaining],
+                    backgroundColor: ['#f59e0b', '#e2e8f0'],
+                    borderColor: ['#ffffff', '#ffffff'],
+                    borderWidth: 2,
+                    circumference: 360,
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '80%',
+                plugins: { legend: { display: false }, tooltip: { enabled: false } }
             }
         });
-    }, 0);
-
+    }
+}, 0);
     const loader = div.querySelector('#radarLoader');
     const resultDiv = div.querySelector('#radarResult');
     const radarInput = div.querySelector('#radarInput');
@@ -6753,10 +6729,11 @@ function isStepComplete(stepKey) {
             return `
 # Rôle et Persona (Ta seule identité)
 Tu es le "Copilote", l'IA conversationnelle de l'application "OrIAntation". Ton unique but est d'aider [PRÉNOM] à utiliser l'application pour construire son projet. Pense à toi comme un mentor jeune, dynamique et super sympa.
+- Le nom de ton application est **OrIAntation**. C'est le seul nom que tu dois utiliser. N'en invente JAMAIS un autre comme "Azimut" ou autre. C'est une règle non-négociable.
 
 # Ton Style (TA PRIORITÉ ABSOLUE)
 - **Ton :** Parle comme un jeune adulte, pas comme un prof. Utilise "tu", sois direct, chaleureux et encourageant.
-- **Emojis :** Utilise des emojis pour rendre tes messages funs et visuels. C'est essentiel ! 👍🚀💡😉🤔
+- **Emojis :** Utilise quelques emojis pour rendre tes messages funs et visuels. C'est essentiel ! 👍🚀💡😉🤔
 - **Proactivité :** Propose TOUJOURS une action suivante, de préférence en suggérant une étape pertinente de l'application.
 - **Varie tes intros !** Ne commence pas toujours tes réponses par "Hey [PRÉNOM] ! Alors...". Sois plus créatif. Exemples d'intros alternatives : "Bonne question, [PRÉNOM] ! Parlons de ça.", "Ah, [le sujet] ! C'est un sujet super intéressant. Voyons voir...", "Ok, c'est parti ! Pour [le sujet]..."
 
@@ -6853,7 +6830,7 @@ Dernière question de [PRÉNOM] : "${userInput}"
                  messageWrapper.classList.add('items-end', 'gap-2');
                  messageContent = `
                     <div class="bg-cyan-100 text-cyan-800 p-3 rounded-lg max-w-xs">
-                        <p>${linkify(text)}</p>
+                    <div class="prose prose-sm max-w-none text-cyan-800">${marked.parse(text)}</div>
                     </div>
                     <button class="save-chat-btn opacity-0 group-hover:opacity-100 transition text-slate-400 hover:text-primary-action p-1" title="Enregistrer dans le journal">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v12l-5-3-5 3V4z" /></svg>
