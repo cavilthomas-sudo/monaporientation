@@ -14,11 +14,11 @@
         theme: {
             extend: {
                 colors: {
-                    'azimut-darkblue': '#1A3263',
-                    'azimut-orange': '#FF8C00',
-                    'azimut-lightblue': '#3366CC',
-                    'azimut-green': '#66BB6A',
-                    'azimut-yellow': '#FFD700',
+                    'OrIAntation-darkblue': '#1A3263',
+                    'OrIAntation-orange': '#FF8C00',
+                    'OrIAntation-lightblue': '#3366CC',
+                    'OrIAntation-green': '#66BB6A',
+                    'OrIAntation-yellow': '#FFD700',
                     'primary-action': '#2C7A7B', // Votre cyan/turquoise pour les boutons
                     'secondary-accent': '#E05260', // Pour des éléments secondaires si besoin
                     'text-body': '#333333', // Texte général
@@ -186,7 +186,7 @@
 .comparison-table-wrapper th {
     background-color: #f8fafc; /* background-light */
     font-weight: 600;
-    color: #1A3263; /* azimut-darkblue */
+    color: #1A3263; /* OrIAntation-darkblue */
 }
 
 #chatbot-container {
@@ -199,7 +199,7 @@
     </style>
 </head>
 
-<body class="bg-background-light text-azimut-darkblue text-center">
+<body class="bg-background-light text-OrIAntation-darkblue text-center">
 
     <div id="authContainer" class="max-w-md mx-auto p-4 md:p-8 mt-10">
         <!-- L'interface d'authentification sera injectée ici -->
@@ -212,7 +212,7 @@
 
 <div id="guideRoleModal" style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900 bg-opacity-60">
     <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md text-center fade-in">
-        <h2 class="text-2xl font-bold text-azimut-darkblue mb-4">Qui êtes-vous ?</h2>
+        <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Qui êtes-vous ?</h2>
         <p class="text-slate-600 mb-8">Nous pouvons adapter la présentation du guide pour vous.</p>
         <div class="space-y-4">
 
@@ -261,8 +261,8 @@
     transform-gpu transition-opacity transition-transform duration-300 ease-in-out">
     
     <div class="relative flex items-center p-4 border-b bg-background-light rounded-t-2xl">
-        <h3 class="w-full text-center font-bold text-azimut-darkblue">🤖 Ton Coach Orientation</h3>
-        <button id="chatbot-close" class="absolute right-4 text-slate-500 hover:text-azimut-darkblue text-2xl">&times;</button>
+        <h3 class="w-full text-center font-bold text-OrIAntation-darkblue">🤖 Ton Coach Orientation</h3>
+        <button id="chatbot-close" class="absolute right-4 text-slate-500 hover:text-OrIAntation-darkblue text-2xl">&times;</button>
     </div>
 
     <div id="chat-messages" class="flex-1 p-4 overflow-y-auto chat-message-container"></div>
@@ -484,13 +484,13 @@ const allSteps = [
         const stepsConfig = {
     step0: { 
         stepKey: 'step0', title: 'Mieux se connaître', 
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-azimut-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>`,
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>`,
         description: `Toute bonne orientation commence par une bonne connaissance de soi. Réponds honnêtement à ces quelques questions pour dégager tes grandes tendances et obtenir une première analyse de ton profil.`,
         action: `<b>Ta mission :</b> Réponds aux 3 séries de questions pour que l'IA dresse ton portrait psychologique et révèle ton <b>Archétype de personnalité</b>. Pour une analyse encore plus fine, tu pourras ensuite, si tu le souhaites, utiliser le module "Pour aller plus loin" en bas de page pour croiser ces résultats avec ceux de tests externes.`
     },
     step1: {
         stepKey: 'step1', title: "Les Fondations avec l'Onisep", 
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-azimut-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18" /></svg>`,
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18" /></svg>`,
         description: `L'Onisep est le service public de l'Éducation Nationale. C'est LA référence pour une information objective et complète. <b>Ce que tu y trouves :</b> des fiches métiers détaillées, des interviews, et le service <b>MonOrientationEnLigne.fr</b> pour poser tes questions directement à des conseillers.`,
         action: `<b>Ta mission :</b> Explore jusqu'à 3 métiers. Pour chaque métier, utilise les boutons d'IA pour découvrir les débouchés, simuler une journée type et trouver des témoignages. Une fois que tu en as exploré au moins deux, utilise le "🔬 Comparateur de Métiers" pour générer un tableau de synthèse qui t'aidera à y voir plus clair !`,
         urls: [ { site: "Onisep.fr", url: 'https://www.onisep.fr' }, { site: "MonOrientationEnLigne.fr", url: 'https://www.monorientationenligne.fr/' } ],
@@ -505,7 +505,7 @@ const allSteps = [
     },
     step2: { 
     stepKey: 'step2', title: "Le simulateur de spécialités Horizons21",
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-azimut-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" /></svg>`,
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" /></svg>`,
 
     description: `Cet outil a été créé pour t'aider à faire le lien entre les spécialités du lycée et les études supérieures. <b>Intérêt principal :</b> Comprendre l'impact de tes choix de matières sur ton avenir et préparer tes choix pour l'année suivante.`,
     
@@ -543,7 +543,7 @@ const allSteps = [
     },
     step3: {
         stepKey: 'step3', title: 'Le Catalogue Parcoursup',
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-azimut-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.57 50.57 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" /></svg>`, description: `Bien plus qu'un site d'inscription, c'est le moteur de recherche le plus exhaustif sur les formations post-bac. <b>Ce qu'il faut absolument regarder :</b> les "attendus", la carte interactive, et les chiffres clés (taux d'accès, etc.).`,
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.57 50.57 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" /></svg>`, description: `Bien plus qu'un site d'inscription, c'est le moteur de recherche le plus exhaustif sur les formations post-bac. <b>Ce qu'il faut absolument regarder :</b> les "attendus", la carte interactive, et les chiffres clés (taux d'accès, etc.).`,
         action: `<b>Ta mission :</b> Trouve 2 formations qui t'intéressent sur Parcoursup. Pour chacune, copie-colle les "attendus", puis utilise le bouton "🔎 Mon profil correspond-il ?" pour obtenir un rapport de compatibilité personnalisé qui croise les données de tout ton parcours. Trouve ensuite 3 mots clés pour décrire cette formation. et clique sur l'✨ pour obtenir une analyse plus poussée. Enfin, n'hésite pas à sollciiter l'IA pour qu'elle te suggère des parcours alternatifs `,
         url: 'https://www.parcoursup.fr', site: 'Parcoursup.fr',
     fields: [
@@ -562,7 +562,7 @@ const allSteps = [
 },
     step4: {
         stepKey: 'step4', title: "L'Expérience avec Inspire",     
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-azimut-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.761 9.761 0 0 1-2.541-.358m-4.002 0A9.754 9.754 0 0 1 3 12c0-4.556 4.03-8.25 9-8.25a9.754 9.754 0 0 1 4.545 1.343" /></svg>`,
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.761 9.761 0 0 1-2.541-.358m-4.002 0A9.754 9.754 0 0 1 3 12c0-4.556 4.03-8.25 9-8.25a9.754 9.754 0 0 1 4.545 1.343" /></svg>`,
         description: `Cette plateforme te permet de discuter avec des étudiants "éclaireurs". <b>Intérêt principal :</b> Obtenir un retour d'expérience authentique et humain, au-delà des plaquettes officielles (ambiance, charge de travail, vie étudiante...).`,
         action: "<b>Ta mission :</b> Cherche 2 domaines d'études. Prépare une question précise, puis clique sur ✨ pour obtenir des suggestions de questions plus poussées à poser à un étudiant.",
         url: 'https://www.inspire-orientation.org', site: 'Inspire-orientation.org',
@@ -578,7 +578,7 @@ const allSteps = [
 
 step5: {
     stepKey: 'step5', title: "L'Actu",     
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-azimut-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z" /></svg>`,
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z" /></svg>`,
     description: `Des médias comme L'Étudiant.fr ou Studyrama.com apportent un autre regard sur le monde des études et des métiers. <b>Ce que tu peux y trouver :</b> des classements, des articles sur des secteurs qui recrutent, et des dossiers sur des filières.`,
     action: `<b>Ta mission :</b> Explore les sites de L'Étudiant.fr ou Studyrama.com. Trouve jusqu'à <b>trois</b> informations pertinentes pour ton projet, puis utilise le bouton ✨ pour que l'IA analyse tes trouvailles par rapport à ton profil.`,
     urls: [
@@ -597,7 +597,7 @@ step5: {
 
     step6: { 
         stepKey: 'step6', title: 'Préparer sa candidature',     
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-azimut-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>`,
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>`,
 
         description: `La rédaction du "projet de formation motivé" sur Parcoursup est une étape cruciale. Cet outil ne va pas écrire la lettre à ta place, mais t'aider à la structurer de manière claire et percutante.`,
         action: `<b>Ta mission :</b> Prépare jusqu'à deux projets de formation motivés. Pour chacun, renseigne la formation et tes motivations, puis clique sur "✨ Générer une structure". Ensuite, utilise l'atelier "💡 Améliorer mon paragraphe" pour transformer ton brouillon en un texte percutant grâce aux conseils du coach IA.`,
@@ -609,7 +609,7 @@ step5: {
      },
    step7: {
     stepKey: 'step7', title: 'Fact Checking',     
-    icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-azimut-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>`,
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>`,
 
     description: `Dans le monde de l'orientation, il est crucial de savoir démêler le vrai du faux. Cette étape te propose deux ateliers pour aiguiser ton esprit critique.`,
     action: `<b>Ta mission :</b> Choisis l'un des deux ateliers ci-dessous. Le premier te permet de tester tes connaissances générales sur un sujet. Le second te propose un quiz sur mesure, qui te questionne par rapport à ton propre profil.`,
@@ -617,7 +617,7 @@ step5: {
     },
     step8: { 
         stepKey: 'step8', title: 'Passer à l\'action',     
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-azimut-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.82m5.84-2.56a17.96 17.96 0 0 0-5.84-2.56m0 0A17.965 17.965 0 0 1 12 2.25a17.965 17.965 0 0 1 7.41 12.56m-7.41 0v4.82" /></svg>`,
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.82m5.84-2.56a17.96 17.96 0 0 0-5.84-2.56m0 0A17.965 17.965 0 0 1 12 2.25a17.965 17.965 0 0 1 7.41 12.56m-7.41 0v4.82" /></svg>`,
 
         description: `La recherche en ligne est une chose, la réalité du terrain en est une autre. L'avis d'un professionnel ou le témoignage d'un étudiant peut tout changer ! Cette étape t'aide à préparer ces rencontres et à trouver des contenus inspirants.`,
         action: `<b>Ta mission :</b> Transforme cette étape en ton gestionnaire de réseau ! Ajoute tes contacts personnels, puis utilise la recherche IA pour trouver au moins 5 contacts professionnels pour 3 métiers différents. Ensuite, utilise le menu déroulant pour suivre l'avancement de tes prises de contact et l'assistant "Stratégie de Contact" pour préparer tes échanges.`,
@@ -633,7 +633,7 @@ step5: {
     },
     step9: { 
         stepKey: 'step9', title: 'Anticiper la suite',     
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-azimut-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg>`,
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg>`,
 
         description: `L'orientation ne s'arrête pas à Parcoursup. Cette étape t'aide à te préparer pour la suite : que faire si ton vœu n°1 est refusé ? Et comment bien démarrer ta première année dans le supérieur ?`,
         action: "<b>Ta mission :</b> Utilise les deux outils ci-dessous. Le premier t'aide à construire un plan B solide. Le second te donne des conseils pour réussir ta future première année.",
@@ -646,7 +646,7 @@ step5: {
     },
    step10: { 
         stepKey: 'step10', title: 'Mon Portfolio de Compétences',     
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-azimut-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.07a2.25 2.25 0 0 1-2.25 2.25h-13.5a2.25 2.25 0 0 1-2.25-2.25v-4.07m18-4.32-7.5-5.25a2.25 2.25 0 0 0-2.013.003L2.25 9.83m18 4.32V9.83" /></svg>`,
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.07a2.25 2.25 0 0 1-2.25 2.25h-13.5a2.25 2.25 0 0 1-2.25-2.25v-4.07m18-4.32-7.5-5.25a2.25 2.25 0 0 0-2.013.003L2.25 9.83m18 4.32V9.83" /></svg>`,
 
         description: `Cette étape te propose deux ateliers complémentaires pour créer un portfolio qui te ressemble vraiment. Le premier t'aide à transformer tes expériences concrètes (stage, projet, passion, job...) en compétences valorisables pour tes candidatures. Le second est un 'détecteur' rapide qui te permet de révéler tes grandes compétences transversales (ta manière de travailler, de réfléchir...). L'ensemble te donnera une vision claire et unique de tes atouts.`,
         action: `<b>Ta mission est double :</b><br>
@@ -656,7 +656,7 @@ step5: {
     },
     step11: { 
         stepKey: 'step11', title: 'Rencontres sur mon Territoire',     
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-azimut-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>`,
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>`,
 
         description: `L'orientation se nourrit aussi de rencontres réelles. Utilise cet outil pour trouver des événements et des structures d'aide près de chez toi.`,
         action: "<b>Ta mission :</b> Indique ta ville ou ton département, puis lance les recherches pour trouver les prochaines opportunités de rencontres et les lieux d'information locaux.",
@@ -666,7 +666,7 @@ step5: {
     },
     step12: { 
         stepKey: 'step12', title: 'Simulateur Vie Étudiante',     
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-azimut-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 7.756a4.5 4.5 0 1 0 0 8.488M7.5 10.5h5.25m-5.25 3h5.25M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>`,
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 7.756a4.5 4.5 0 1 0 0 8.488M7.5 10.5h5.25m-5.25 3h5.25M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>`,
 
         description: `Choisir ses études, c'est aussi choisir un cadre de vie et un budget. Utilise cet outil pour estimer le coût de la vie dans la ville de ton choix et pour découvrir les principales aides financières auxquelles tu pourrais prétendre.`,
         action: `<b>Ta mission :</b> Renseigne une ville, puis lance les simulateurs pour obtenir une estimation de budget et des pistes pour les bourses.`,
@@ -746,7 +746,7 @@ function promptShareRole() {
 
         modal.innerHTML = `
             <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm text-center">
-                <h2 class="text-2xl font-bold text-azimut-darkblue mb-4">À qui souhaites-tu partager ?</h2>
+                <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">À qui souhaites-tu partager ?</h2>
                 <p class="text-slate-600 mb-8">Le ton du message sera adapté au destinataire.</p>
                 <div class="space-y-4">
                     <button id="share-for-parent" class="w-full bg-sky-600 text-white font-semibold py-3 rounded-lg hover:bg-sky-700 transition">Pour un proche (parent, tuteur...)</button>
@@ -781,7 +781,7 @@ function showShareMessageModal(shareLink, studentFirstName, role) {
     if (role === 'parent') {
         messageTemplate = `Bonjour [Nom du proche],
 
-Comme on en a parlé, j'utilise une application qui s'appelle Azimut pour construire mon projet d'orientation. J'aimerais beaucoup avoir ton avis.
+Comme on en a parlé, j'utilise une application qui s'appelle OrIAntation pour construire mon projet d'orientation. J'aimerais beaucoup avoir ton avis.
 
 J'ai activé le partage de mon 'Journal de Bord'. Ça te donnera une vue d'ensemble de ma réflexion et des pistes que j'explore.
 
@@ -795,7 +795,7 @@ ${studentFirstName}`;
     } else { // role === 'enseignant'
         messageTemplate = `Bonjour Monsieur/Madame [Nom de l'enseignant],
 
-Dans le cadre de mon travail sur mon projet d'orientation avec l'outil Azimut, je vous partage l'accès à mon Journal de Bord.
+Dans le cadre de mon travail sur mon projet d'orientation avec l'outil OrIAntation, je vous partage l'accès à mon Journal de Bord.
 
 Votre avis et vos conseils sur ma démarche seraient très précieux pour m'aider à avancer.
 
@@ -835,7 +835,7 @@ function showResetPasswordView(actionCode) {
 
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in">
-            <h2 class="text-2xl font-bold text-center text-azimut-darkblue mb-4">Réinitialiser votre mot de passe</h2>
+            <h2 class="text-2xl font-bold text-center text-OrIAntation-darkblue mb-4">Réinitialiser votre mot de passe</h2>
             <p class="text-center text-slate-500 mb-6">Veuillez entrer votre nouveau mot de passe.</p>
             <form id="resetPasswordForm">
                 <input id="newPassword" type="password" placeholder="Nouveau mot de passe" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
@@ -900,7 +900,7 @@ function showSurpriseModal(title, contentHTML, duration = null) {
             modal.innerHTML = `
                 <div class="bg-white rounded-2xl shadow-xl w-full max-w-md text-center p-6">
                     <span class="text-4xl">💡</span>
-                    <h3 class="font-bold text-azimut-darkblue text-lg mt-2 mb-4">${title}</h3>
+                    <h3 class="font-bold text-OrIAntation-darkblue text-lg mt-2 mb-4">${title}</h3>
                     <div class="text-slate-600 mb-6">${contentHTML}</div>
                     <button id="surprise-close-btn" class="w-full bg-cyan-600 text-white font-semibold py-2 rounded-lg hover:bg-cyan-700 transition">OK</button>
                 </div>
@@ -936,8 +936,8 @@ function createSimpleModal(title, contentHTML) {
             modal.innerHTML = `
                 <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col max-h-[80vh]">
                     <div class="flex items-center justify-between p-4 border-b bg-background-light rounded-t-2xl">
-                        <h3 class="font-bold text-azimut-darkblue text-lg">${title}</h3>
-                        <button id="simple-modal-close" class="text-slate-500 hover:text-azimut-darkblue text-2xl">×</button>
+                        <h3 class="font-bold text-OrIAntation-darkblue text-lg">${title}</h3>
+                        <button id="simple-modal-close" class="text-slate-500 hover:text-OrIAntation-darkblue text-2xl">×</button>
                     </div>
                     <div class="p-6 overflow-y-auto">
                         ${contentHTML}
@@ -970,10 +970,10 @@ function createSimpleModal(title, contentHTML) {
 
                 modal.innerHTML = `
                     <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm text-center p-6">
-                        <h3 class="font-bold text-azimut-darkblue text-lg mb-4">Confirmation requise</h3>
+                        <h3 class="font-bold text-OrIAntation-darkblue text-lg mb-4">Confirmation requise</h3>
                         <p class="text-slate-600 mb-6">${question}</p>
                         <div class="flex gap-4">
-                            <button id="confirm-cancel-btn" class="flex-1 bg-slate-200 text-azimut-darkblue font-semibold py-2 px-4 rounded-lg hover:bg-slate-300 transition">Annuler</button>
+                            <button id="confirm-cancel-btn" class="flex-1 bg-slate-200 text-OrIAntation-darkblue font-semibold py-2 px-4 rounded-lg hover:bg-slate-300 transition">Annuler</button>
                             <button id="confirm-ok-btn" class="flex-1 bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition">Confirmer</button>
                         </div>
                     </div>
@@ -1207,11 +1207,11 @@ function showLoginView() {
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in">
             <img src="logo.png" alt="Logo OrIAntation" class="mx-auto h-auto w-auto">
-            <div class="p-4 bg-white text-azimut-darkblue text-center mb-6">
+            <div class="p-4 bg-white text-OrIAntation-darkblue text-center mb-6">
                 <p class="text-sm text-slate-600">
                     Tu te sens perdu ? dans le brouillard ? Noyé dans un océan d'informations ? Pas de panique, tu vas enfin pouvoir prendre les commandes de ton orientation ! Fais confiance à ton copilote IA pour te montrer des chemins de traverse que peu connaissent.
                 </p>
-                <p class="font-semibold text-azimut-darkblue mt-2">Choisis ton cap avec notre boussole 2.0 !!</p>
+                <p class="font-semibold text-OrIAntation-darkblue mt-2">Choisis ton cap avec notre boussole 2.0 !!</p>
             </div>
  <p class="text-center text-sm text-slate-500 mb-6">
                 Besoin d'aide pour commencer ? 
@@ -1257,7 +1257,7 @@ function showVerificationView(user) {
 
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in text-center">
-            <h2 class="text-2xl font-bold text-azimut-darkblue mb-4">Vérifiez votre adresse e-mail</h2>
+            <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Vérifiez votre adresse e-mail</h2>
             <p class="text-slate-600 mb-6">
     Un e-mail de vérification a été envoyé à <strong>${user.email}</strong>.
     Veuillez cliquer sur le lien qu'il contient pour activer votre compte.
@@ -1266,8 +1266,8 @@ function showVerificationView(user) {
 </p>
             <p id="resendMessage" class="text-sm text-green-600 mb-4"></p>
             <div class="space-y-4">
-                <button id="resendVerificationBtn" class="w-full bg-slate-200 text-azimut-darkblue font-semibold py-2 px-4 rounded-lg hover:bg-slate-300 transition">Renvoyer l'e-mail</button>
-                <button id="logoutFromVerificationBtn" class="w-full bg-slate-200 text-azimut-darkblue font-semibold py-2 px-4 rounded-lg hover:bg-slate-300 transition">Se déconnecter</button>
+                <button id="resendVerificationBtn" class="w-full bg-slate-200 text-OrIAntation-darkblue font-semibold py-2 px-4 rounded-lg hover:bg-slate-300 transition">Renvoyer l'e-mail</button>
+                <button id="logoutFromVerificationBtn" class="w-full bg-slate-200 text-OrIAntation-darkblue font-semibold py-2 px-4 rounded-lg hover:bg-slate-300 transition">Se déconnecter</button>
             </div>
         </div>
     `;
@@ -1299,7 +1299,7 @@ function showInfoModal(title, message, redirectUrl = null, duration = 0) {
 
     modal.innerHTML = `
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm text-center p-6">
-            <h3 class="font-bold text-azimut-darkblue text-lg mb-4">${title}</h3>
+            <h3 class="font-bold text-OrIAntation-darkblue text-lg mb-4">${title}</h3>
             <p class="text-slate-600 mb-6">${message}</p>
             <button id="info-modal-ok-btn" class="w-full bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">OK</button>
         </div>
@@ -1326,8 +1326,8 @@ function showInfoModal(title, message, redirectUrl = null, duration = 0) {
 function showForgotPasswordView() {
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in">
-            <img src="logo.png" alt="Logo Azimut" class="mx-auto h-48 w-auto mb-6">
-            <h2 class="text-2xl font-bold text-center text-azimut-darkblue mb-2">Mot de passe oublié ?</h2>
+            <img src="logo.png" alt="Logo OrIAntation" class="mx-auto h-48 w-auto mb-6">
+            <h2 class="text-2xl font-bold text-center text-OrIAntation-darkblue mb-2">Mot de passe oublié ?</h2>
             <p class="text-center text-slate-500 mb-6">Pas de panique ! Entrez votre e-mail pour recevoir un lien de réinitialisation.</p>
             <form id="forgotPasswordForm" class="mb-4">
                 <input id="email" type="email" placeholder="Adresse e-mail du compte" class="w-full p-3 mb-4 border border-slate-300 rounded-lg" required>
@@ -1364,8 +1364,8 @@ function showForgotPasswordView() {
 function showSignupView() {
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in">
-            <img src="logo.png" alt="Logo Azimut" class="mx-auto h-auto w-auto">
-            <p class="font-semibold text-azimut-darkblue mt-2 mb-6">Plutôt choisir que subir !</p>
+            <img src="logo.png" alt="Logo OrIAntation" class="mx-auto h-auto w-auto">
+            <p class="font-semibold text-OrIAntation-darkblue mt-2 mb-6">Plutôt choisir que subir !</p>
             <form id="signupForm" class="mb-4">
                 <input id="firstName" type="text" placeholder="Prénom" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
                 <input id="lastName" type="text" placeholder="Nom" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
@@ -1381,7 +1381,7 @@ function showSignupView() {
                 
                 <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4">
                     <p class="text-sm text-slate-700 mb-2">
-                        En créant votre compte, vous acceptez la <button type="button" id="showPrivacyPolicyFromSignup" class="font-semibold text-primary-action hover:underline">Politique de Confidentialité</button> de l'application Azimut.
+                        En créant votre compte, vous acceptez la <button type="button" id="showPrivacyPolicyFromSignup" class="font-semibold text-primary-action hover:underline">Politique de Confidentialité</button> de l'application OrIAntation.
                         Ceci autorise la collecte et l'utilisation de vos données pour personnaliser votre parcours d'orientation.
                     </p>
                     <div class="flex items-start">
@@ -1904,7 +1904,7 @@ window.deleteUserAccount = deleteUserAccount;
         function showGradeSelectionView() {
             mainApp.innerHTML = `
                 <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in text-center">
-                    <h1 class="text-2xl font-bold text-azimut-darkblue mb-4">Bienvenue, ${currentUserInfo.firstName} !</h1>
+                    <h1 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Bienvenue, ${currentUserInfo.firstName} !</h1>
                     <p class="text-slate-600 mb-6">Pour personnaliser ton parcours, sélectionne ta classe :</p>
                     <div class="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-4">
                         <button data-grade="seconde" class="grade-btn bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700">Seconde</button>
@@ -2052,7 +2052,7 @@ if (earnedBadges.length > 0) {
     if (lastBadge) {
         // On affiche l'icône et le titre du dernier badge
         badgesHTML += `<span class="text-5xl">${lastBadge.icon}</span>`;
-        badgesHTML += `<p class="font-bold text-azimut-darkblue text-xs mt-2 leading-tight">${lastBadge.title}</p>`;
+        badgesHTML += `<p class="font-bold text-OrIAntation-darkblue text-xs mt-2 leading-tight">${lastBadge.title}</p>`;
     }
 } else {
     // S'il n'y a aucun badge, on affiche le logo
@@ -2067,10 +2067,10 @@ badgesHTML += '</div>';
         <div class="hidden md:flex justify-between items-center gap-6">
             <div class="relative w-32 h-32 mx-auto cursor-pointer flex-shrink-0 js-xp-gauge">
                 <canvas id="xp-chart-desktop"></canvas>
-                <div class="absolute inset-0 flex flex-col items-center justify-center text-center"><span class="font-bold text-2xl text-azimut-darkblue">${xpInCurrentLevel}</span><span class="text-xs text-slate-500">/${xpNeededForLevel} XP</span></div>
+                <div class="absolute inset-0 flex flex-col items-center justify-center text-center"><span class="font-bold text-2xl text-OrIAntation-darkblue">${xpInCurrentLevel}</span><span class="text-xs text-slate-500">/${xpNeededForLevel} XP</span></div>
             </div>
             <div class="text-center">
-                <h1 class="text-3xl font-bold text-azimut-darkblue">Choisis ton cap, ${capitalizeWords(currentUserInfo.firstName)} !</h1>
+                <h1 class="text-3xl font-bold text-OrIAntation-darkblue">Choisis ton cap, ${capitalizeWords(currentUserInfo.firstName)} !</h1>
                 <p class="text-slate-500 mt-2 text-sm">en classe de <span class="font-semibold text-cyan-700">${userGradeLevel ? userGradeLevel.charAt(0).toUpperCase() + userGradeLevel.slice(1) : ''}</span> à <span class="font-semibold text-cyan-700">${capitalizeWords(currentUserInfo.schoolName)}</span></p>
                 <h2 class="text-xl font-bold text-cyan-700 mt-4">Niveau d'Exploration ${currentLevel} : ${rankTitle}</h2>
                 <div class="flex justify-center items-center gap-2 mt-3 text-sm whitespace-nowrap">
@@ -2086,7 +2086,7 @@ badgesHTML += '</div>';
 
         <div class="flex flex-col items-center gap-6 md:hidden">
             <div class="text-center">
-                <h1 class="text-3xl font-bold text-azimut-darkblue whitespace-nowrap">Choisis ton cap, ${capitalizeWords(currentUserInfo.firstName)} !</h1>
+                <h1 class="text-3xl font-bold text-OrIAntation-darkblue whitespace-nowrap">Choisis ton cap, ${capitalizeWords(currentUserInfo.firstName)} !</h1>
                 <p class="text-slate-500 mt-2 text-sm">en classe de <span class="font-semibold text-cyan-700">${userGradeLevel ? userGradeLevel.charAt(0).toUpperCase() + userGradeLevel.slice(1) : ''}</span> à <span class="font-semibold text-cyan-700">${capitalizeWords(currentUserInfo.schoolName)}</span></p>
                 <h2 class="text-xl font-bold text-cyan-700 mt-4">Niveau d'Exploration ${currentLevel} : ${rankTitle}</h2>
                 <div class="flex justify-center items-center gap-2 mt-3 text-sm whitespace-nowrap">
@@ -2098,7 +2098,7 @@ badgesHTML += '</div>';
             <div class="w-full flex justify-around items-center">
                 <div class="relative w-32 h-32 cursor-pointer flex-shrink-0 js-xp-gauge">
                     <canvas id="xp-chart-mobile"></canvas>
-                    <div class="absolute inset-0 flex flex-col items-center justify-center text-center"><span class="font-bold text-2xl text-azimut-darkblue">${xpInCurrentLevel}</span><span class="text-xs text-slate-500">/${xpNeededForLevel} XP</span></div>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center text-center"><span class="font-bold text-2xl text-OrIAntation-darkblue">${xpInCurrentLevel}</span><span class="text-xs text-slate-500">/${xpNeededForLevel} XP</span></div>
                 </div>
                 <div class="w-32 h-32 bg-background-light rounded-full border flex-col items-center justify-center p-0 cursor-pointer flex-shrink-0 js-badges-container">
                     ${badgesHTML}
@@ -2126,11 +2126,11 @@ badgesHTML += '</div>';
 
     const guideCardHTML = `
     <div onclick="window.showView('guide')" class="step-card bg-white p-6 rounded-xl shadow-md border border-border-subtle cursor-pointer flex flex-col items-center space-y-2 mb-6 max-w-md mx-auto">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 text-azimut-darkblue">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 text-OrIAntation-darkblue">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
         </svg>
         <div class="text-center">
-            <h2 class="text-lg font-semibold text-azimut-darkblue">Guide d'Utilisation</h2>
+            <h2 class="text-lg font-semibold text-OrIAntation-darkblue">Guide d'Utilisation</h2>
             <p class="text-sm text-slate-500">Besoin d'aide pour commencer ?</p>
         </div>
     </div>`;
@@ -2173,7 +2173,7 @@ if(filledCount > 0) {
         <div>${step.icon}</div>
         <div>
             <div class="flex justify-center items-center">
-                 <h2 class="text-lg font-semibold text-azimut-darkblue">${step.title}</h2>
+                 <h2 class="text-lg font-semibold text-OrIAntation-darkblue">${step.title}</h2>
                  ${statusSymbol}
             </div>
             <p class="text-slate-500">${step.site}</p>
@@ -2182,7 +2182,7 @@ if(filledCount > 0) {
     }).join('');
     const radarHTML = `
         <div class="mt-12 text-center fade-in">
-        <h2 class="text-2xl font-bold text-azimut-darkblue mb-4 flex items-center justify-center gap-2">
+        <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4 flex items-center justify-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-7 h-7">
         <path stroke-linecap="round" stroke-linejoin="round" d="m15.75 15.75-2.489-2.489m0 0a3.375 3.375 0 1 0-4.773-4.773 3.375 3.375 0 0 0 4.774 4.774ZM21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
     </svg>
@@ -2360,7 +2360,7 @@ div.innerHTML = levelDisplayHTML + progressBarHTML + guideCardHTML + `<div class
     div.querySelectorAll('.js-xp-gauge').forEach(container => {
         container.addEventListener('click', () => {
             const title = "⭐ Qu'est-ce que le système d'XP ?";
-            const contentHTML = `<div class="space-y-4 text-slate-600"><p>Le système de Points d'Expérience (XP) transforme ton parcours d'orientation en une aventure ! Chaque action importante te rapporte des points pour matérialiser ta progression.</p><div class="p-4 bg-background-light rounded-lg border"><h4 class="font-semibold text-azimut-darkblue mb-2">Comment ça marche ?</h4><p>Tes XP remplissent la jauge circulaire. Une fois pleine, tu passes au niveau supérieur et gagnes un nouveau rang, montrant que tu avances dans ta quête !</p></div><div class="p-4 bg-background-light rounded-lg border"><h4 class="font-semibold text-azimut-darkblue mb-2">Comment gagner des XP ?</h4><ul class="list-disc list-inside text-sm"><li>En analysant ton profil ("Mieux se connaître").</li><li>En générant ton Rétroplanning.</li><li>En valorisant une expérience dans ton Portfolio.</li><li>En obtenant un bon score à un quiz "Fact Checking".</li><li>En utilisant le Radar à Opportunités.</li></ul></div></div>`;
+            const contentHTML = `<div class="space-y-4 text-slate-600"><p>Le système de Points d'Expérience (XP) transforme ton parcours d'orientation en une aventure ! Chaque action importante te rapporte des points pour matérialiser ta progression.</p><div class="p-4 bg-background-light rounded-lg border"><h4 class="font-semibold text-OrIAntation-darkblue mb-2">Comment ça marche ?</h4><p>Tes XP remplissent la jauge circulaire. Une fois pleine, tu passes au niveau supérieur et gagnes un nouveau rang, montrant que tu avances dans ta quête !</p></div><div class="p-4 bg-background-light rounded-lg border"><h4 class="font-semibold text-OrIAntation-darkblue mb-2">Comment gagner des XP ?</h4><ul class="list-disc list-inside text-sm"><li>En analysant ton profil ("Mieux se connaître").</li><li>En générant ton Rétroplanning.</li><li>En valorisant une expérience dans ton Portfolio.</li><li>En obtenant un bon score à un quiz "Fact Checking".</li><li>En utilisant le Radar à Opportunités.</li></ul></div></div>`;
             createSimpleModal(title, contentHTML);
         });
     });
@@ -2373,7 +2373,7 @@ div.innerHTML = levelDisplayHTML + progressBarHTML + guideCardHTML + `<div class
             for (const key in badgesConfig) {
                 const badge = badgesConfig[key];
                 const earned = earnedBadges.includes(key);
-                contentHTML += `<div class="flex items-start gap-4 p-3 rounded-lg ${earned ? 'bg-amber-50 border border-amber-200' : 'bg-background-light border border-border-subtle'}"><span class="text-4xl ${earned ? '' : 'opacity-40'}">${badge.icon}</span><div><h4 class="font-bold ${earned ? 'text-amber-800' : 'text-azimut-darkblue'}">${badge.title} ${earned ? '(Obtenu !)' : '(À débloquer)'}</h4><p class="text-sm">${badge.description}</p></div></div>`;
+                contentHTML += `<div class="flex items-start gap-4 p-3 rounded-lg ${earned ? 'bg-amber-50 border border-amber-200' : 'bg-background-light border border-border-subtle'}"><span class="text-4xl ${earned ? '' : 'opacity-40'}">${badge.icon}</span><div><h4 class="font-bold ${earned ? 'text-amber-800' : 'text-OrIAntation-darkblue'}">${badge.title} ${earned ? '(Obtenu !)' : '(À débloquer)'}</h4><p class="text-sm">${badge.description}</p></div></div>`;
             }
             contentHTML += `</div></div>`;
             createSimpleModal(title, contentHTML);
@@ -2424,7 +2424,7 @@ function createHomeView() {
     }
 
     div.innerHTML = `
-        <h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 md:whitespace-nowrap text-azimut-darkblue mb-6">${config.icon} <span>${config.title}</span></h1>      
+        <h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 md:whitespace-nowrap text-OrIAntation-darkblue mb-6">${config.icon} <span>${config.title}</span></h1>      
         <div class="text-slate-600 mb-4 whitespace-pre-wrap">${description}</div>
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6"><div class="font-semibold text-cyan-900">${action}</div></div>
         <div class="mb-8">${linksHTML}</div>
@@ -2469,16 +2469,16 @@ function createProfileInfographic(step0Data, context = 'user') {
     container.innerHTML = `
         <h2 class="text-xl font-bold border-b pb-2 mb-4 text-cyan-700">${titleText}</h2>
         <div class="bg-background-light p-4 md:p-6 rounded-xl border border-border-subtle mt-4">
-            <h3 class="text-lg font-bold text-azimut-darkblue mb-2">Votre Profil d'Intérêts (RIASEC)</h3>
+            <h3 class="text-lg font-bold text-OrIAntation-darkblue mb-2">Votre Profil d'Intérêts (RIASEC)</h3>
             <canvas id="profileBarChart"></canvas>
         </div>
         <div id="riasec-legend" class="mt-6 text-sm text-slate-600 space-y-2">
-            <p><strong class="font-semibold text-azimut-darkblue">R (Réaliste) :</strong> Aime le travail concret, physique, avec des outils ou en plein air.</p>
-            <p><strong class="font-semibold text-azimut-darkblue">I (Investigateur) :</strong> Aime analyser, comprendre, résoudre des problèmes complexes.</p>
-            <p><strong class="font-semibold text-azimut-darkblue">A (Artistique) :</strong> Aime créer, imaginer, s'exprimer de manière non conventionnelle.</p>
-            <p><strong class="font-semibold text-azimut-darkblue">S (Social) :</strong> Aime aider, former, soigner, être en contact avec les autres.</p>
-            <p><strong class="font-semibold text-azimut-darkblue">E (Entreprenant) :</strong> Aime diriger, convaincre, mener des projets, prendre des décisions.</p>
-            <p><strong class="font-semibold text-azimut-darkblue">C (Conventionnel) :</strong> Aime organiser, gérer, respecter les règles, travailler avec des données.</p>
+            <p><strong class="font-semibold text-OrIAntation-darkblue">R (Réaliste) :</strong> Aime le travail concret, physique, avec des outils ou en plein air.</p>
+            <p><strong class="font-semibold text-OrIAntation-darkblue">I (Investigateur) :</strong> Aime analyser, comprendre, résoudre des problèmes complexes.</p>
+            <p><strong class="font-semibold text-OrIAntation-darkblue">A (Artistique) :</strong> Aime créer, imaginer, s'exprimer de manière non conventionnelle.</p>
+            <p><strong class="font-semibold text-OrIAntation-darkblue">S (Social) :</strong> Aime aider, former, soigner, être en contact avec les autres.</p>
+            <p><strong class="font-semibold text-OrIAntation-darkblue">E (Entreprenant) :</strong> Aime diriger, convaincre, mener des projets, prendre des décisions.</p>
+            <p><strong class="font-semibold text-OrIAntation-darkblue">C (Conventionnel) :</strong> Aime organiser, gérer, respecter les règles, travailler avec des données.</p>
         </div>
     `;
 
@@ -2618,7 +2618,7 @@ function createStep0View() {
     questions.forEach(q => {
         if (q.part !== currentPart) {
             currentPart = q.part;
-            questionsHTML += `<h2 class="text-xl font-bold text-azimut-darkblue mt-8 mb-4 border-b pb-2">${currentPart}</h2>`;
+            questionsHTML += `<h2 class="text-xl font-bold text-OrIAntation-darkblue mt-8 mb-4 border-b pb-2">${currentPart}</h2>`;
         }
         questionsHTML += createQuestionHTML(q.id, q.label, q.options, journalData.step0[`q${q.id}`]);
     });
@@ -2635,7 +2635,7 @@ function createStep0View() {
         </div>
         <hr class="my-12 border-slate-300">
         <div class="mt-8">
-            <h2 class="text-2xl font-bold text-azimut-darkblue mb-4">Pour aller plus loin : Croise les regards</h2>
+            <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Pour aller plus loin : Croise les regards</h2>
 <p class="text-slate-600 mb-6">Pour affiner ta réflexion, passe les 3 tests proposés sur le site <a href="https://test-orientation.studyrama.com/profil/lyceen" target="_blank" class="font-semibold text-primary-action hover:underline">Studyrama Orientation</a>. Attention, tu devras fournir ton e-mail à la fin pour recevoir tes résultats. Copie-colle-les ensuite dans les cases ci-dessous.</p>            <div class="mb-6">
                 <label for="test_interets" class="block text-md font-medium text-slate-700 mb-2">1. Résultats du Test d'Intérêts Professionnels</label>
                 <textarea id="test_interets" name="test_interets" rows="4" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Copie-colle ici le texte de tes résultats...">${journalData.step0.test_interets || ''}</textarea>
@@ -2838,7 +2838,7 @@ function createStep1View() {
         }
 
         const tableClasses = "w-full text-left border-collapse";
-        const thClasses = "p-3 border-b-2 border-slate-300 font-bold text-azimut-darkblue bg-slate-100";
+        const thClasses = "p-3 border-b-2 border-slate-300 font-bold text-OrIAntation-darkblue bg-slate-100";
         const tdClasses = "p-3 border-b border-border-subtle align-top text-sm";
         let html = `<div class="comparison-table-wrapper"><table class="${tableClasses}">`;
 
@@ -2891,7 +2891,7 @@ function createStep1View() {
 
     const comparisonHTML = `
         <div id="comparison-section" class="hidden mt-8">
-<h2 class="text-2xl font-bold text-azimut-darkblue mb-4 flex items-center justify-center gap-2">
+<h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4 flex items-center justify-center gap-2">
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-7 h-7">
       <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0 0 12 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52v1.664M5.25 4.97v1.664m-3.75 0V9.67c0 .723.231 1.423.65 1.996l3.428 4.571a.75.75 0 0 1 .16.529V20.25m8.25-15.28V9.67c0 .723.231 1.423.65 1.996l3.428 4.571a.75.75 0 0 1 .16.529V20.25" />
     </svg>
@@ -2976,7 +2976,7 @@ function createStep1View() {
                         htmlResult += `
                             <div class="testimonial-item ${index > 0 ? 'pt-3 mt-3 border-t border-border-subtle' : ''}">
                                 <div class="flex justify-between items-center mb-1">
-                                    <h4 class="text-base font-bold text-azimut-darkblue flex-1">${item.titre}</h4>
+                                    <h4 class="text-base font-bold text-OrIAntation-darkblue flex-1">${item.titre}</h4>
                                     <a href="${item.lien}" target="_blank" class="flex-shrink-0 ml-4 inline-block bg-cyan-100 text-cyan-800 font-semibold py-1 px-3 rounded-lg text-xs hover:bg-cyan-200 transition">Voir ↗</a>
                                 </div>
                                 <p class="text-sm text-slate-600">${item.resume}</p>
@@ -3068,7 +3068,7 @@ function createStep2View() {
     let action = config.action[userGradeLevel] || config.action['default'] || '';
 
     div.innerHTML = `     
-<h1 class="text-2xl font-bold text-center col-span-1 flex justify-center items-center gap-2 md:whitespace-nowrap text-azimut-darkblue mb-6">${config.icon} <span>${config.title}</span></h1>        <div class="text-slate-600 mb-4 whitespace-pre-wrap">${description}</div>
+<h1 class="text-2xl font-bold text-center col-span-1 flex justify-center items-center gap-2 md:whitespace-nowrap text-OrIAntation-darkblue mb-6">${config.icon} <span>${config.title}</span></h1>        <div class="text-slate-600 mb-4 whitespace-pre-wrap">${description}</div>
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6">
             <div class="font-semibold text-cyan-900">${action}</div>
         </div>
@@ -3112,7 +3112,7 @@ function createStep2View() {
         }
         return `
             <div class="bg-white p-6 rounded-2xl shadow-lg border border-border-subtle mb-8">
-                <h2 class="text-xl font-bold text-azimut-darkblue mb-4">Combinaison #${index}</h2>
+                <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-4">Combinaison #${index}</h2>
                 <div class="mb-6">
                     <label for="combo_${index}" class="block text-md font-medium text-slate-700 mb-2">Nomme ta combinaison de spécialités</label>
                     <textarea id="combo_${index}" name="combo_${index}" rows="2" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Ex: Maths, Physique-Chimie, SVT">${data.name || ''}</textarea>
@@ -3133,7 +3133,7 @@ function createStep2View() {
                 </div>
 
                 <hr class="my-8">
-                <h3 class="text-xl font-bold text-azimut-darkblue mb-4">Mes trouvailles sur Horizons21</h3>
+                <h3 class="text-xl font-bold text-OrIAntation-darkblue mb-4">Mes trouvailles sur Horizons21</h3>
                 ${domainesHTML}
             </div>
         `;
@@ -3283,7 +3283,7 @@ function createStep3View() {
         const data = journalData.step3;
         return `
             <div class="bg-white p-6 rounded-2xl shadow-lg border border-border-subtle mb-8">
-                <h2 class="text-xl font-bold text-azimut-darkblue mb-4">Formation #${index}</h2>
+                <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-4">Formation #${index}</h2>
                 <div class="mb-6">
                     <label for="formation${index}" class="block text-md font-medium text-slate-700 mb-2">Nom de la formation</label>
                     <input type="text" id="formation${index}" name="formation${index}" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Ex: BUT Informatique - Villetaneuse" value="${data[`formation${index}`] || ''}">
@@ -3326,7 +3326,7 @@ function createStep3View() {
         
         <hr class="my-8">
 
-<h2 class="text-xl font-semibold mb-4 text-azimut-darkblue flex items-center justify-center gap-2">
+<h2 class="text-xl font-semibold mb-4 text-OrIAntation-darkblue flex items-center justify-center gap-2">
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
       <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.311a12.06 12.06 0 0 0 4.5 0M12 6.75a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5ZM12 18.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
     </svg>
@@ -3453,7 +3453,7 @@ function createStep12View() {
             <input type="text" id="city-input" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Ex: Lyon, Rennes, Bordeaux...">
         </div>
         <div class="bg-background-light border border-border-subtle p-3 rounded-lg text-sm text-slate-600 mb-4">
-            <p><strong class="font-semibold text-azimut-darkblue">Comment ça marche ?</strong> L'application demande à l'IA d'effectuer une recherche en temps réel pour trouver les coûts et les aides les plus récents pour la ville choisie, puis met en forme sa réponse.</p>
+            <p><strong class="font-semibold text-OrIAntation-darkblue">Comment ça marche ?</strong> L'application demande à l'IA d'effectuer une recherche en temps réel pour trouver les coûts et les aides les plus récents pour la ville choisie, puis met en forme sa réponse.</p>
         </div>
         <div class="text-center mb-6">
             <button type="button" id="budget-btn" class="w-full sm:w-auto bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">📊 Estimer le Budget Mensuel Étudiant</button>
@@ -3461,7 +3461,7 @@ function createStep12View() {
         <div id="loader-budget" class="hidden"><div class="loader"></div></div>
         <div id="budget-result" class="mb-10"></div>
         <hr class="my-10">
-        <h3 class="text-xl font-bold text-center text-azimut-darkblue mb-4">Recherche des Aides Financières</h3>
+        <h3 class="text-xl font-bold text-center text-OrIAntation-darkblue mb-4">Recherche des Aides Financières</h3>
         <p class="text-center text-slate-600 mb-6">Découvrez les principaux dispositifs pour financer votre vie étudiante.</p>
         <div class="text-center mb-6">
             <button type="button" id="aides-btn" class="w-full sm:w-auto bg-teal-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-teal-600 transition">💰 Chercher les Aides Disponibles</button>
@@ -3503,7 +3503,7 @@ function createStep12View() {
             // MODIFICATION : On recrée la section des commentaires
             let commentsHTML = '';
             if (data.commentaires && data.commentaires.length > 0) {
-                commentsHTML += '<div class="border-t pt-6 mt-6"><h4 class="text-lg font-bold text-azimut-darkblue mb-3">💡 Détails et Sources :</h4><div class="space-y-3">';
+                commentsHTML += '<div class="border-t pt-6 mt-6"><h4 class="text-lg font-bold text-OrIAntation-darkblue mb-3">💡 Détails et Sources :</h4><div class="space-y-3">';
                 data.commentaires.forEach(comment => {
                     const linkedText = linkify(comment.texte);
                     commentsHTML += `
@@ -3519,7 +3519,7 @@ function createStep12View() {
 
             resultDiv.innerHTML = `
                 <div class="bg-white p-6 rounded-2xl shadow-lg border border-border-subtle">
-                    <h3 class="text-xl font-bold text-azimut-darkblue mb-2">Construis ton Budget Personnalisé à ${city}</h3>
+                    <h3 class="text-xl font-bold text-OrIAntation-darkblue mb-2">Construis ton Budget Personnalisé à ${city}</h3>
                     <p class="text-sm text-slate-500 mb-6">Ajuste les curseurs pour voir comment ton budget total évolue.</p>
                     <div class="space-y-6">
                         <div>
@@ -3897,7 +3897,7 @@ function createStep4View() {
     // --- HTML de la nouvelle interface (Cartes + Fenêtre de simulation cachée) ---
     div.innerHTML = `
 
-<h1 class="text-2xl font-bold text-center col-span-1 flex justify-center items-center gap-2 md:whitespace-nowrap text-azimut-darkblue mb-6">${config.icon} <span>${config.title}</span></h1>        <div class="text-slate-600 mb-4 whitespace-pre-wrap">${config.description}</div>
+<h1 class="text-2xl font-bold text-center col-span-1 flex justify-center items-center gap-2 md:whitespace-nowrap text-OrIAntation-darkblue mb-6">${config.icon} <span>${config.title}</span></h1>        <div class="text-slate-600 mb-4 whitespace-pre-wrap">${config.description}</div>
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6">
             <div class="font-semibold text-cyan-800"><b>Ta mission :</b> Choisis un domaine, pose une question de base, puis utilise l'IA pour obtenir des questions plus pertinentes et t'entraîner avec le simulateur.Enfin clique sur le lien du site pour échanger avec des étudiants.</div>
         </div>
@@ -3907,7 +3907,7 @@ function createStep4View() {
         <form id="stepForm">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div class="bg-white p-6 rounded-2xl shadow-lg border border-border-subtle flex flex-col space-y-4">
-                    <h2 class="text-lg font-bold text-azimut-darkblue">Exploration #1</h2>
+                    <h2 class="text-lg font-bold text-OrIAntation-darkblue">Exploration #1</h2>
                     <div>
 <label for="theme1" class="block text-md font-medium text-slate-700 mb-2">Formation ou domaine</label>
                         <input type="text" id="theme1" name="theme1" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Ex: Écoles d'ingénieurs" value="${journalData.step4.theme1 || ''}">
@@ -3929,7 +3929,7 @@ function createStep4View() {
                 </div>
 
                 <div class="bg-white p-6 rounded-2xl shadow-lg border border-border-subtle flex flex-col space-y-4">
-                    <h2 class="text-lg font-bold text-azimut-darkblue">Exploration #2</h2>
+                    <h2 class="text-lg font-bold text-OrIAntation-darkblue">Exploration #2</h2>
                     <div>
                         <label for="theme2" class="block text-sm font-medium text-slate-700 mb-1">Formation ou domaine</label>
                         <input type="text" id="theme2" name="theme2" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Ex: Études de santé (PASS/LAS)" value="${journalData.step4.theme2 || ''}">
@@ -3956,8 +3956,8 @@ function createStep4View() {
         <div id="simulation-modal" class="simulation-modal hidden fixed inset-0 z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col h-[80vh]">
                 <div class="flex items-center justify-between p-4 border-b bg-background-light rounded-t-2xl">
-                    <h3 class="font-bold text-azimut-darkblue">🤖 Simulation d'entretien</h3>
-                    <button id="simulation-close" class="text-slate-500 hover:text-azimut-darkblue text-2xl">&times;</button>
+                    <h3 class="font-bold text-OrIAntation-darkblue">🤖 Simulation d'entretien</h3>
+                    <button id="simulation-close" class="text-slate-500 hover:text-OrIAntation-darkblue text-2xl">&times;</button>
                 </div>
                 <div id="simulation-messages" class="flex-1 p-4 overflow-y-auto simulation-message-container">
                     </div>
@@ -4192,7 +4192,7 @@ function createStep6View() {
     div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-border-subtle';
 
     div.innerHTML = `
- <h1 class="text-2xl font-bold text-center col-span-1 flex justify-center items-center gap-2 md:whitespace-nowrap text-azimut-darkblue">${config.icon} ${config.title}</h1>      
+ <h1 class="text-2xl font-bold text-center col-span-1 flex justify-center items-center gap-2 md:whitespace-nowrap text-OrIAntation-darkblue">${config.icon} ${config.title}</h1>      
 <div class="text-slate-600 mb-4 whitespace-pre-wrap">${config.description}</div>
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6">
             <div class="font-semibold text-cyan-900">${config.action}</div>
@@ -4210,7 +4210,7 @@ function createStep6View() {
         const lettreData = journalData.step6[`lettre${index}`] || {};
         return `
             <div class="bg-white p-6 rounded-2xl shadow-lg border border-border-subtle mb-8">
-                <h2 class="text-xl font-bold text-azimut-darkblue mb-4">Projet de Formation Motivé #${index}</h2>
+                <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-4">Projet de Formation Motivé #${index}</h2>
                 <div class="mb-6">
                     <label for="formation_${index}" class="block text-md font-medium text-slate-700 mb-2">Formation visée</label>
                     <input type="text" id="formation_${index}" name="formation_${index}" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Ex: BUT Informatique - IUT de Villetaneuse" value="${lettreData.formation || ''}">
@@ -4229,7 +4229,7 @@ function createStep6View() {
                 </div>
 
                 <div class="mt-8 border-t pt-6">
-                    <h3 class="text-lg font-bold text-azimut-darkblue mb-2">Atelier d'écriture : L'Optimiseur de Paragraphe</h3>
+                    <h3 class="text-lg font-bold text-OrIAntation-darkblue mb-2">Atelier d'écriture : L'Optimiseur de Paragraphe</h3>
                     <p class="text-sm text-slate-600 mb-4">Rédige un brouillon de paragraphe en suivant la structure proposée, puis demande au coach IA de te donner des pistes pour l'améliorer.</p>
                     <div class="mb-4">
                          <label for="brouillon_${index}" class="block text-md font-medium text-slate-700 mb-2">Mon brouillon</label>
@@ -4336,11 +4336,11 @@ function createStep7View() {
         let choiceHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div id="start-generic-quiz" class="p-6 bg-white rounded-lg border border-border-subtle cursor-pointer hover:shadow-lg transition text-center">
-                    <h3 class="font-bold text-lg text-azimut-darkblue">Atelier 1 : La Chasse aux Mythes</h3>
+                    <h3 class="font-bold text-lg text-OrIAntation-darkblue">Atelier 1 : La Chasse aux Mythes</h3>
                     <p class="text-sm text-slate-600 mt-2">Teste tes connaissances sur un domaine et déconstruis les idées reçues les plus courantes.</p>
                 </div>
                 <div id="start-personalized-quiz" class="p-6 bg-white rounded-lg border border-border-subtle cursor-pointer hover:shadow-lg transition text-center">
-                    <h3 class="font-bold text-lg text-azimut-darkblue">Atelier 2 : Le Défi Personnalisé</h3>
+                    <h3 class="font-bold text-lg text-OrIAntation-darkblue">Atelier 2 : Le Défi Personnalisé</h3>
                     <p class="text-sm text-slate-600 mt-2">Obtiens un quiz sur mesure qui te questionne par rapport à ton propre profil et tes forces.</p>
                 </div>
             </div>
@@ -4351,7 +4351,7 @@ function createStep7View() {
         if (scores && Object.keys(scores).length > 0 && Object.values(scores).some(h => h.length > 0)) {
             historyHTML += `
                 <div class="mt-8 border-t pt-6">
-                    <h2 class="text-xl font-bold text-azimut-darkblue text-center mb-4">Mon Historique de Scores</h2>
+                    <h2 class="text-xl font-bold text-OrIAntation-darkblue text-center mb-4">Mon Historique de Scores</h2>
                     <div class="space-y-4">`;
             
             for (const [domain, scoreHistory] of Object.entries(scores)) {
@@ -4454,7 +4454,7 @@ function createStep7View() {
         quizContainer.innerHTML = `
             <div class="bg-background-light p-6 rounded-lg border border-border-subtle">
                 ${bestScoreHTML}
-                <p class="text-center font-semibold text-azimut-darkblue text-lg mb-4">Question ${index + 1} / ${quizData.length}</p>
+                <p class="text-center font-semibold text-OrIAntation-darkblue text-lg mb-4">Question ${index + 1} / ${quizData.length}</p>
                 <p class="text-center text-slate-600 mb-6">"${question.affirmation}"</p>
                 <div class="flex justify-center gap-4">
                     <button type="button" data-answer="true" class="answer-btn bg-green-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-600 transition">Vrai</button>
@@ -4477,7 +4477,7 @@ function createStep7View() {
         const feedbackText = isCorrect ? 'Bonne réponse !' : 'C\'est un mythe !';
         explanationContainer.innerHTML = `
             <div class="p-4 rounded-lg border-l-4 ${feedbackColor}">
-                <h4 class="font-bold text-azimut-darkblue">${feedbackText}</h4>
+                <h4 class="font-bold text-OrIAntation-darkblue">${feedbackText}</h4>
                 <p class="text-slate-700 mt-2">${question.explication}</p>
             </div>
             <div class="text-center mt-4">
@@ -4511,7 +4511,7 @@ function createStep7View() {
         let recordMessage = score > oldBestScore ? `<p class="text-green-600 font-semibold mt-2">🎉 Nouveau record !</p>` : '';
         quizContainer.innerHTML = `
             <div class="text-center bg-background-light p-6 rounded-lg border border-border-subtle">
-                <h3 class="text-xl font-bold text-azimut-darkblue">Quiz terminé !</h3>
+                <h3 class="text-xl font-bold text-OrIAntation-darkblue">Quiz terminé !</h3>
                 <p class="text-slate-600 mt-4">Ton score :</p>
                 <p class="text-3xl font-bold text-primary-action my-1">${score} / ${quizData.length}</p>
                 ${recordMessage}
@@ -4558,13 +4558,13 @@ function createStep8View() {
 
     div.innerHTML = `
         
-<h1 class="text-2xl font-bold text-center col-span-1 flex justify-center items-center gap-2 md:whitespace-nowrap text-azimut-darkblue mb-6">${config.icon} <span>${config.title}</span></h1>        
+<h1 class="text-2xl font-bold text-center col-span-1 flex justify-center items-center gap-2 md:whitespace-nowrap text-OrIAntation-darkblue mb-6">${config.icon} <span>${config.title}</span></h1>        
         <div class="text-slate-600 mb-4 whitespace-pre-wrap">${config.description}</div>
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6">
             <div class="font-semibold text-cyan-900">${config.action}</div>
         </div>
         <div class="bg-background-light p-4 rounded-lg border mb-8">
-            <h3 class="font-bold text-azimut-darkblue mb-2">Ajouter et trouver des contacts</h3>
+            <h3 class="font-bold text-OrIAntation-darkblue mb-2">Ajouter et trouver des contacts</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                         <label class="block text-md font-medium text-slate-700 mb-2">Contact personnel</label>
@@ -4588,13 +4588,13 @@ function createStep8View() {
             <div id="loader-find-pro" class="hidden"><div class="loader"></div></div>
             <div id="find-pro-error"></div>
         </div>
-        <h2 class="text-2xl font-bold text-azimut-darkblue mb-4">Ma Liste de Suivi</h2>
+        <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Ma Liste de Suivi</h2>
         <div id="contact-list-container" class="space-y-3 mb-8"></div>
         <hr class="my-8 border-slate-300">
-        <h2 class="text-2xl font-bold text-azimut-darkblue mb-4">Préparer ma prise de contact</h2>
+        <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Préparer ma prise de contact</h2>
         <div class="max-w-xl mx-auto">
             <div class="bg-background-light p-4 rounded-lg border">
-                <h3 class="font-bold text-azimut-darkblue mb-2">Stratégie de Contact</h3>
+                <h3 class="font-bold text-OrIAntation-darkblue mb-2">Stratégie de Contact</h3>
                 <p class="text-sm text-slate-600 mb-2">Besoin d'aide pour rédiger un mail ou préparer tes questions ?</p>
                 <input type="text" id="pro_metier_aide" class="w-full p-2 border border-slate-300 rounded-lg mb-2" placeholder="Rappelle le métier concerné">
                 <button type="button" id="geminiBtn_contact_pro" class="w-full bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">✉️ Générer une stratégie</button>
@@ -4623,7 +4623,7 @@ function createStep8View() {
             }
             card.innerHTML = `
                 <div class="flex-1">
-                    <p class="font-semibold text-azimut-darkblue">${contact.nom}</p>
+                    <p class="font-semibold text-OrIAntation-darkblue">${contact.nom}</p>
                     ${contact.search_link ? `<a href="${contact.search_link}" target="_blank" class="text-sm text-primary-action hover:underline">Rechercher ce contact ↗</a>` : `<p class="text-sm text-slate-600 mt-1">${contact.details || ''}</p>`}
                 </div>
                 <div class="flex items-center gap-2 w-full sm:w-auto self-end sm:self-center">
@@ -4760,13 +4760,13 @@ function createStep9View() {
     
     div.innerHTML = `
         
-<h1 class="text-2xl font-bold text-center col-span-1 flex justify-center items-center gap-2 md:whitespace-nowrap text-azimut-darkblue mb-6">${config.icon} <span>${config.title}</span></h1>       
+<h1 class="text-2xl font-bold text-center col-span-1 flex justify-center items-center gap-2 md:whitespace-nowrap text-OrIAntation-darkblue mb-6">${config.icon} <span>${config.title}</span></h1>       
         <div class="text-slate-600 mb-4 whitespace-pre-wrap">${config.description}</div>
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6">
             <div class="font-semibold text-cyan-900">${config.action}</div>
         </div>
         <form id="stepForm">
-            <h2 class="text-xl font-semibold mb-4 text-azimut-darkblue">1. Simulation : Mon Plan B</h2>
+            <h2 class="text-xl font-semibold mb-4 text-OrIAntation-darkblue">1. Simulation : Mon Plan B</h2>
             <div class="mb-6">
                 <label for="formation_reve" class="block text-md font-medium text-slate-700 mb-2">Ma formation "rêvée" (Vœu n°1)</label>
                 <div class="flex gap-2">
@@ -4783,7 +4783,7 @@ function createStep9View() {
                 </div>
             </div>
             <hr class="my-8">
-            <h2 class="text-xl font-semibold mb-4 text-azimut-darkblue">2. Mon Coach de Réussite</h2>
+            <h2 class="text-xl font-semibold mb-4 text-OrIAntation-darkblue">2. Mon Coach de Réussite</h2>
             <div class="mb-6">
                 <label for="reussite_type" class="block text-md font-medium text-slate-700 mb-2">Type de formation pour lequel tu veux des conseils</label>
                 <input type="text" id="reussite_type" name="reussite_type" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Ex: Licence de Droit, BUT..." value="${journalData.step9.reussite_type || ''}">
@@ -4809,7 +4809,7 @@ function createStep9View() {
 
     const addChatMessage = (sender, text) => {
         const messageDiv = document.createElement('div');
-        messageDiv.className = `p-3 rounded-lg max-w-lg text-left ${sender === 'user' ? 'bg-blue-500 text-white self-end' : 'bg-slate-200 text-azimut-darkblue self-start'}`;
+        messageDiv.className = `p-3 rounded-lg max-w-lg text-left ${sender === 'user' ? 'bg-blue-500 text-white self-end' : 'bg-slate-200 text-OrIAntation-darkblue self-start'}`;
         messageDiv.innerHTML = linkify(text);
         chatMessages.appendChild(messageDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -4882,7 +4882,7 @@ function createStep10View() {
 
     div.innerHTML = `
         
-        <h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 md:whitespace-nowrap text-azimut-darkblue mb-6">
+        <h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 md:whitespace-nowrap text-OrIAntation-darkblue mb-6">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8">
             <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.07a2.25 2.25 0 0 1-2.25 2.25h-13.5a2.25 2.25 0 0 1-2.25-2.25v-4.07m18-4.32-7.5-5.25a2.25 2.25 0 0 0-2.013.003L2.25 9.83m18 4.32V9.83" />
         </svg>
@@ -4920,7 +4920,7 @@ function createStep10View() {
             <div class="font-semibold text-cyan-900">${action}</div>
         </div>
         <div class="mb-12">
-            <h2 class="text-2xl font-bold text-azimut-darkblue mb-4">Atelier 1 : Mes Expériences Significatives</h2>
+            <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Atelier 1 : Mes Expériences Significatives</h2>
             <div id="experience-list-container" class="space-y-4 mb-6"></div>
             <button type="button" id="add-experience-btn" class="w-full bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">
                 + Ajouter une expérience
@@ -4928,7 +4928,7 @@ function createStep10View() {
         </div>
         <hr class="my-12 border-slate-300">
         <div>
-            <h2 class="text-2xl font-bold text-azimut-darkblue mb-4">Atelier 2 : Mon Profil de Compétences</h2>
+            <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Atelier 2 : Mon Profil de Compétences</h2>
             <div id="detector-container" class="bg-white p-6 rounded-2xl shadow-lg border border-border-subtle">
                 <p class="text-slate-600 mb-4">Réponds à quelques questions rapides pour révéler tes compétences transversales dominantes.</p>
                 <button type="button" id="start-detector-btn" class="w-full bg-teal-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-teal-600 transition">
@@ -4940,7 +4940,7 @@ function createStep10View() {
         </div>
         
         <div id="connector-section" class="hidden mt-12 border-t-4 border-cyan-500 pt-6">
-            <h2 class="text-2xl font-bold text-azimut-darkblue mb-4">🔗 Le Connecteur de Compétences</h2>
+            <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">🔗 Le Connecteur de Compétences</h2>
             <p class="text-slate-600 mb-4">Bravo ! Maintenant que tu as analysé tes expériences ET ton profil, clique sur le bouton pour que l'IA rédige une synthèse qui connecte tes savoir-faire (issus de tes expériences) et tes savoir-être (issus du quiz).</p>
             <div class="text-center">
 <button type="button" id="connect-skills-btn" class="w-full bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition">Connecter mes compétences</button>
@@ -4952,18 +4952,18 @@ function createStep10View() {
         <div id="portfolio-modal" class="portfolio-modal hidden fixed inset-0 z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
                 <div class="flex items-center justify-between p-4 border-b">
-                    <h2 class="text-xl font-bold text-azimut-darkblue">Assistant de Portfolio</h2>
-                    <button type="button" id="portfolio-modal-close" class="text-slate-500 hover:text-azimut-darkblue text-2xl">×</button>
+                    <h2 class="text-xl font-bold text-OrIAntation-darkblue">Assistant de Portfolio</h2>
+                    <button type="button" id="portfolio-modal-close" class="text-slate-500 hover:text-OrIAntation-darkblue text-2xl">×</button>
                 </div>
                 <div class="p-6 overflow-y-auto">
                     <div id="wizard-step-1">
-                        <h3 class="text-lg font-bold text-azimut-darkblue mb-2">Étape 1 : Décris ton expérience</h3><p class="text-slate-600 mb-4">Raconte un projet, un job, un engagement, une passion...</p><textarea id="experience-input" rows="6" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Ex: J'ai organisé un tournoi de jeux vidéo..."></textarea><button type="button" id="wizard-next-1" class="w-full mt-4 bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">Valider et identifier les compétences ✨</button>
+                        <h3 class="text-lg font-bold text-OrIAntation-darkblue mb-2">Étape 1 : Décris ton expérience</h3><p class="text-slate-600 mb-4">Raconte un projet, un job, un engagement, une passion...</p><textarea id="experience-input" rows="6" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Ex: J'ai organisé un tournoi de jeux vidéo..."></textarea><button type="button" id="wizard-next-1" class="w-full mt-4 bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">Valider et identifier les compétences ✨</button>
                     </div>
                     <div id="wizard-step-2" class="hidden">
-                         <h3 class="text-lg font-bold text-azimut-darkblue mb-2">Étape 2 : Valide tes compétences</h3><p class="text-slate-600 mb-4">Clique sur les compétences qui te semblent les plus justes.</p><div id="skill-tags-container" class="flex flex-wrap gap-3 p-4 bg-background-light rounded-lg border min-h-[100px]"></div><div id="loader-2" class="hidden"><div class="loader"></div></div><button type="button" id="wizard-next-2" class="w-full mt-4 bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">Valoriser ces compétences 🚀</button>
+                         <h3 class="text-lg font-bold text-OrIAntation-darkblue mb-2">Étape 2 : Valide tes compétences</h3><p class="text-slate-600 mb-4">Clique sur les compétences qui te semblent les plus justes.</p><div id="skill-tags-container" class="flex flex-wrap gap-3 p-4 bg-background-light rounded-lg border min-h-[100px]"></div><div id="loader-2" class="hidden"><div class="loader"></div></div><button type="button" id="wizard-next-2" class="w-full mt-4 bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">Valoriser ces compétences 🚀</button>
                     </div>
                     <div id="wizard-step-3" class="hidden">
-                        <h3 class="text-lg font-bold text-azimut-darkblue mb-2">Étape 3 : Voici ton texte valorisé !</h3><p class="text-slate-600 mb-4">Utilise ce paragraphe dans tes lettres de motivation ou sur ton CV.</p><div id="loader-3" class="hidden"><div class="loader"></div></div><div id="portfolio-result" class="p-4 bg-background-light rounded-lg border whitespace-pre-wrap min-h-[150px]"></div><div class="flex gap-4"><button type="button" id="save-experience-btn" class="w-full mt-4 bg-teal-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-600 transition">Enregistrer l'expérience</button></div>
+                        <h3 class="text-lg font-bold text-OrIAntation-darkblue mb-2">Étape 3 : Voici ton texte valorisé !</h3><p class="text-slate-600 mb-4">Utilise ce paragraphe dans tes lettres de motivation ou sur ton CV.</p><div id="loader-3" class="hidden"><div class="loader"></div></div><div id="portfolio-result" class="p-4 bg-background-light rounded-lg border whitespace-pre-wrap min-h-[150px]"></div><div class="flex gap-4"><button type="button" id="save-experience-btn" class="w-full mt-4 bg-teal-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-600 transition">Enregistrer l'expérience</button></div>
                     </div>
                 </div>
             </div>
@@ -5021,7 +5021,7 @@ function createStep10View() {
         const result = await callGeminiAPI(prompt);
         journalData.step10.soft_skills_profile = result;
         await saveData();
-        resultsContainer.innerHTML = `<h4 class="font-bold text-azimut-darkblue mb-2">Analyse de ton profil :</h4><div class="p-4 bg-background-light rounded-lg border whitespace-pre-wrap">${result}</div>`;
+        resultsContainer.innerHTML = `<h4 class="font-bold text-OrIAntation-darkblue mb-2">Analyse de ton profil :</h4><div class="p-4 bg-background-light rounded-lg border whitespace-pre-wrap">${result}</div>`;
         checkConnectorState();
     };
 
@@ -5035,7 +5035,7 @@ function createStep10View() {
     if (journalData.step10.soft_skills_profile) {
         startDetectorBtn.classList.remove('hidden');
         resultsContainer.classList.remove('hidden');
-        resultsContainer.innerHTML = `<h4 class="font-bold text-azimut-darkblue mb-2">Analyse de ton profil :</h4><div class="p-4 bg-background-light rounded-lg border whitespace-pre-wrap">${journalData.step10.soft_skills_profile}</div>`;
+        resultsContainer.innerHTML = `<h4 class="font-bold text-OrIAntation-darkblue mb-2">Analyse de ton profil :</h4><div class="p-4 bg-background-light rounded-lg border whitespace-pre-wrap">${journalData.step10.soft_skills_profile}</div>`;
     }
 
     const modal = div.querySelector('#portfolio-modal');
@@ -5187,7 +5187,7 @@ function createStep10View() {
 function createOrientationMapView(data, context = 'user') {
     const profileTitle = context === 'user' ? 'Mon Profil' : 'Son Profil';
 
-    let mapHTML = '<div class="mb-8"><h2 class="text-xl font-bold text-azimut-darkblue text-center mb-4">🗺️ Carte d\'Orientation Personnelle</h2>';
+    let mapHTML = '<div class="mb-8"><h2 class="text-xl font-bold text-OrIAntation-darkblue text-center mb-4">🗺️ Carte d\'Orientation Personnelle</h2>';
     
     // Conteneur principal avec la grille
     mapHTML += '<div class="bg-white p-6 rounded-2xl shadow-lg border border-border-subtle grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">';
@@ -5201,7 +5201,7 @@ function createOrientationMapView(data, context = 'user') {
                         <h3 class="font-bold text-cyan-800">👤 ${profileTitle}</h3>
                         <div class="mt-2">
                             <span class="text-4xl">${archetype.icone}</span>
-                            <p class="font-semibold text-azimut-darkblue mt-1">${archetype.titre}</p>
+                            <p class="font-semibold text-OrIAntation-darkblue mt-1">${archetype.titre}</p>
                             <p class="text-sm text-slate-600">${archetype.description}</p>
                         </div>
                     </div>`;
@@ -5259,17 +5259,17 @@ function createStep11View() {
         <div id="geminiLoader_local" class="hidden"><div class="loader"></div></div>
         <div id="results-container" class="mt-8"></div>
         <hr class="my-12 border-slate-300">
-        <h2 class="text-2xl font-bold text-azimut-darkblue mb-4">Préparer mes visites</h2>
+        <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Préparer mes visites</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div class="bg-background-light p-4 rounded-lg border">
-                <h3 class="font-bold text-azimut-darkblue mb-2">Préparer une JPO</h3>
+                <h3 class="font-bold text-OrIAntation-darkblue mb-2">Préparer une JPO</h3>
                 <input type="text" id="jpo_ecole" name="jpo_ecole" class="w-full p-2 border border-slate-300 rounded-lg mb-2" placeholder="Nom de l'école ou formation" value="${journalData.step11.jpo_ecole || ''}">
                 <button type="button" id="geminiBtn_jpo" class="w-full bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">💡 Générer des questions</button>
                 <div id="geminiLoader_jpo" class="hidden"><div class="loader"></div></div>
                 <textarea id="jpo_questions" name="jpo_questions" rows="8" class="w-full mt-2 p-2 border border-slate-300 rounded-lg bg-slate-100" readonly>${journalData.step11.jpo_questions || ''}</textarea>
             </div>
             <div class="bg-background-light p-4 rounded-lg border">
-                <h3 class="font-bold text-azimut-darkblue mb-2">Préparer une visite de Salon</h3>
+                <h3 class="font-bold text-OrIAntation-darkblue mb-2">Préparer une visite de Salon</h3>
                 <input type="text" id="salon_nom" name="salon_nom" class="w-full p-2 border border-slate-300 rounded-lg mb-2" placeholder="Nom du salon (ex: Salon de l'Étudiant)" value="${journalData.step11.salon_nom || ''}">
                 <button type="button" id="geminiBtn_salon" class="w-full bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">🎯 Préparer ma visite</button>
                 <div id="geminiLoader_salon" class="hidden"><div class="loader"></div></div>
@@ -5288,7 +5288,7 @@ function createStep11View() {
     const renderResults = (data) => {
         let html = '';
         if (data.evenements && Array.isArray(data.evenements) && data.evenements.length > 0) {
-            html += '<h2 class="text-2xl font-bold text-azimut-darkblue mb-4">🗓️ Événements à ne pas manquer</h2>';
+            html += '<h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">🗓️ Événements à ne pas manquer</h2>';
             html += '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
             data.evenements.forEach((event, index) => {
                 const dateInputId = `event-date-${index}`;
@@ -5310,7 +5310,7 @@ function createStep11View() {
             html += '</div>';
         }
         if (data.structures && Array.isArray(data.structures) && data.structures.length > 0) {
-            html += '<h2 class="text-2xl font-bold text-azimut-darkblue mt-8 mb-4">🏢 Structures pour t\'accompagner</h2>';
+            html += '<h2 class="text-2xl font-bold text-OrIAntation-darkblue mt-8 mb-4">🏢 Structures pour t\'accompagner</h2>';
             html += '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
             data.structures.forEach(struct => {
                 const searchQuery = `${struct.nom}, ${struct.adresse}`;
@@ -5439,7 +5439,7 @@ function createStep11View() {
             
             div.innerHTML = `
 
-<h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 md:whitespace-nowrap text-azimut-darkblue mb-6">
+<h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 md:whitespace-nowrap text-OrIAntation-darkblue mb-6">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0h18M12 12.75h.008v.008H12v-.008Z" />
         </svg>
@@ -5492,10 +5492,10 @@ function createStep11View() {
                 
                 retroplanningContent.innerHTML = `
                     <div>
-                <h2 class="text-2xl font-bold text-center mb-6 text-azimut-darkblue">Ta Feuille de Route</h2>
+                <h2 class="text-2xl font-bold text-center mb-6 text-OrIAntation-darkblue">Ta Feuille de Route</h2>
                 ${timelineHTML}
                 <div class="mt-8 bg-background-light p-4 rounded-lg">
-                    <h3 class="font-bold text-azimut-darkblue mb-2">Le conseil détaillé de ton Coach :</h3>
+                    <h3 class="font-bold text-OrIAntation-darkblue mb-2">Le conseil détaillé de ton Coach :</h3>
                     <p class="whitespace-pre-wrap text-slate-600 text-sm">${journalData.retroplanning.rawText || ''}</p>
                 </div>
             </div>
@@ -5552,7 +5552,7 @@ Ta mission se déroule en plusieurs étapes :
     * **Trimestre 3 : Décision & Concrétisation.**
     Pour chaque mois, propose des actions claires et réalistes.
 
-3.  **Intégration des étapes de l'application :** Pour chaque mois, tu dois recommander à l'élève de réaliser une ou plusieurs étapes de son application "Azimut". Il est **impératif** que tu utilises scrupuleusement les noms exacts des étapes listées ci-dessous.
+3.  **Intégration des étapes de l'application :** Pour chaque mois, tu dois recommander à l'élève de réaliser une ou plusieurs étapes de son application "OrIAntation". Il est **impératif** que tu utilises scrupuleusement les noms exacts des étapes listées ci-dessous.
 
 4.  **Conseils d'Expert (Obligatoire) :**
     Dans la section "conseilDetaille" de ta réponse JSON, tu dois inclure un paragraphe de coaching, suivi de deux sous-sections de conseils concrets :
@@ -5732,7 +5732,7 @@ async function createJournalView() {
     const headerEl = document.createElement('div');
     headerEl.innerHTML = `
     <div class="text-center mb-6">
-<h1 class="text-2xl font-bold flex justify-center items-center gap-2 md:whitespace-nowrap text-azimut-darkblue">
+<h1 class="text-2xl font-bold flex justify-center items-center gap-2 md:whitespace-nowrap text-OrIAntation-darkblue">
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8">
         <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.75V16.5L12 14.25 7.5 16.5V3.75m9 0H18A2.25 2.25 0 0 1 20.25 6v12A2.25 2.25 0 0 1 18 20.25H6A2.25 2.25 0 0 1 3.75 18V6A2.25 2.25 0 0 1 6 3.75h1.5m9 0h-9" />
     </svg>
@@ -5747,7 +5747,7 @@ async function createJournalView() {
     const sharePanelEl = document.createElement('div');
     sharePanelEl.innerHTML = `
         <div class="bg-background-light p-4 rounded-lg border border-border-subtle mb-8">
-<h2 class="text-xl font-bold text-azimut-darkblue mb-2 flex items-center justify-center">
+<h2 class="text-xl font-bold text-OrIAntation-darkblue mb-2 flex items-center justify-center">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-2">
       <path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
     </svg>
@@ -5965,7 +5965,7 @@ async function createJournalView() {
                     hasSubContent = true;
                     let experiencesContent = '<div class="space-y-2">';
                     stepData.experiences.forEach((exp, index) => {
-                        experiencesContent += `<div class="p-3 bg-white rounded-lg"><p class="font-medium text-azimut-darkblue">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`;
+                        experiencesContent += `<div class="p-3 bg-white rounded-lg"><p class="font-medium text-OrIAntation-darkblue">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`;
                     });
                     experiencesContent += '</div>';
                     sectionHTML += `
@@ -6412,7 +6412,7 @@ async function createPublicShareView(userId, token) {
                     hasSubContent = true;
                     let experiencesContent = '<div class="space-y-2">';
                     stepData.experiences.forEach((exp, index) => {
-                        experiencesContent += `<div class="p-3 bg-white rounded-lg"><p class="font-medium text-azimut-darkblue">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`;
+                        experiencesContent += `<div class="p-3 bg-white rounded-lg"><p class="font-medium text-OrIAntation-darkblue">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`;
                     });
                     experiencesContent += '</div>';
                     sectionHTML += `
@@ -6649,7 +6649,7 @@ function isStepComplete(stepKey) {
             <div class="text-center">
                 <div class="badge ${earned ? 'earned' : ''}" title="${badge.description}">
                     <span class="text-3xl">${badge.icon}</span>
-                    <p class="text-sm font-semibold mt-1 ${earned ? 'text-azimut-darkblue' : 'text-slate-400'}">${badge.title}</p>
+                    <p class="text-sm font-semibold mt-1 ${earned ? 'text-OrIAntation-darkblue' : 'text-slate-400'}">${badge.title}</p>
                 </div>
             </div>
         `;
@@ -6660,7 +6660,7 @@ function isStepComplete(stepKey) {
 
     return `
         <div id="badgesContainer" class="${wrapperClass}">
-            <h2 class="text-lg font-bold text-azimut-darkblue text-center mb-2">Mes Badges</h2>
+            <h2 class="text-lg font-bold text-OrIAntation-darkblue text-center mb-2">Mes Badges</h2>
             <div class="grid grid-cols-3 gap-2">
                 ${badgesHTML}
             </div>
@@ -6943,15 +6943,15 @@ function createPrivacyPolicyView() {
         <div class="flex items-center mb-6">
             <button id="privacyGoBackBtn" class="text-primary-action hover:text-cyan-800 font-bold">← Retour</button>
         </div>
-        <h1 class="text-2xl font-bold text-azimut-darkblue mb-4 text-center">Politique de Confidentialité</h1>
+        <h1 class="text-2xl font-bold text-OrIAntation-darkblue mb-4 text-center">Politique de Confidentialité</h1>
         <p class="mb-8 text-sm text-slate-500 text-center">Dernière mise à jour : 20 septembre 2025</p>
 
-        <h2 class="text-xl font-bold text-azimut-darkblue mt-6 mb-2">1. Objet et champ d'application</h2>
+        <h2 class="text-xl font-bold text-OrIAntation-darkblue mt-6 mb-2">1. Objet et champ d'application</h2>
         <p class="text-slate-600 mb-4">
             La présente politique de confidentialité a pour objet de définir les modalités de traitement des données à caractère personnel des utilisateurs de l'application web "OrIAntation", conformément au Règlement (UE) 2016/679 du Parlement européen et du Conseil du 27 avril 2016, plus connu sous le nom de **Règlement Général sur la Protection des Données (RGPD)**. Ce document est un instrument de transparence destiné à informer les utilisateurs et, le cas échéant, à répondre aux requêtes des autorités de contrôle (telles que la CNIL en France).
         </p>
 
-        <h2 class="text-xl font-bold text-azimut-darkblue mt-6 mb-2">2. Identité et coordonnées du responsable de traitement</h2>
+        <h2 class="text-xl font-bold text-OrIAntation-darkblue mt-6 mb-2">2. Identité et coordonnées du responsable de traitement</h2>
         <p class="text-slate-600 mb-4">
             Le responsable du traitement des données est Thomas Cavil, créateur et développeur de l'application.
             <ul class="list-disc list-inside text-slate-600 mb-4">
@@ -6960,7 +6960,7 @@ function createPrivacyPolicyView() {
             </ul>
         </p>
 
-        <h2 class="text-xl font-bold text-azimut-darkblue mt-6 mb-2">3. Données collectées, finalités et base légale du traitement</h2>
+        <h2 class="text-xl font-bold text-OrIAntation-darkblue mt-6 mb-2">3. Données collectées, finalités et base légale du traitement</h2>
         <p class="text-slate-600 mb-4">
             Les données à caractère personnel traitées sont limitées au strict nécessaire pour la fourniture du service.
         </p>
@@ -6998,7 +6998,7 @@ function createPrivacyPolicyView() {
             </table>
         </div>
 
-        <h2 class="text-xl font-bold text-azimut-darkblue mt-6 mb-2">4. Destinataires et sous-traitants des données</h2>
+        <h2 class="text-xl font-bold text-OrIAntation-darkblue mt-6 mb-2">4. Destinataires et sous-traitants des données</h2>
         <p class="text-slate-600 mb-4">
             Vos données sont traitées en interne par le responsable de traitement. Elles ne sont pas transmises à des tiers, à l'exception des sous-traitants nécessaires au bon fonctionnement de l'application :
         </p>
@@ -7016,12 +7016,12 @@ function createPrivacyPolicyView() {
             En cas d'activation de la fonction "Partage", un lien sécurisé est généré et vous seul(e) en êtes le(la) destinataire initial(e). La consultation des données par un tiers via ce lien relève de votre responsabilité.
         </p>
 
-        <h2 class="text-xl font-bold text-azimut-darkblue mt-6 mb-2">5. Durée de conservation des données</h2>
+        <h2 class="text-xl font-bold text-OrIAntation-darkblue mt-6 mb-2">5. Durée de conservation des données</h2>
         <p class="text-slate-600 mb-4">
             Les données à caractère personnel sont conservées pour la durée de votre utilisation de l'application. En cas de demande de suppression du compte, toutes les données à caractère personnel sont définitivement effacées dans un délai maximal de **30 jours** à compter de la réception de la demande. Ce délai permet de traiter les éventuelles réclamations et d'assurer une bonne fin aux opérations techniques.
         </p>
 
-        <h2 class="text-xl font-bold text-azimut-darkblue mt-6 mb-2">6. Mesures de sécurité</h2>
+        <h2 class="text-xl font-bold text-OrIAntation-darkblue mt-6 mb-2">6. Mesures de sécurité</h2>
         <p class="text-slate-600 mb-4">
             Nous mettons en œuvre des mesures techniques et organisationnelles appropriées pour assurer un niveau de sécurité adapté au risque. Ces mesures comprennent :
         </p>
@@ -7032,7 +7032,7 @@ function createPrivacyPolicyView() {
             <li>Des procédures de sauvegarde régulières.</li>
         </ul>
 
-        <h2 class="text-xl font-bold text-azimut-darkblue mt-6 mb-2">7. Vos droits en matière de protection des données</h2>
+        <h2 class="text-xl font-bold text-OrIAntation-darkblue mt-6 mb-2">7. Vos droits en matière de protection des données</h2>
         <p class="text-slate-600 mb-4">
             Conformément au RGPD, vous disposez d'un ensemble de droits que vous pouvez exercer à tout moment en contactant le responsable de traitement à l'adresse indiquée ci-dessus :
         </p>
