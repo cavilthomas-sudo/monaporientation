@@ -2041,23 +2041,33 @@ function createMenuView() {
     const userGender = currentUserInfo.gender || 'autre';
     const rankTitle = rankNames[currentLevel] ? (rankNames[currentLevel][userGender] || rankNames[currentLevel]['autre']) : 'Débutant';
     
-let badgesHTML = '<div class="flex flex-col items-center justify-center h-full w-full text-center p-2">';
+let badgesHTML = '';
 const earnedBadges = journalData.earned_badges || [];
 
 if (earnedBadges.length > 0) {
-    // On récupère le DERNIER badge obtenu dans la liste
+    // S'il y a des badges, on affiche le dernier obtenu.
     const lastBadgeKey = earnedBadges[earnedBadges.length - 1];
     const lastBadge = badgesConfig[lastBadgeKey];
-
+    
     if (lastBadge) {
-        // On affiche l'icône et le titre du dernier badge
-        badgesHTML += `<span class="text-5xl">${lastBadge.icon}</span>`;
-        badgesHTML += `<p class="font-bold text-OrIAntation-darkblue text-xs mt-2 leading-tight">${lastBadge.title}</p>`;
+        badgesHTML = `
+            <div class="flex flex-col items-center justify-center h-full w-full text-center p-2">
+                <span class="text-5xl">${lastBadge.icon}</span>
+                <p class="font-bold text-OrIAntation-darkblue text-xs mt-2 leading-tight">${lastBadge.title}</p>
+            </div>
+        `;
     }
 } else {
-    // S'il n'y a aucun badge, on affiche le logo
-    badgesHTML += `<img src="logo_badges.png" alt="Badge à débloquer" class="w-full h-full object-cover rounded-full">`;
+    // S'il n'y a PAS de badge, on affiche le logo en fond pour remplir le cercle.
+    // NOTE : Assurez-vous que le chemin 'logo.png' est correct.
+    badgesHTML = `
+        <div class="w-full h-full bg-cover bg-center bg-no-repeat rounded-full" 
+             style="background-image: url('logo.png');">
+        </div>
+    `;
 }
+
+
 badgesHTML += '</div>';
 
 
