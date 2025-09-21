@@ -6701,7 +6701,7 @@ function isStepComplete(stepKey) {
 
             // On affiche le message d'accueil personnalisé si la conversation est vide
             if (chatbotContainer.classList.contains('hidden') === false && chatbotHistory.length === 0) {
-                const welcomeText = `Salut ${currentUserInfo.firstName} ! Je suis ton coach personnel. Comment puis-je t'aider aujourd'hui ?`;
+                const welcomeText = `Salut ${currentUserInfo.firstName} ! 😊 Ravi de te voir ici, prêt à t'aider pour ton orientation !! Dis-moi ce qui t'intéresse ou pose ta question !`;
                 addMessage(welcomeText, 'ai');
             }
         });
