@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Azimut</title>
+    <title>OrIAntation</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" href="logo.png" type="image/png">
     <link rel="manifest" href="manifest.json">
@@ -157,6 +157,39 @@
     transform: scale(1.1);
 }
 
+/* AJOUTEZ CE BLOC À L'INTÉRIEUR DE VOTRE BALISE <style> */
+
+/* Conteneur pour le tableau de comparaison pour permettre le défilement */
+.comparison-table-wrapper {
+    overflow-x: auto; /* Permet le défilement horizontal si le contenu dépasse */
+    -webkit-overflow-scrolling: touch; /* Améliore le défilement sur les appareils Apple */
+    border: 1px solid #e2e8f0; /* border-border-subtle */
+    border-radius: 8px; /* Bords arrondis */
+    margin-top: 1rem;
+}
+
+/* Styles pour le tableau à l'intérieur du conteneur */
+.comparison-table-wrapper table {
+    min-width: 600px; /* Force une largeur minimale pour éviter que le tableau ne s'écrase */
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.comparison-table-wrapper th,
+.comparison-table-wrapper td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #e2e8f0; /* border-border-subtle */
+    text-align: left;
+    white-space: normal; /* Permet au texte de revenir à la ligne */
+}
+
+.comparison-table-wrapper th {
+    background-color: #f8fafc; /* background-light */
+    font-weight: 600;
+    color: #1A3263; /* azimut-darkblue */
+}
+
+
     </style>
 </head>
 
@@ -237,9 +270,54 @@
     <!-- SDKs Firebase -->
     <script type="module">
        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-       import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, deleteUser } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+// MODIFICATION : On ajoute sendEmailVerification et applyActionCode
+       import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, deleteUser, sendEmailVerification, applyActionCode, confirmPasswordReset } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
        import { getFirestore, doc, setDoc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+
+       const firebaseConfig = {
+            apiKey: "AIzaSyCT6U-7Az53oYCPZWHo3Dvxs20XiR0y3EU",
+            authDomain: "monapp0rientation.firebaseapp.com",
+            projectId: "monapp0rientation",
+            storageBucket: "monapp0rientation.firebasestorage.app",
+            messagingSenderId: "369432089475",
+            appId: "1:369432089475:web:689a194b6880001c249cb6"
+        };
+
+        const firebaseApp = initializeApp(firebaseConfig);
+        const auth = getAuth(firebaseApp);
+        const db = getFirestore(firebaseApp);
+        const functions = getFunctions(firebaseApp, "europe-west1"); 
+
+       // REMPLACEZ ce bloc par la nouvelle version
+(async () => {
+    const auth = getAuth();
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode');
+    const actionCode = params.get('oobCode');
+
+    if (mode === 'verifyEmail' && actionCode) {
+        // Logique de vérification d'e-mail (inchangée)
+        try {
+            await applyActionCode(auth, actionCode);
+            if (auth.currentUser) {
+                await auth.currentUser.reload();
+            }
+            showInfoModal(
+                "Vérification Réussie !",
+                "Votre adresse e-mail a été validée. Vous allez maintenant être redirigé vers l'application.",
+                window.location.pathname,
+                3000
+            );
+        } catch (error) {
+            showInfoModal("Erreur", "Le lien de vérification est invalide ou a expiré.");
+        }
+    } else if (mode === 'resetPassword' && actionCode) {
+        // AJOUT : Logique pour la réinitialisation du mot de passe
+        // On affiche la vue spéciale pour entrer un nouveau mot de passe
+        showResetPasswordView(actionCode);
+    }
+})();
 
 
         const levelConfig = {
@@ -589,11 +667,13 @@ step5: {
         fields: []
     },
 };
+// MODIFIEZ VOTRE OBJET badgesConfig AVEC CE NOUVEAU BLOC
+
 const badgesConfig = {
     explorateur: {
-        icon: '🏅',
-        title: "Badge de l'Explorateur",
-        description: "Décerné pour avoir complété les premières étapes fondamentales de ton exploration.",
+        icon: '🛰️',
+        title: "Pionnier Numérique",
+        description: "Décerné pour avoir lancé l'exploration et scanné les données fondamentales de ton profil.",
         criteria: (level) => {
             const step0Complete = isStepComplete('step0');
             const step1Complete = isStepComplete('step1');
@@ -602,9 +682,9 @@ const badgesConfig = {
         }
     },
     stratege: {
-        icon: '🧠',
-        title: "Badge du Stratège",
-        description: "Décerné pour avoir planifié ton année et anticipé l'avenir avec un plan B.",
+        icon: '💠',
+        title: "Architecte Stratégique",
+        description: "Décerné pour avoir traité les informations afin de bâtir un plan d'avenir et des scénarios alternatifs.",
         criteria: () => {
             const retroplanningComplete = journalData.retroplanning && journalData.retroplanning.rawText && journalData.retroplanning.rawText.trim() !== '';
             const step9Complete = isStepComplete('step9');
@@ -612,46 +692,40 @@ const badgesConfig = {
         }
     },
     connecteur: {
-        icon: '🤝',
-        title: "Badge du Connecteur",
-        description: "Décerné pour avoir pris contact avec le monde réel en contactant un professionnel.",
+        icon: '🌐',
+        title: "Hub Réseau",
+        description: "Décerné pour avoir établi les premiers nœuds de ton réseau professionnel en contactant le monde réel.",
         criteria: () => {
             return (journalData.step8.pro_reseau_personnel && journalData.step8.pro_reseau_personnel.trim() !== '') || (journalData.step8.pro_contacts && journalData.step8.pro_contacts.trim() !== '');
         }
     },
-
     artisan: {
-    icon: '🛠️',
-    title: "Badge de l'Artisan",
-    description: "Décerné pour avoir forgé un portfolio solide en analysant tes expériences et ton profil de compétences.",
-    criteria: () => {
-        // Condition : L'élève a utilisé le "Connecteur de Compétences" dans l'étape 10.
-        return journalData.step10 && journalData.step10.skills_synthesis && journalData.step10.skills_synthesis.trim() !== '';
+        icon: '🧬',
+        title: "Développeur de Profil",
+        description: "Décerné pour avoir décodé tes expériences et assemblé l'ADN de tes compétences dans un portfolio.",
+        criteria: () => {
+            return journalData.step10 && journalData.step10.skills_synthesis && journalData.step10.skills_synthesis.trim() !== '';
+        }
+    },
+    analyste: {
+        icon: '📈',
+        title: "Analyste de Données",
+        description: "Décerné pour avoir croisé les données de Parcoursup avec ton profil pour en extraire des tendances.",
+        criteria: () => {
+            return journalData.step3 && (
+                (journalData.step3.compatibilite1 && journalData.step3.compatibilite1.trim() !== '') || 
+                (journalData.step3.compatibilite2 && journalData.step3.compatibilite2.trim() !== '')
+            );
+        }
+    },
+    verificateur: {
+        icon: '🛡️',
+        title: "Débugueur de Mythes",
+        description: "Décerné pour avoir sécurisé ton projet en déconstruisant les idées reçues avec l'outil Fact Checking.",
+        criteria: () => {
+            return journalData.step7 && journalData.step7.scores && Object.keys(journalData.step7.scores).length > 0 && Object.values(journalData.step7.scores).some(history => history.length > 0);
+        }
     }
-},
-
-analyste: {
-    icon: '📊',
-    title: "Badge de l'Analyste",
-    description: "Décerné pour avoir analysé les données de Parcoursup et croisé les 'attendus' avec ton propre profil.",
-    criteria: () => {
-        // Condition : L'élève a généré au moins un rapport de compatibilité dans l'étape 3.
-        return journalData.step3 && (
-            (journalData.step3.compatibilite1 && journalData.step3.compatibilite1.trim() !== '') || 
-            (journalData.step3.compatibilite2 && journalData.step3.compatibilite2.trim() !== '')
-        );
-    }
-},
-
-verificateur: {
-    icon: '💡',
-    title: "Badge de l'Esprit Critique",
-    description: "Décerné pour avoir déconstruit les idées reçues avec l'outil Fact Checking.",
-    criteria: () => {
-        // Condition : L'élève a terminé au moins un quiz dans l'étape 7.
-        return journalData.step7 && journalData.step7.scores && Object.keys(journalData.step7.scores).length > 0 && Object.values(journalData.step7.scores).some(history => history.length > 0);
-    }
-}
 };
 
 function promptShareRole() {
@@ -746,6 +820,64 @@ ${studentFirstName}`;
             });
         });
     }
+}
+
+// AJOUT : Nouvelle fonction pour la page de réinitialisation de mot de passe
+function showResetPasswordView(actionCode) {
+    authContainer.style.display = 'block';
+    mainApp.style.display = 'none';
+
+    authContainer.innerHTML = `
+        <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in">
+            <h2 class="text-2xl font-bold text-center text-azimut-darkblue mb-4">Réinitialiser votre mot de passe</h2>
+            <p class="text-center text-slate-500 mb-6">Veuillez entrer votre nouveau mot de passe.</p>
+            <form id="resetPasswordForm">
+                <input id="newPassword" type="password" placeholder="Nouveau mot de passe" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
+                <input id="confirmPassword" type="password" placeholder="Confirmer le nouveau mot de passe" class="w-full p-3 mb-4 border border-slate-300 rounded-lg" required>
+                <button type="submit" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700 transition">Enregistrer le nouveau mot de passe</button>
+            </form>
+            <p id="resetError" class="text-red-500 text-center mt-4"></p>
+        </div>
+    `;
+
+    const resetPasswordForm = document.getElementById('resetPasswordForm');
+    const resetError = document.getElementById('resetError');
+
+    resetPasswordForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        if (newPassword.length < 6) {
+            resetError.textContent = "Le mot de passe doit contenir au moins 6 caractères.";
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            resetError.textContent = "Les mots de passe ne correspondent pas.";
+            return;
+        }
+
+        try {
+            // On utilise le code de l'URL pour confirmer le changement
+            await confirmPasswordReset(auth, actionCode, newPassword);
+            
+            // On affiche notre jolie modale de succès
+            showInfoModal(
+                "Mot de passe modifié !",
+                "Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter.",
+                window.location.pathname, // Redirige vers la page de connexion après 3 sec
+                3000
+            );
+
+        } catch (error) {
+            console.error("Erreur de réinitialisation:", error.code);
+            if (error.code === 'auth/invalid-action-code') {
+                resetError.textContent = "Le lien a expiré ou est invalide. Veuillez refaire une demande.";
+            } else {
+                resetError.textContent = "Une erreur est survenue. Veuillez réessayer.";
+            }
+        }
+    });
 }
 
 function showSurpriseModal(title, contentHTML, duration = null) {
@@ -862,19 +994,7 @@ function createSimpleModal(title, contentHTML) {
         }
 
         // IMPORTANT : Remplacez par la configuration de votre propre projet Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyCT6U-7Az53oYCPZWHo3Dvxs20XiR0y3EU",
-            authDomain: "monapp0rientation.firebaseapp.com",
-            projectId: "monapp0rientation",
-            storageBucket: "monapp0rientation.firebasestorage.app",
-            messagingSenderId: "369432089475",
-            appId: "1:369432089475:web:689a194b6880001c249cb6"
-        };
-
-        const firebaseApp = initializeApp(firebaseConfig);
-        const auth = getAuth(firebaseApp);
-        const db = getFirestore(firebaseApp);
-        const functions = getFunctions(firebaseApp, "europe-west1"); 
+        
         let currentUserId = null;
         let userGradeLevel = null;
         let currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
@@ -914,74 +1034,104 @@ function createSimpleModal(title, contentHTML) {
         let journalData = {};
         
        // Détecter si l'URL est un lien de partage
-const urlParams = new URLSearchParams(window.location.search);
-const shareId = urlParams.get('share_id');
-const shareToken = urlParams.get('token');
+// REMPLACEZ VOTRE LOGIQUE DE DÉMARRAGE ACTUELLE PAR CELLE-CI
 
-if (shareId && shareToken) {
-    // C'EST UN LIEN DE PARTAGE
-    // On cache l'authentification et on affiche directement la vue publique
-    authContainer.style.display = 'none';
-    mainApp.style.display = 'block';
-    document.querySelector('footer').style.display = 'none';
-    document.querySelector('#chatbot-toggle').style.display = 'none';
-    createPublicShareView(shareId, shareToken);
-} else {
-    // CE N'EST PAS UN LIEN DE PARTAGE : COMPORTEMENT NORMAL DE L'APP
-    
-    // On rend les fonctions de navigation globale accessibles
-    window.showGuideFromLogin = function() {
-        cameFromLogin = true;
-        document.getElementById('authContainer').style.display = 'none';
-        document.getElementById('mainApp').style.display = 'block';
-        document.querySelector('footer').style.display = 'none'; 
-        showView('guide');
-    }
+       const params = new URLSearchParams(window.location.search);
+       const mode = params.get('mode');
+       const actionCode = params.get('oobCode');
+       const shareId = params.get('share_id');
+       const shareToken = params.get('token');
 
-    
+       // Étape 1 : Gérer les actions prioritaires qui ne nécessitent pas d'être connecté
+       if (mode === 'resetPassword' && actionCode) {
+           // Si c'est un lien de réinitialisation de mot de passe, on affiche SEULEMENT cette vue.
+           showResetPasswordView(actionCode);
 
-    window.showLoginViewFromGuide = function() {
-        cameFromLogin = false;
-        document.getElementById('mainApp').style.display = 'none';
-        document.getElementById('authContainer').style.display = 'block';
-        document.querySelector('footer').style.display = 'block';
-        showLoginView();
-    }
+       } else if (shareId && shareToken) {
+            // C'EST UN LIEN DE PARTAGE PUBLIC, on l'affiche directement.
+            authContainer.style.display = 'none';
+            mainApp.style.display = 'block';
+            document.querySelector('footer').style.display = 'none';
+            document.querySelector('#chatbot-toggle').style.display = 'none';
+            createPublicShareView(shareId, shareToken);
 
-    
-    
-// REMPLACEZ VOTRE onAuthStateChanged ACTUELLE PAR CELLE-CI :
-onAuthStateChanged(auth, user => {
-    const chatbotToggle = document.getElementById('chatbot-toggle');
-    const floatingBackBtn = document.getElementById('floatingBackBtn');
+       } else {
+           // Étape 2 : Si ce n'est pas une action prioritaire, on lance le flux d'authentification normal
+           
+            // On rend les fonctions de navigation globale accessibles
+            window.showGuideFromLogin = function() {
+                cameFromLogin = true;
+                document.getElementById('authContainer').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'block';
+                document.querySelector('footer').style.display = 'none'; 
+                showView('guide');
+            }
+            window.showLoginViewFromGuide = function() {
+                cameFromLogin = false;
+                document.getElementById('mainApp').style.display = 'none';
+                document.getElementById('authContainer').style.display = 'block';
+                document.querySelector('footer').style.display = 'block';
+                showLoginView();
+            }
 
-    if (user) {
-        // --- UTILISATEUR CONNECTÉ ---
-        if (chatbotToggle) chatbotToggle.style.display = 'flex';
-        
-        currentUserId = user.uid;
-        authContainer.style.display = 'none';
-        mainApp.style.display = 'block';
-        document.body.classList.add('logged-in');
-        loadData();
+           onAuthStateChanged(auth, user => {
+               const chatbotToggle = document.getElementById('chatbot-toggle');
+               const floatingBackBtn = document.getElementById('floatingBackBtn');
 
-    } else {
-        // --- UTILISATEUR DÉCONNECTÉ ---
-        // On s'assure que TOUS les éléments flottants sont cachés
-        if (chatbotToggle) chatbotToggle.style.display = 'none';
-        if (floatingBackBtn) floatingBackBtn.style.display = 'none';
-        
-        currentUserId = null;
-        userGradeLevel = null;
-        currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
-        journalData = {}; 
-        authContainer.style.display = 'block';
-        mainApp.style.display = 'none';
-        document.body.classList.remove('logged-in')
-        showLoginView();
-    }
-});
-}
+                // On gère la vérification d'email ici car elle peut se produire
+                // alors que l'utilisateur est techniquement "connecté mais non vérifié"
+               if (mode === 'verifyEmail' && actionCode) {
+                    try {
+                        applyActionCode(auth, actionCode).then(async () => {
+                             if (auth.currentUser) {
+                                await auth.currentUser.reload();
+                             }
+                             showInfoModal(
+                                "Vérification Réussie !",
+                                "Votre adresse e-mail a été validée. Vous allez maintenant être redirigé vers l'application.",
+                                window.location.pathname, // Redirige vers la page de base
+                                3000
+                            );
+                        });
+                    } catch (error) {
+                        showInfoModal("Erreur", "Le lien de vérification est invalide ou a expiré.");
+                    }
+                    return; // On arrête le traitement pour laisser la modale s'afficher
+               }
+
+
+               if (user) {
+                   if (user.emailVerified) {
+                       // --- UTILISATEUR CONNECTÉ ET VÉRIFIÉ ---
+                       if (chatbotToggle) chatbotToggle.style.display = 'flex';
+                       currentUserId = user.uid;
+                       authContainer.style.display = 'none';
+                       mainApp.style.display = 'block';
+                       document.body.classList.add('logged-in');
+                       loadData();
+                   } else {
+                       // --- UTILISATEUR CONNECTÉ MAIS NON VÉRIFIÉ ---
+                       if (chatbotToggle) chatbotToggle.style.display = 'none';
+                       if (floatingBackBtn) floatingBackBtn.style.display = 'none';
+                       document.body.classList.remove('logged-in');
+                       showVerificationView(user); // On affiche la page d'attente
+                   }
+               } else {
+                   // --- UTILISATEUR DÉCONNECTÉ (et sans action spéciale dans l'URL) ---
+                   if (chatbotToggle) chatbotToggle.style.display = 'none';
+                   if (floatingBackBtn) floatingBackBtn.style.display = 'none';
+                   
+                   currentUserId = null;
+                   userGradeLevel = null;
+                   currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
+                   journalData = {}; 
+                   authContainer.style.display = 'block';
+                   mainApp.style.display = 'none';
+                   document.body.classList.remove('logged-in')
+                   showLoginView();
+               }
+           });
+       }
 
  function extractJsonFromString(str) {
             if (!str) return null;
@@ -1050,12 +1200,12 @@ function showLoginView() {
 
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in">
-            <img src="logo.png" alt="Logo Azimut" class="mx-auto h-auto w-auto">
+            <img src="logo.png" alt="Logo OrIAntation" class="mx-auto h-auto w-auto">
             <div class="p-4 bg-white text-azimut-darkblue text-center mb-6">
                 <p class="text-sm text-slate-600">
                     Tu te sens perdu ? dans le brouillard ? Noyé dans un océan d'informations ? Pas de panique, tu vas enfin pouvoir prendre les commandes de ton orientation ! Fais confiance à ton copilote IA pour te montrer des chemins de traverse que peu connaissent.
                 </p>
-                <p class="font-semibold text-azimut-darkblue mt-2">Prends la barre avec notre boussole 2.0 !</p>
+                <p class="font-semibold text-azimut-darkblue mt-2">Choisis ton cap avec notre boussole 2.0 !!</p>
             </div>
  <p class="text-center text-sm text-slate-500 mb-6">
                 Besoin d'aide pour commencer ? 
@@ -1094,6 +1244,79 @@ function showLoginView() {
     });
 }
 
+// AJOUT : Nouvelle fonction pour afficher la page de vérification
+function showVerificationView(user) {
+    authContainer.style.display = 'block';
+    mainApp.style.display = 'none';
+
+    authContainer.innerHTML = `
+        <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in text-center">
+            <h2 class="text-2xl font-bold text-azimut-darkblue mb-4">Vérifiez votre adresse e-mail</h2>
+            <p class="text-slate-600 mb-6">
+    Un e-mail de vérification a été envoyé à <strong>${user.email}</strong>.
+    Veuillez cliquer sur le lien qu'il contient pour activer votre compte.
+    <br><br>
+    <span class="text-sm text-slate-500 italic">Pensez à vérifier votre dossier "Spam" ou "Promotions" si vous ne le trouvez pas.</span>
+</p>
+            <p id="resendMessage" class="text-sm text-green-600 mb-4"></p>
+            <div class="space-y-4">
+                <button id="resendVerificationBtn" class="w-full bg-slate-200 text-azimut-darkblue font-semibold py-2 px-4 rounded-lg hover:bg-slate-300 transition">Renvoyer l'e-mail</button>
+                <button id="logoutFromVerificationBtn" class="w-full bg-slate-200 text-azimut-darkblue font-semibold py-2 px-4 rounded-lg hover:bg-slate-300 transition">Se déconnecter</button>
+            </div>
+        </div>
+    `;
+
+    authContainer.querySelector('#resendVerificationBtn').addEventListener('click', async () => {
+        try {
+            await sendEmailVerification(user);
+            authContainer.querySelector('#resendMessage').textContent = "Un nouvel e-mail a été envoyé !";
+        } catch (error) {
+            authContainer.querySelector('#resendMessage').textContent = "Erreur lors de l'envoi. Veuillez réessayer plus tard.";
+        }
+    });
+    
+    authContainer.querySelector('#logoutFromVerificationBtn').addEventListener('click', () => {
+        signOut(auth);
+    });
+}
+
+// AJOUT : Une fonction pour afficher une jolie modale d'information
+function showInfoModal(title, message, redirectUrl = null, duration = 0) {
+    const modalId = 'info-modal';
+    // Supprime un modal existant pour éviter les doublons
+    const existingModal = document.getElementById(modalId);
+    if (existingModal) existingModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = modalId;
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900 bg-opacity-60 fade-in';
+
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm text-center p-6">
+            <h3 class="font-bold text-azimut-darkblue text-lg mb-4">${title}</h3>
+            <p class="text-slate-600 mb-6">${message}</p>
+            <button id="info-modal-ok-btn" class="w-full bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">OK</button>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const okBtn = modal.querySelector('#info-modal-ok-btn');
+
+    const closeModalAndRedirect = () => {
+        modal.remove();
+        if (redirectUrl) {
+            window.location.href = redirectUrl;
+        }
+    };
+
+    okBtn.addEventListener('click', closeModalAndRedirect);
+
+    // Si une durée est spécifiée, on ferme et redirige automatiquement
+    if (duration > 0) {
+        setTimeout(closeModalAndRedirect, duration);
+    }
+}
 function showForgotPasswordView() {
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in">
@@ -1177,34 +1400,42 @@ function showSignupView() {
     const showPrivacyPolicyButton = document.getElementById('showPrivacyPolicyFromSignup');
     const authError = document.getElementById('authError');
 
-    signupForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const firstName = capitalizeWords(document.getElementById('firstName').value);
-        const lastName = capitalizeWords(document.getElementById('lastName').value);
-        const schoolName = capitalizeWords(document.getElementById('schoolName').value);
-        const gender = document.getElementById('gender').value;
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-        const consentGiven = document.getElementById('consentCheckbox').checked;
+    // Dans la fonction showSignupView, remplacez ce bloc
+signupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const firstName = capitalizeWords(document.getElementById('firstName').value);
+    const lastName = capitalizeWords(document.getElementById('lastName').value);
+    const schoolName = capitalizeWords(document.getElementById('schoolName').value);
+    const gender = document.getElementById('gender').value;
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const consentGiven = document.getElementById('consentCheckbox').checked;
 
-        if (!consentGiven) {
-            authError.textContent = "Vous devez accepter la politique de confidentialité pour créer un compte.";
-            return;
-        }
+    if (!consentGiven) {
+        authError.textContent = "Vous devez accepter la politique de confidentialité pour créer un compte.";
+        return;
+    }
 
-        try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-            currentUserId = user.uid;
-            currentUserInfo = { firstName, lastName, schoolName, gender };
-            // On ajoute le champ de consentement à true dès la première sauvegarde
-            journalData.has_consented = true; 
-            await saveData(true);
-        } catch (error) {
-            authError.textContent = "Erreur lors de la création du compte. Le mot de passe doit faire 6 caractères minimum.";
-        }
-    });
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
+        // --- AJOUT IMPORTANT ---
+        // On envoie l'e-mail de vérification juste après la création du compte
+        await sendEmailVerification(user);
+        // ---------------------
+
+        currentUserId = user.uid;
+        currentUserInfo = { firstName, lastName, schoolName, gender };
+        journalData.has_consented = true; 
+        await saveData(true);
+        // onAuthStateChanged va maintenant détecter cet utilisateur
+        // et afficher la page de vérification car user.emailVerified est false.
+
+    } catch (error) {
+        authError.textContent = "Erreur lors de la création du compte. Le mot de passe doit faire 6 caractères minimum.";
+    }
+});
     showLoginButton.addEventListener('click', showLoginView);
     showPrivacyPolicyButton.addEventListener('click', () => {
     cameFromAuth = true; // On lève le drapeau
@@ -1995,6 +2226,52 @@ div.innerHTML = levelDisplayHTML + progressBarHTML + guideCardHTML + `<div class
     const resultDiv = div.querySelector('#radarResult');
     const radarInput = div.querySelector('#radarInput');
 
+    const displayRadarResult = (type, subject, response) => {
+        resultDiv.classList.remove('hidden');
+        resultDiv.innerHTML = ''; // On vide le conteneur pour éviter les doublons
+
+        const textElement = document.createElement('p');
+        textElement.className = 'whitespace-pre-wrap';
+        textElement.innerHTML = linkify(response);
+        resultDiv.appendChild(textElement);
+
+        const buttonsContainer = document.createElement('div');
+        buttonsContainer.className = 'flex gap-4 mt-4 pt-4 border-t';
+        
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'flex-1 bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700 transition';
+        saveBtn.textContent = 'Enregistrer dans le journal';
+
+        // L'écouteur qui effectue la sauvegarde
+        saveBtn.addEventListener('click', async () => {
+            if (!Array.isArray(journalData.radar_history)) {
+                journalData.radar_history = [];
+            }
+            journalData.radar_history.push({
+                type: type,
+                sujet: subject,
+                reponse: response
+            });
+            await saveData(); // Sauvegarde les données
+            await grantXp(15);  // Donne des points d'expérience
+
+            saveBtn.textContent = 'Enregistré ! ✔';
+            saveBtn.disabled = true;
+        });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'flex-1 bg-slate-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-slate-600 transition';
+        cancelBtn.textContent = 'Je vais réfléchir à autre chose';
+        cancelBtn.addEventListener('click', () => {
+            resultDiv.classList.add('hidden');
+        });
+
+        buttonsContainer.appendChild(saveBtn);
+        buttonsContainer.appendChild(cancelBtn);
+        resultDiv.appendChild(buttonsContainer);
+    };
+
+
     div.querySelector('#radarAnalyzeBtn').addEventListener('click', async () => {
         const userInput = radarInput.value.trim();
         if (!userInput) return;
@@ -2004,8 +2281,9 @@ div.innerHTML = levelDisplayHTML + progressBarHTML + guideCardHTML + `<div class
         const prompt = `Agis comme un conseiller d'orientation bienveillant mais réaliste. Un lycéen te propose de considérer le métier : "${userInput}". Voici le résumé de son profil : ${profileSummary}. Donne un retour structuré en 3 points : 1. Points de Connexion. 2. Points de Vigilance. 3. Première Mission d'Exploration. sois enthousiaste et bienveillant, comme un coach qui croit en son élève et adresse à lui en utilisant le tutoiement.`;
         const result = await callGeminiAPI(prompt);
         loader.style.display = 'none';
-        resultDiv.classList.remove('hidden');
-        resultDiv.innerHTML = `<p class="whitespace-pre-wrap">${result}</p><div class="flex gap-4 mt-4 pt-4 border-t"><button class="flex-1 bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700 transition" onclick="this.textContent='Enregistré !'; this.disabled=true;">Enregistrer dans le journal</button><button class="flex-1 bg-slate-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-slate-600 transition" onclick="this.parentElement.parentElement.classList.add('hidden')">Je vais réfléchir à autre chose</button></div>`;
+        
+        // MODIFICATION : On appelle la nouvelle fonction pour afficher le résultat
+        displayRadarResult('Analyse', userInput, result);
     });
 
     div.querySelector('#radarSurpriseBtn').addEventListener('click', async () => {
@@ -2049,6 +2327,8 @@ div.innerHTML = levelDisplayHTML + progressBarHTML + guideCardHTML + `<div class
     // Vous devez ajouter ici le code pour afficher le résultat, similaire à celui du bouton "Analyser"
     // Par exemple :
     resultDiv.innerHTML = `<p class="whitespace-pre-wrap">${result}</p><div class="flex gap-4 mt-4 pt-4 border-t"><button class="flex-1 bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700 transition" onclick="this.textContent='Enregistré !'; this.disabled=true;">Carrément, super idée, je garde</button><button class="flex-1 bg-slate-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-slate-600 transition" onclick="this.parentElement.parentElement.classList.add('hidden')">Pas intéressé</button></div>`;
+    const sujet = result.split('\n')[0].replace('**La Piste Suggérée :**', '').trim();
+        displayRadarResult('Surprise', sujet, result);
 });
 
     // On cible tous les boutons de déconnexion (mobile et desktop)
@@ -2553,7 +2833,7 @@ function createStep1View() {
         const tableClasses = "w-full text-left border-collapse";
         const thClasses = "p-3 border-b-2 border-slate-300 font-bold text-azimut-darkblue bg-slate-100";
         const tdClasses = "p-3 border-b border-border-subtle align-top text-sm";
-        let html = `<table class="${tableClasses}">`;
+        let html = `<div class="comparison-table-wrapper"><table class="${tableClasses}">`;
 
         // En-tête du tableau
         const headerCells = lines[0].split('|').slice(1, -1).map(cell => cell.trim());
@@ -2571,7 +2851,7 @@ function createStep1View() {
                 html += '</tr>';
             }
         }
-        html += '</tbody></table>';
+        html += '</table></div>'; // On ferme la table ET le div wrapper
         return html;
     };
 
@@ -3333,12 +3613,12 @@ function createGuideView() {
     `;
 
     const introHTML = `
-    <img src="logo.png" alt="Logo Azimut" class="logo">
+    <img src="logo.png" alt="Logo OrIAntation" class="logo">
     <h2>Votre Boussole 2.0</h2>
-    <p>Quand les autres outils d'orientation ne se contentent souvent que d'être de simples catalogues : de longues listes de métiers et de formations, Azimut fait la différence. Plus qu'une base de données, c'est une expérience que nous vous offrons : votre <strong>boussole 2.0, boostée à l'IA</strong>, conçue pour vous donner un avantage stratégique.</p>
+    <p>Quand les autres outils d'orientation ne se contentent souvent que d'être de simples catalogues : de longues listes de métiers et de formations, OrIAntation fait la différence. Plus qu'une base de données, c'est une expérience que nous vous offrons : votre <strong>boussole 2.0, boostée à l'IA</strong>, conçue pour vous donner un avantage stratégique.</p>
     <div class="info-box conseil-prof" style="font-style: normal;">
         <h4 style="font-weight: bold; color: #3730A3; display:block;">Le rôle de votre Copilote IA</h4>
-        <p style="margin-top: 10px; font-style: normal;">Dans un système complexe, l'information brute ne suffit pas. L'IA d'Azimut n'est pas là pour vous donner les mêmes réponses qu'à tout le monde. Son travail est de <strong>scanner le terrain, d'analyser votre profil unique et de détecter les "chemins de traverse"</strong> : ces parcours malins et ces opportunités cachées que la plupart des gens ne voient pas.</p>
+        <p style="margin-top: 10px; font-style: normal;">Dans un système complexe, l'information brute ne suffit pas. L'IA d'OrIAntation n'est pas là pour vous donner les mêmes réponses qu'à tout le monde. Son travail est de <strong>scanner le terrain, d'analyser votre profil unique et de détecter les "chemins de traverse"</strong> : ces parcours malins et ces opportunités cachées que la plupart des gens ne voient pas.</p>
         <p style="margin-top: 15px; font-style: normal;"><strong>Vous restez le Stratège :</strong> l'IA est l'outil d'analyse surpuissant qui vous fournit les données et les options non-conventionnelles. C'est vous qui prenez la décision finale. Votre mission : ne pas suivre le chemin, mais choisir le plus optimisé.</p>
     </div>
 `;
@@ -3347,10 +3627,10 @@ function createGuideView() {
 
     const installationHTML = `
         <h2>Installer l'application sur votre téléphone</h2>
-        <p>Pour un accès plus rapide, vous pouvez ajouter "Azimut" à l'écran d'accueil de votre téléphone. L'application se comportera comme une véritable application native.</p>
+        <p>Pour un accès plus rapide, vous pouvez ajouter "OrIAntation" à l'écran d'accueil de votre téléphone. L'application se comportera comme une véritable application native.</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
             <div class="bg-background-light p-4 rounded-lg border">
-                <h4 class="text-azimut-darkblue">📱 Sur iPhone (iOS)</h4>
+                <h4 class="text-OrIAntation-darkblue">📱 Sur iPhone (iOS)</h4>
                 <ol class="list-decimal list-inside text-sm text-slate-700 mt-2 space-y-2">
                     <li>Ouvrez l'application dans le navigateur <strong>Safari</strong>.</li>
                     <li>Appuyez sur l'icône de partage (un carré avec une flèche vers le haut).</li>
@@ -3359,7 +3639,7 @@ function createGuideView() {
                 </ol>
             </div>
             <div class="bg-background-light p-4 rounded-lg border">
-                <h4 class="text-azimut-darkblue">📱 Sur Android</h4>
+                <h4 class="text-OrIAntation-darkblue">📱 Sur Android</h4>
                 <ol class="list-decimal list-inside text-sm text-slate-700 mt-2 space-y-2">
                     <li>Ouvrez l'application dans le navigateur <strong>Chrome</strong>.</li>
                     <li>Appuyez sur le menu (les trois points verticaux en haut à droite).</li>
@@ -3373,14 +3653,14 @@ function createGuideView() {
 
     const partie1ElevesHTML = `
         <h2>Partie 1 : Pour les Élèves</h2>
-    <p>L'orientation peut ressembler à un océan de données : des centaines de métiers, des milliers de formations. Il est facile de s'y perdre. Azimut est votre <strong>tableau de bord personnel</strong>. Il ne vous donne pas plus d'informations, il vous aide à trouver <strong>la bonne information pour vous</strong>.</p>
+    <p>L'orientation peut ressembler à un océan de données : des centaines de métiers, des milliers de formations. Il est facile de s'y perdre. OrIAntation est ton <strong>tableau de bord personnel</strong>. Il ne te donne pas plus d'informations, il t'aide à trouver <strong>la bonne information pour toi</strong>.</p>
     <div class="info-box conseil-prof" style="font-style: normal;">
         <h4 style="font-weight: bold; color: #3730A3; display:block;">Votre Méthode en 4 Étapes :</h4>
         <ul>
-            <li><strong>Collecter vos données :</strong> Identifier avec précision vos forces, vos talents et vos motivations profondes.</li>
-            <li><strong>Analyser les possibilités :</strong> Explorer les métiers et les formations comme un analyste, en vous basant sur des informations fiables.</li>
-            <li><strong>Centraliser votre réflexion :</strong> Transformer le Journal de Bord en une base de connaissances claire sur votre projet.</li>
-            <li><strong>Prendre des décisions éclairées :</strong> Utiliser vos analyses pour préparer vos candidatures et planifier votre avenir.</li>
+            <li><strong>Collecter tes données :</strong> Identifier avec précision tes forces, tes talents et tes motivations profondes.</li>
+            <li><strong>Analyser les possibilités :</strong> Explorer les métiers et les formations comme un analyste, en te basant sur des informations fiables.</li>
+            <li><strong>Centraliser ta réflexion :</strong> Transformer le Journal de Bord en une base de connaissances claire sur ton projet.</li>
+            <li><strong>Prendre des décisions éclairées :</strong> Utiliser tes analyses pour préparer tes candidatures et planifier ton avenir.</li>
         </ul>
     </div>
 `;
@@ -3388,7 +3668,7 @@ function createGuideView() {
 
     const partie2ParentsHTML = `
         <h2>Partie 1 : Pour les Parents</h2>
-    <p>Le rôle d'un parent n'est pas de donner les réponses, mais d'aider à poser les bonnes questions. Azimut est conçu comme un support pour vous aider à accompagner votre enfant dans sa propre analyse, en facilitant un dialogue constructif basé sur les données qu'il collecte.</p>
+    <p>Le rôle d'un parent n'est pas de donner les réponses, mais d'aider à poser les bonnes questions. OrIAntation est conçu comme un support pour vous aider à accompagner votre enfant dans sa propre analyse, en facilitant un dialogue constructif basé sur les données qu'il collecte.</p>
     <div class="info-box info-box-parents">
         <h4>Comment l'accompagner dans sa stratégie ?</h4>
         <ul>
@@ -3401,12 +3681,12 @@ function createGuideView() {
 
     const partie3EnseignantsHTML = `
         <h2>Partie 1 : Pour les Enseignants</h2>
-    <p>Au-delà d'un simple outil d'exploration, Azimut est une plateforme qui permet d'enseigner une compétence clé du <strong>Parcours Avenir</strong> : la capacité à prendre des décisions éclairées en analysant des informations complexes.</p>
+    <p>Au-delà d'un simple outil d'exploration, OrIAntation est une plateforme qui permet d'enseigner une compétence clé du <strong>Parcours Avenir</strong> : la capacité à prendre des décisions éclairées en analysant des informations complexes.</p>
     <div class="info-box info-box-teachers">
         <h4>Pistes d'utilisation pédagogique</h4>
         <ul>
             <li><strong>Suivi individualisé basé sur la donnée :</strong> Le "Journal de Bord" partagé n'est pas un simple cahier, c'est un véritable tableau de bord de la réflexion de l'élève. Il permet de préparer des entretiens de suivi basés sur des données concrètes.</li>
-            <li><strong>Ateliers de "Data Literacy" :</strong> Les étapes d'Azimut peuvent servir de support pour des séances où les élèves apprennent à collecter de l'information (sur eux-mêmes et les formations), à l'analyser et à la synthétiser pour en tirer des conclusions.</li>
+            <li><strong>Ateliers de "Data Literacy" :</strong> Les étapes d'OrIAntation peuvent servir de support pour des séances où les élèves apprennent à collecter de l'information (sur eux-mêmes et les formations), à l'analyser et à la synthétiser pour en tirer des conclusions.</li>
             <li><strong>Développer la pensée critique :</strong> La confrontation entre le profil de l'élève et les "attendus" des formations est un excellent exercice pour développer une argumentation structurée, essentielle pour le Grand Oral.</li>
         </ul>
     </div>
@@ -5306,7 +5586,7 @@ Ta mission est la suivante :
 
     Chaque mois doit comporter des tâches équilibrées entre **trois axes majeurs** :
     * **Axe 1 - Réussite Scolaire :** Actions pour renforcer les acquis (français, maths).
-    * **Axe 2 - Construction du Projet :** Répartis de manière logique les étapes de l'application "Azimut".
+    * **Axe 2 - Construction du Projet :** Répartis de manière logique les étapes de l'application "OrIAntation".
     * **Axe 3 - Équilibre & Bien-être :** Propose une action simple pour gérer le stress et maintenir la motivation.
 
 3.  **Conseils d'Expert (Obligatoire) :**
@@ -6661,7 +6941,7 @@ function createPrivacyPolicyView() {
 
         <h2 class="text-xl font-bold text-azimut-darkblue mt-6 mb-2">1. Objet et champ d'application</h2>
         <p class="text-slate-600 mb-4">
-            La présente politique de confidentialité a pour objet de définir les modalités de traitement des données à caractère personnel des utilisateurs de l'application web "Azimut", conformément au Règlement (UE) 2016/679 du Parlement européen et du Conseil du 27 avril 2016, plus connu sous le nom de **Règlement Général sur la Protection des Données (RGPD)**. Ce document est un instrument de transparence destiné à informer les utilisateurs et, le cas échéant, à répondre aux requêtes des autorités de contrôle (telles que la CNIL en France).
+            La présente politique de confidentialité a pour objet de définir les modalités de traitement des données à caractère personnel des utilisateurs de l'application web "OrIAntation", conformément au Règlement (UE) 2016/679 du Parlement européen et du Conseil du 27 avril 2016, plus connu sous le nom de **Règlement Général sur la Protection des Données (RGPD)**. Ce document est un instrument de transparence destiné à informer les utilisateurs et, le cas échéant, à répondre aux requêtes des autorités de contrôle (telles que la CNIL en France).
         </p>
 
         <h2 class="text-xl font-bold text-azimut-darkblue mt-6 mb-2">2. Identité et coordonnées du responsable de traitement</h2>
