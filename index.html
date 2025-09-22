@@ -296,6 +296,15 @@
         const db = getFirestore(firebaseApp);
         const functions = getFunctions(firebaseApp, "europe-west1"); 
 
+        const IS_DEV_MODE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+
+        function devLog(...args) {
+  if (IS_DEV_MODE) {
+    console.log('%c[DEV]', 'color: #7c3aed; font-weight: bold;', ...args);
+  }
+}
+
        // REMPLACEZ ce bloc par la nouvelle version
 (async () => {
     const auth = getAuth();
@@ -494,7 +503,7 @@ const allSteps = [
         icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18" /></svg>`,
         description: `L'Onisep est le service public de l'Éducation Nationale. C'est LA référence pour une information objective et complète. <b>Ce que tu y trouves :</b> des fiches métiers détaillées, des interviews, et le service <b>MonOrientationEnLigne.fr</b> pour poser tes questions directement à des conseillers.`,
         action: `<b>Ta mission :</b> Explore jusqu'à 3 métiers. Pour chaque métier, utilise les boutons d'IA pour découvrir les débouchés, simuler une journée type et trouver des témoignages. Une fois que tu en as exploré au moins deux, utilise le "🔬 Comparateur de Métiers" pour générer un tableau de synthèse qui t'aidera à y voir plus clair !`,
-        urls: [ { site: "Onisep.fr", url: 'https://www.onisep.fr' }, { site: "MonOrientationEnLigne.fr", url: 'https://www.monorientationenligne.fr/' } ],
+        urls: [ { site: "Onisep.fr", url: 'https://www.onisep.fr/metier/decouvrir-le-monde-professionnel' }, { site: "MonOrientationEnLigne.fr", url: 'https://www.monorientationenligne.fr/' } ],
     fields: [
             {id: 'metier1', label: 'Métier / Domaine #1', placeholder: 'Ex: Développeur web'},
             {id: 'notes1', label: 'Notes (études, compétences, surprises...)', placeholder: 'Ce qui a retenu mon attention...', type: 'textarea'},
@@ -546,7 +555,7 @@ const allSteps = [
         stepKey: 'step3', title: 'Le Catalogue Parcoursup',
         icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.57 50.57 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" /></svg>`, description: `Bien plus qu'un site d'inscription, c'est le moteur de recherche le plus exhaustif sur les formations post-bac. <b>Ce qu'il faut absolument regarder :</b> les "attendus", la carte interactive, et les chiffres clés (taux d'accès, etc.).`,
         action: `<b>Ta mission :</b> Trouve 2 formations qui t'intéressent sur Parcoursup. Pour chacune, copie-colle les "attendus", puis utilise le bouton "🔎 Mon profil correspond-il ?" pour obtenir un rapport de compatibilité personnalisé qui croise les données de tout ton parcours. Trouve ensuite 3 mots clés pour décrire cette formation. et clique sur l'✨ pour obtenir une analyse plus poussée. Enfin, n'hésite pas à sollciiter l'IA pour qu'elle te suggère des parcours alternatifs `,
-        url: 'https://www.parcoursup.fr', site: 'Parcoursup.fr',
+        url: 'https://dossier.parcoursup.fr/Candidat/carte', site: 'Parcoursup.fr',
     fields: [
         {id: 'formation1', label: 'Formation #1', placeholder: 'Ex: BUT Informatique - Villetaneuse'},
         {id: 'attendus1', label: 'Attendus et critères importants', placeholder: 'Bon niveau en maths, projet motivé...', type: 'textarea'},
@@ -1088,16 +1097,12 @@ function createSimpleModal(title, contentHTML) {
     // ... (Le code de vérification d'email dans l'URL ne change pas)...
 
     if (user) {
-        // --- NOUVEAU : On ajoute le "Mode Développeur" ---
-        const isDevMode = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
         // --- MODIFIÉ : On ajoute la condition "|| isDevMode" ---
-        if (user.emailVerified || isDevMode) {
-            
-            // NOUVEAU : Un message s'affichera dans la console du navigateur pour vous le rappeler
-            if (isDevMode) {
-                console.log('%c⚠️ MODE DÉVELOPPEUR ACTIF : Vérification d\'email contournée.', 'color: orange; font-weight: bold;');
-            }
+        if (user.emailVerified || IS_DEV_MODE) { 
+    if (IS_DEV_MODE) {
+        console.log('%c⚠️ MODE DÉVELOPPEUR ACTIF : Vérification d\'email contournée.', 'color: orange; font-weight: bold;');
+    }
             
             // --- UTILISATEUR CONNECTÉ ET VÉRIFIÉ (ou en mode dev) ---
             if (chatbotToggle) chatbotToggle.style.display = 'flex';
@@ -2143,11 +2148,9 @@ const filledCount = values.filter(v => {
     return v.toString().trim() !== '';
 }).length;
 
-if (step.id === 'step7') {
-            console.log("--- DÉBOGAGE OBLIGATOIRE --- Étape 'Fact Checking' (step7)");
-            console.log("Valeurs analysées :", values);
-            console.log("Nombre de champs considérés comme remplis :", filledCount);
-        }
+devLog("--- Étape 'Fact Checking' (step7) ---");
+devLog("Valeurs analysées :", values);
+devLog("Nombre de champs considérés comme remplis :", filledCount);
 
 if(filledCount > 0) {
     statusSymbol = '<span class="ml-2 text-orange-400 font-bold">✔</span>';
@@ -6641,7 +6644,6 @@ function isStepComplete(stepKey) {
 
 
         // --- Chatbot Logic ---
-        // --- Chatbot Logic ---
         const chatbotToggle = document.getElementById('chatbot-toggle');
         const chatbotContainer = document.getElementById('chatbot-container');
         const chatbotClose = document.getElementById('chatbot-close');
@@ -6691,8 +6693,8 @@ function isStepComplete(stepKey) {
             }
         });
 
-        chatbotClose.addEventListener('click', () => {
-            chatbotContainer.classList.add('hidden');
+            chatbotClose.addEventListener('click', () => {
+             closeChatbot(); // On utilise la même fonction que le bouton flottant
         });
 
         // 2. Logique de conversation (qui gère l'historique)
@@ -6713,14 +6715,15 @@ function isStepComplete(stepKey) {
 
             return `
 # Rôle et Persona (Ta seule identité)
-Tu es le "Copilote", l'IA conversationnelle de l'application "OrIAntation". Ton unique but est d'aider [PRÉNOM] à utiliser l'application pour construire son projet. Pense à toi comme un mentor jeune, dynamique et super sympa.
-- Le nom de ton application est **OrIAntation**. C'est le seul nom que tu dois utiliser. N'en invente JAMAIS un autre comme "Azimut" ou autre. C'est une règle non-négociable.
+Tu es le "Copilote", l'IA conversationnelle de l'application "OrIAntation". Ton but est d'aider [PRÉNOM] à utiliser l'application pour construire son projet. Pense à toi comme un mentor jeune, dynamique et super sympa.
+- Le nom de ton application est **OrIAntation**.
 
 # Ton Style (TA PRIORITÉ ABSOLUE)
-- **Ton :** Parle comme un jeune adulte, pas comme un prof. Utilise "tu", sois direct, chaleureux et encourageant. JAMAIS  de "Yo" !! Sois professionnel mais cool.
-- **Emojis :** Utilise quelques emojis pour rendre tes messages funs et visuels. C'est essentiel ! 👍🚀💡😉🤔
+- **Ton :** Parle comme un jeune adulte, pas comme un prof. Utilise "tu", sois direct, chaleureux et encourageant. Sois professionnel mais cool.
+- **Emojis :** Utilise quelques emojis pour rendre tes messages funs et visuels. 👍🚀💡😉🤔
 - **Proactivité :** Propose TOUJOURS une action suivante, de préférence en suggérant une étape pertinente de l'application.
-- **Varie tes intros !** Ne commence pas toujours tes réponses par "Hey [PRÉNOM] ! Alors...". Sois plus créatif. Exemples d'intros alternatives : "Bonne question, [PRÉNOM] ! Parlons de ça.", "Ah, [le sujet] ! C'est un sujet super intéressant. Voyons voir...", "Ok, c'est parti ! Pour [le sujet]..."
+- **Varie tes intros !**
+- **Règle ABSOLUE :** Ne salue JAMAIS l'utilisateur après le premier message. Plonge directement dans le sujet.
 
 
 # Contexte Essentiel
@@ -6735,7 +6738,7 @@ Tu dois te baser sur TOUT ce contexte pour chaque réponse.
 
 **2. L'application que vous utilisez ensemble :**
 - Outils disponibles : [LISTE_ETAPES]
-- **Résumé de sa progression :** ${completionSummary}
+- Résumé de sa progression : ${completionSummary}
 
 **3. L'historique de votre conversation :**
 [HISTORIQUE_CONVERSATION]
@@ -6743,11 +6746,10 @@ Tu dois te baser sur TOUT ce contexte pour chaque réponse.
 # Ta Mission et tes Règles
 En respectant IMPÉRATIVEMENT ton style, réponds à la dernière question de [PRÉNOM]. Voici comment tu dois raisonner :
 
-1.  **Règle de pertinence :** Analyse le résumé de sa progression. **Ne lui suggère JAMAIS une étape qu'il a déjà terminée.** S'il a commencé une étape, encourage-le à la finir plutôt que d'en commencer une nouvelle.
-2.  **Priorité 1 : Guide dans l'appli.** Si sa question peut être résolue avec un outil de l'app, guide-le vers l'outil le plus pertinent (et non terminé !).
-3.  **Priorité 2 : Analyse son profil.** Si sa question est personnelle, utilise son Journal de Bord pour donner une réponse personnalisée.
-4.  **Priorité 3 : Expert Externe.** Si, et SEULEMENT si, sa question est très factuelle et externe, alors tu peux utiliser tes connaissances en priorisant les sites onisep.fr et surtout parcoursup.fr. Cite toujours tes sources.
-5.  **Règle de conversation :** Si la conversation a déjà commencé (si l'historique n'est pas vide), ne dis plus jamais "Salut [PRÉNOM]". Réponds directement.
+1.  **Priorité 1 : Guide dans l'appli.** Si sa question peut être résolue avec un outil de l'app, guide-le vers l'outil le plus pertinent (et non terminé !).
+2.  **Priorité 2 : Analyse son profil.** Si sa question est personnelle ("penses-tu que ce métier est fait pour moi ?"), utilise son Journal de Bord pour donner une réponse personnalisée.
+3.  **Priorité 3 : Expert Externe.** Pour les questions factuelles sur les formations ou les métiers (comme les statistiques), utilise tes connaissances générales. Tu peux citer des sources fiables comme onisep.fr ou parcoursup.fr, mais **précise bien que tu n'as pas accès à des données en temps réel ou spécifiques** et qu'il est conseillé de vérifier.
+4.  **Règle de conversation :** Ne salue JAMAIS l'utilisateur après le premier message. Plonge directement dans le sujet.
 
 ---
 Dernière question de [PRÉNOM] : "${userInput}"

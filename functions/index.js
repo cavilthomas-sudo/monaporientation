@@ -3,16 +3,15 @@ const axios = require("axios");
 const cors = require("cors")({ origin: true });
 
 const geminiApiKey = functions.config().gemini.key;
+const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`;
 
 exports.generateContent = functions.https.onRequest((req, res) => {
-  // On utilise cors pour autoriser les requêtes (y compris depuis Netlify et localhost)
   cors(req, res, async () => {
     if (req.method !== "POST") {
       return res.status(405).send("Method Not Allowed");
     }
 
     const { prompt, useGrounding, isJson } = req.body;
-    const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`;
 
     if (!prompt) {
       return res.status(400).json({ error: "Le prompt ne peut pas être vide." });
