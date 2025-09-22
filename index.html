@@ -2054,7 +2054,7 @@ if (earnedBadges.length > 0) {
     // NOTE : Assurez-vous que le chemin 'logo.png' est correct.
     badgesHTML = `
         <div class="w-full h-full bg-cover bg-center bg-no-repeat rounded-full" 
-             style="background-image: url('logo.png');">
+             style="background-image: url('logo_badges.png');">
         </div>
     `;
 }
@@ -5519,43 +5519,28 @@ function createStep11View() {
                 `;
 
                 switch(userGradeLevel) {
-                    case 'seconde':
-                        prompt = `Agis en tant que conseiller d'orientation expert, spécialisé dans l'accompagnement des lycéens en classe de Seconde générale en France.
+            case 'seconde':
+                // --- NOUVEAU PROMPT POUR LA SECONDE ---
+                prompt = `Agis en tant que coach scolaire et conseiller d'orientation d'élite. Un élève de Seconde te demande un rétroplanning. Nous sommes le ${date}.
+                La philosophie est double : 1. **Cap Orientation** (construire son projet) et 2. **Performance & Stratégie** (consolider ses méthodes de travail pour exceller et préparer l'avenir).
 
-Un élève de Seconde te demande de lui créer un rétroplanning d'orientation personnalisé et actionnable pour son année scolaire. Nous sommes le ${date}.
+                Pour chaque mois, du mois actuel jusqu'à juin, propose des actions claires réparties sous **deux rubriques obligatoires** dans ta réflexion : \`### 🧭 Cap Orientation\` et \`### 🚀 Performance & Stratégie\`.
 
-Ta mission se déroule en plusieurs étapes :
+                **Contenu pour "Cap Orientation" :**
+                - Découverte des outils de l'appli ('Mieux se connaître', 'Les Fondations').
+                - Exploration des spécialités (sans pression).
+                - Préparation du stage de juin.
 
-1.  **Recherche d'informations :** Utilise la recherche web pour trouver le calendrier scolaire français typique d'une année de Seconde. Identifie les moments clés et les échéances importantes :
-    * Les dates des conseils de classe (fin du 1er et 2ème trimestre).
-    * La période de saisie des vœux pour les enseignements de spécialité de la classe de Première (généralement autour de mai).
-    * La date du stage obligatoire de Seconde en fin d'année (juin).
-    * Les périodes des grands salons d'orientation (Studyrama, l'Étudiant, etc.).
+                **Contenu pour "Performance & Stratégie" :**
+                - Focus sur l'acquisition de méthodes de travail solides (prise de notes, organisation).
+                - Stratégie pour les conseils de classe (comment obtenir de bonnes appréciations).
+                - Comprendre l'importance des résultats de Seconde pour la suite.
 
-2.  **Planification mensuelle thématique :** En te basant sur ces informations, crée un planning mois par mois, du mois actuel jusqu'à juin de l'année suivante. Le planning doit suivre une progression logique :
-    * **Trimestre 1 : Exploration & Découverte.**
-    * **Trimestre 2 : Approfondissement & Préparation des choix.**
-    * **Trimestre 3 : Décision & Concrétisation.**
-    Pour chaque mois, propose des actions claires et réalistes.
+                Dans la section "conseilDetaille", rédige une synthèse motivante puis deux paragraphes de conseils sur "Comment bien choisir ses 3 spécialités" et "Comment faire du stage de Seconde un véritable atout".
+                 * Tu dois impérativement écrire de façon fluide sans # et sans * dans tes paragraphes.
+               
+' ${commonPromptPart}`;
 
-3.  **Intégration des étapes de l'application :** Pour chaque mois, tu dois recommander à l'élève de réaliser une ou plusieurs étapes de son application "OrIAntation". Il est **impératif** que tu utilises scrupuleusement les noms exacts des étapes listées ci-dessous.
-
-4.  **Conseils d'Expert (Obligatoire) :**
-    Dans la section "conseilDetaille" de ta réponse JSON, tu dois inclure un paragraphe de coaching, suivi de deux sous-sections de conseils concrets :
-    * **Bien choisir ses spécialités :** Donne 2-3 conseils clés pour faire des choix éclairés (lien entre les matières, les projets d'études et les centres d'intérêt).
-    * **Réussir son stage de Seconde :** Explique comment chercher un stage, se comporter en entreprise et en tirer le meilleur parti pour son orientation.
-    * Tu dois impérativement écrire de façon fluide sans # et sans * dans tes paragraphes.
-
-    **Liste des étapes de l'application à utiliser :**
-    * 'Mieux se connaître'
-    * 'Les Fondations'
-    * 'Le simulateur de spécialités'
-    * 'Le Catalogue'
-    * 'L'Expérience'
-    * 'L'Actu & Tests'
-    * 'Quiz : Chasse aux Mythes'
-    * 'Passer à l'action'
-    * 'Rencontres sur mon Territoire' ${commonPromptPart}`;
                         break;
                     case 'premiere':
                         prompt = ` Agis en tant que conseiller d'orientation expert et coach scolaire rigoureux, spécialisé dans l'accompagnement des lycéens en classe de Première générale en France.
@@ -6942,8 +6927,8 @@ function createPrivacyPolicyView() {
         <p class="text-slate-600 mb-4">
             Le responsable du traitement des données est Thomas Cavil, créateur et développeur de l'application.
             <ul class="list-disc list-inside text-slate-600 mb-4">
-                <li><strong>Nom/Raison sociale :</strong> Thomas Cavil</li>
-                <li><strong>Contact :</strong> <a href="mailto:th.cavil@gmail.com" class="font-semibold text-primary-action hover:underline">thomas.cavil@gmail.com</a></li>
+                <li><strong>Nom/Raison sociale :</strong> Thomas Cavil/Enseignant agrégé SVT</li>
+                <li><strong>Contact :</strong> <a href="mailto:thomas.cavil@ac-rennes.fr" class="font-semibold text-primary-action hover:underline">thomas.cavil@ac-rennes.fr</a></li>
             </ul>
         </p>
 
