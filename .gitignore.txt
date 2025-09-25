@@ -1,0 +1,2 @@
+# Ignorer les clés de service Google
+serviceAccountKey.json
