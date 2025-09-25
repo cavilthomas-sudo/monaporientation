@@ -1099,10 +1099,26 @@ function createSimpleModal(title, contentHTML) {
 floatingBackBtn.addEventListener('click', () => {
     // Si on est sur la page du guide, on applique la logique spéciale
     if (currentViewName === 'guide') {
-        const backAction = cameFromLogin ? window.showLoginViewFromGuide : () => window.showView('menu');
+const backAction = cameFromLogin ? window.showSignupViewFromGuide : () => window.showView('menu');
         backAction();
-    } else {
-        // Pour toutes les autres pages, on retourne simplement au menu
+    } 
+
+        else if (currentViewName === 'privacy') {
+        // On s'assure que les bonnes sections de la page sont visibles
+        document.getElementById('mainApp').style.display = 'none';
+        document.getElementById('authContainer').style.display = 'block';
+        document.querySelector('footer').style.display = 'block';
+        
+        // Si on vient de la page d'inscription (drapeau `cameFromAuth`)
+        if (cameFromAuth) {
+            cameFromAuth = false; // On réinitialise le drapeau
+            showSignupView();   // On retourne à la page d'inscription
+        } else {
+            showView('menu'); // Sinon (si on était déjà connecté), on retourne au menu
+        }
+    }
+    // Pour toutes les autres pages, on retourne simplement au menu (inchangé)
+    else {
         showView('menu');
     }
 });
@@ -1149,6 +1165,13 @@ if (shareId && shareToken) {
         document.querySelector('footer').style.display = 'block';
         showLoginView();
     }
+    window.showSignupViewFromGuide = function() {
+    cameFromLogin = false;
+    document.getElementById('mainApp').style.display = 'none';
+    document.getElementById('authContainer').style.display = 'block';
+    document.querySelector('footer').style.display = 'block';
+    showSignupView(); // Appelle la vue d'inscription
+}
 
     onAuthStateChanged(auth, user => {
         const chatbotToggle = document.getElementById('chatbot-toggle');
@@ -1451,6 +1474,12 @@ function showForgotPasswordView() {
 // 🔹 Vue d'inscription
 // 🔹 Vue d'inscription
 function showSignupView() {
+
+    const floatingBackBtn = document.getElementById('floatingBackBtn');
+    if (floatingBackBtn) {
+        floatingBackBtn.style.display = 'none';
+    }
+    
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in">
             <img src="logo.png" alt="Logo OrIAntation" class="mx-auto h-auto w-auto">
@@ -2169,7 +2198,7 @@ async function showView(viewName) {
 
     // Note: 'privacyPolicy' est ajouté ici pour cacher le bouton de retour sur cette vue
     const showChatbotOn = ['menu', 'home', 'step0', 'step1', 'step2', 'step3', 'step4', 'step5', 'step6', 'step7', 'step8', 'step9', 'step10', 'step11', 'step12', 'retroplanning', 'journal'];
-    const showBackButtonOn = ['step0', 'step1', 'step2', 'step3', 'step4', 'step5', 'step6', 'step7', 'step8', 'step9', 'step10', 'step11', 'step12', 'retroplanning', 'journal', 'guide'];
+const showBackButtonOn = ['step0', 'step1', 'step2', 'step3', 'step4', 'step5', 'step6', 'step7', 'step8', 'step9', 'step10', 'step11', 'step12', 'retroplanning', 'journal', 'guide', 'privacy'];
 
     if (chatbotToggle) {
         if (showChatbotOn.includes(viewName)) {
@@ -7667,10 +7696,19 @@ Dernière question de [PRÉNOM] : "${userInput}"
 let touchStartX = 0;
 let touchStartY = 0;
 
-mainApp.addEventListener('touchstart', (e) => {
-    // On enregistre la position de départ du doigt
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
+mainApp.addEventListener('touchend', (e) => {
+    if (!floatingBackBtn || floatingBackBtn.style.display === 'none') {
+        return;
+    }
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+
+    if (deltaX > 75 && Math.abs(deltaY) < 75) {
+        // NOUVELLE LOGIQUE : On simule un clic sur le bouton de retour
+        floatingBackBtn.click(); 
+    }
 }, { passive: true });
 
 mainApp.addEventListener('touchend', (e) => {
@@ -7728,9 +7766,6 @@ function createPrivacyPolicyView() {
     div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-border-subtle text-left';
     
     div.innerHTML = `
-        <div class="flex items-center mb-6">
-            <button id="privacyGoBackBtn" class="text-primary-action hover:text-cyan-800 font-bold">← Retour</button>
-        </div>
         <h1 class="text-2xl font-bold text-OrIAntation-darkblue mb-4 text-center">Politique de Confidentialité</h1>
         <p class="mb-8 text-sm text-slate-500 text-center">Dernière mise à jour : 20 septembre 2025</p>
 
@@ -7837,10 +7872,6 @@ function createPrivacyPolicyView() {
             Vous avez également le droit d'introduire une réclamation auprès de l'autorité de contrôle compétente (la CNIL en France) si vous estimez que vos droits n'ont pas été respectés.
         </p>
     `;
-
-   const backBtn = div.querySelector('#privacyGoBackBtn');
-const backAction = cameFromAuth ? window.showAuthViewFromPrivacy : () => window.showView('menu');
-backBtn.addEventListener('click', backAction);
     
     return div;
 }
