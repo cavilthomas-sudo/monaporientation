@@ -2987,8 +2987,8 @@ function createStep0View() {
         loader.style.display = 'block';
         form.querySelector('#analysis-section').classList.add('hidden');
         
-        const analysisPrompt = `Agis en tant que psychologue expérimenté(e), spécialisé(e) en orientation scolaire et professionnelle. Tu viens de recevoir les réponses d'un(e) lycéen(ne) à un questionnaire de personnalité structuré en 3 parties.\n\nVoici ses réponses :\n${answersText}\n\nINTERPRÉTATION DU QUESTIONNAIRE :\n- La partie "Mes Moteurs" identifie ses valeurs professionnelles clés.\n- La partie "Ma Façon d'Agir" explore ses traits de personnalité (inspirés du modèle Big Five).\n- La partie "Mes Terrains de Jeu" identifie ses pôles d'intérêts dominants (inspirés de la typologie RIASEC de Holland).\n\nTA MISSION :\nRédige une analyse complète, bienveillante et actionnable, structurée exactement comme suit :\n\n**1. Synthèse de votre profil :**\nRédige un paragraphe de résumé qui décrit le profil de l'élève de manière globale et positive.\n\n**2. Vos Atouts et Pistes de Réflexion :**\nEn te basant sur ses réponses à la partie "Ma Façon d'Agir", décris son mode de fonctionnement. Mets en lumière 2 ou 3 de ses plus grandes forces (ex: "Ton approche méthodique et planifiée est un atout majeur..."). Suggère ensuite une piste de développement (ex: "...pense aussi à laisser de la place à la spontanéité").\n\n**3. Les Environnements Faits pour Vous :**\nEn te basant principalement sur les parties "Mes Moteurs" et "Mes Terrains de Jeu", décris le type d'environnement d'études et de travail dans lequel l'élève pourrait s'épanouir. Suggère 2 ou 3 grands domaines ou secteurs d'activité (sans donner de métier précis) qui semblent correspondre à ses intérêts profonds.\n\nLe ton doit être chaleureux et encourageant. Adresse-toi directement à l'élève en utilisant "tu".`;
-        const profileAnalysis = await callOpenAI_API(analysisPrompt);
+        const analysisPrompt = `Agis en tant que psychologue expérimenté(e), spécialisé(e) en orientation scolaire et professionnelle. Tu viens de recevoir les réponses d'un(e) lycéen(ne) à un questionnaire de personnalité structuré en 3 parties.\n\nVoici ses réponses :\n${answersText}\n\nINTERPRÉTATION DU QUESTIONNAIRE :\n- La partie "Mes Moteurs" identifie ses valeurs professionnelles clés.\n- La partie "Ma Façon d'Agir" explore ses traits de personnalité (inspirés du modèle Big Five).\n- La partie "Mes Terrains de Jeu" identifie ses pôles d'intérêts dominants (inspirés de la typologie RIASEC de Holland).\n\nTA MISSION :\nRédige une analyse complète, bienveillante et actionnable, structurée exactement comme suit :\n\n**1. Synthèse de ton profil :**\nRédige un paragraphe de résumé qui décrit le profil de l'élève de manière globale et positive.\n\n**2. Tes atouts et Pistes de Réflexion :**\nEn te basant sur ses réponses à la partie "Ma Façon d'Agir", décris son mode de fonctionnement. Mets en lumière 2 ou 3 de ses plus grandes forces (ex: "Ton approche méthodique et planifiée est un atout majeur..."). Suggère ensuite une piste de développement (ex: "...pense aussi à laisser de la place à la spontanéité").\n\n**3. Les Environnements Faits pour toi :**\nEn te basant principalement sur les parties "Mes Moteurs" et "Mes Terrains de Jeu", décris le type d'environnement d'études et de travail dans lequel l'élève pourrait s'épanouir. Suggère 2 ou 3 grands domaines ou secteurs d'activité (sans donner de métier précis) qui semblent correspondre à ses intérêts profonds.\n\nLe ton doit être chaleureux et encourageant. Adresse-toi directement à l'élève en utilisant "tu".`;
+        const profileAnalysis = await callOpenAI_API(addGenderContextToPrompt(analysisPrompt));
         journalData.step0.analysis = profileAnalysis;
 
         const riasecScores = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
@@ -7892,18 +7892,28 @@ Dernière question de [PRÉNOM] : "${userInput}"
 let touchStartX = 0;
 let touchStartY = 0;
 
+mainApp.addEventListener('touchstart', (e) => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
 mainApp.addEventListener('touchend', (e) => {
+    const floatingBackBtn = document.getElementById('floatingBackBtn');
     if (!floatingBackBtn || floatingBackBtn.style.display === 'none') {
-        return;
+        return; // On ne fait rien si le bouton retour n'est pas visible
     }
+
     const touchEndX = e.changedTouches[0].clientX;
     const touchEndY = e.changedTouches[0].clientY;
     const deltaX = touchEndX - touchStartX;
     const deltaY = touchEndY - touchStartY;
 
+    // On vérifie que le geste est bien un balayage horizontal vers la droite
+    // et non un défilement vertical.
     if (deltaX > 75 && Math.abs(deltaY) < 75) {
-        // NOUVELLE LOGIQUE : On simule un clic sur le bouton de retour
-        floatingBackBtn.click(); 
+        // On simule un clic sur le bouton de retour,
+        // ce qui déclenche la bonne logique de retour (vers le menu, l'inscription, etc.)
+        floatingBackBtn.click();
     }
 }, { passive: true });
 
