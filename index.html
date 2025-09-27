@@ -371,8 +371,10 @@ function extractJsonFromString(str) {
     const mode = params.get('mode');
     const actionCode = params.get('oobCode');
 
+    // On récupère l'URL de base sans les paramètres pour nettoyer
+    const cleanUrl = window.location.origin + window.location.pathname;
+
     if (mode === 'verifyEmail' && actionCode) {
-        // Logique de vérification d'e-mail (inchangée)
         try {
             await applyActionCode(auth, actionCode);
             if (auth.currentUser) {
@@ -380,19 +382,29 @@ function extractJsonFromString(str) {
             }
             showInfoModal(
                 "Vérification Réussie !",
-                "Votre adresse e-mail a été validée. Vous allez maintenant être redirigé vers l'application.",
-                window.location.pathname,
+                "Votre adresse e-mail a été validée. Vous allez être redirigé.",
+                cleanUrl, // <-- On utilise l'URL nettoyée
                 3000
             );
         } catch (error) {
-            showInfoModal("Erreur", "Le lien de vérification est invalide ou a expiré.");
+            // Si le code est déjà utilisé, on ignore l'erreur et on nettoie l'URL
+            // pour que l'utilisateur puisse continuer normalement s'il est déjà connecté.
+            if (error.code === 'auth/invalid-action-code') {
+                if (auth.currentUser) {
+                    // Si l'utilisateur est déjà connecté, on le redirige simplement
+                    // vers la page nettoyée sans montrer d'erreur.
+                    window.location.href = cleanUrl;
+                } else {
+                    // Sinon, on affiche l'erreur
+                    showInfoModal("Erreur", "Le lien de vérification est invalide ou a expiré.");
+                }
+            }
         }
     } else if (mode === 'resetPassword' && actionCode) {
-        // AJOUT : Logique pour la réinitialisation du mot de passe
-        // On affiche la vue spéciale pour entrer un nouveau mot de passe
         showResetPasswordView(actionCode);
     }
 })();
+
 
 
         const levelConfig = {
@@ -2406,7 +2418,12 @@ const completedStepsCount = allStepsForLevel.filter(step => !['journal', 'step12
           if (!['journal', 'step12'].includes(step.id) && journalData[step.id]) {
                     if (isStepComplete(step.id)) {
                     // Coche verte pour les étapes terminées
-                    statusSymbol = '<span class="ml-2 text-green-500 font-bold">✔</span>';
+statusSymbol = `
+    <span class="ml-2 text-green-500">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd" />
+        </svg>
+    </span>`;
                 } else {
                     const stepData = journalData[step.id];
 const values = Object.values(stepData);
@@ -2426,7 +2443,12 @@ devLog("Valeurs analysées :", values);
 devLog("Nombre de champs considérés comme remplis :", filledCount);
 
 if(filledCount > 0) {
-    statusSymbol = '<span class="ml-2 text-orange-400 font-bold">✔</span>';
+statusSymbol = `
+    <span class="ml-2 text-orange-400">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" clip-rule="evenodd" />
+        </svg>
+    </span>`;
 }
                 }
             }
