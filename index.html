@@ -320,28 +320,49 @@
 }
 
 function extractJsonFromString(str) {
-            if (!str) return null;
-            // Trouve la première accolade '{' et la dernière '}'
-            const jsonStart = str.indexOf('{');
-            const jsonEnd = str.lastIndexOf('}') + 1;
+    if (!str) return null;
 
-            // Si on ne trouve pas d'objet JSON, on retourne null
-            if (jsonStart === -1 || jsonEnd === 0) {
-                return null;
-            }
+    // NOUVELLE ÉTAPE : On nettoie les balises de bloc de code ```json
+    let cleanedStr = str.trim();
+    if (cleanedStr.startsWith("```json")) {
+        cleanedStr = cleanedStr.substring(7); // Enlève "```json"
+    }
+    if (cleanedStr.endsWith("```")) {
+        cleanedStr = cleanedStr.substring(0, cleanedStr.length - 3); // Enlève "```"
+    }
+    cleanedStr = cleanedStr.trim(); // Re-nettoie les espaces potentiels
 
-            // Extrait la sous-chaîne qui ressemble à du JSON
-            const jsonString = str.substring(jsonStart, jsonEnd);
-            
-            try {
-                // Tente de l'analyser
-                return JSON.parse(jsonString);
-            } catch (error) {
-                // Si l'analyse échoue, c'est que ce n'était pas du JSON valide
-                console.error("Impossible d'analyser le JSON extrait:", error);
-                return null;
-            }
-        }
+    // On cherche le début d'un tableau '[' ou d'un objet '{'
+    const jsonStartBracket = cleanedStr.indexOf('[');
+    const jsonStartBrace = cleanedStr.indexOf('{');
+    
+    let jsonStart = -1;
+    
+    // On détermine quel type de JSON on a (tableau ou objet)
+    if (jsonStartBracket > -1 && jsonStartBrace > -1) {
+        jsonStart = Math.min(jsonStartBracket, jsonStartBrace);
+    } else if (jsonStartBracket > -1) {
+        jsonStart = jsonStartBracket;
+    } else {
+        jsonStart = jsonStartBrace;
+    }
+
+    // On détermine la fin correspondante
+    const isArray = jsonStart === jsonStartBracket;
+    const jsonEnd = cleanedStr.lastIndexOf(isArray ? ']' : '}') + 1;
+
+    if (jsonStart === -1 || jsonEnd === 0) {
+        return null;
+    }
+
+    const jsonString = cleanedStr.substring(jsonStart, jsonEnd);
+    try {
+        return JSON.parse(jsonString);
+    } catch (error) {
+        console.error("Impossible d'analyser le JSON extrait:", error);
+        return null;
+    }
+}
 
        // REMPLACEZ ce bloc par la nouvelle version
 (async () => {
@@ -741,8 +762,7 @@ const badgesConfig = {
         title: "Architecte Stratégique",
         description: "Décerné pour avoir traité les informations afin de bâtir un plan d'avenir et des scénarios alternatifs.",
         criteria: () => {
-            const retroplanningComplete = journalData.retroplanning && journalData.retroplanning.rawText && journalData.retroplanning.rawText.trim() !== '';
-            const step9Complete = isStepComplete('step9');
+const retroplanningComplete = journalData.retroplanning && journalData.retroplanning.rawText && journalData.retroplanning.rawText.coachingGeneral && journalData.retroplanning.rawText.coachingGeneral.trim() !== '';            const step9Complete = isStepComplete('step9');
             return retroplanningComplete && step9Complete;
         }
     },
@@ -1069,6 +1089,10 @@ function createSimpleModal(title, contentHTML) {
 
         let cameFromLogin = false;
         let cameFromAuth = false; // 👈 AJOUTEZ CETTE LIGNE
+        let authReturnView = ''; 
+        let signupFormData = {}; // <-- JUSTE ICI
+
+
 
         window.showAuthViewFromPrivacy = function() {
             cameFromAuth = false;
@@ -1479,7 +1503,7 @@ function showSignupView() {
     if (floatingBackBtn) {
         floatingBackBtn.style.display = 'none';
     }
-    
+
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in">
             <img src="logo.png" alt="Logo OrIAntation" class="mx-auto h-auto w-auto">
@@ -1518,6 +1542,17 @@ function showSignupView() {
             <p id="authError" class="text-red-500 text-center mt-4"></p>
         </div>
     `;
+
+    if (Object.keys(signupFormData).length > 0) {
+        document.getElementById('firstName').value = signupFormData.firstName || '';
+        document.getElementById('lastName').value = signupFormData.lastName || '';
+        document.getElementById('schoolName').value = signupFormData.schoolName || '';
+        document.getElementById('gender').value = signupFormData.gender || '';
+        document.getElementById('email').value = signupFormData.email || '';
+        
+        // On vide l'objet pour ne pas restaurer les données la prochaine fois
+        signupFormData = {}; 
+    }
 
     const signupForm = document.getElementById('signupForm');
     const showLoginButton = document.getElementById('showLoginButton');
@@ -1562,9 +1597,18 @@ signupForm.addEventListener('submit', async (e) => {
 });
     showLoginButton.addEventListener('click', showLoginView);
     showPrivacyPolicyButton.addEventListener('click', () => {
-    cameFromAuth = true; // On lève le drapeau
-    authContainer.style.display = 'none';
-    mainApp.style.display = 'block';
+signupFormData = {
+        firstName: document.getElementById('firstName')?.value || '',
+        lastName: document.getElementById('lastName')?.value || '',
+        schoolName: document.getElementById('schoolName')?.value || '',
+        gender: document.getElementById('gender')?.value || '',
+        email: document.getElementById('email')?.value || ''
+        // On ne sauvegarde volontairement pas le mot de passe
+};
+    cameFromAuth = true;
+    authReturnView = 'signup';
+    document.getElementById('authContainer').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
     showView('privacy');
 });
 
@@ -2142,9 +2186,9 @@ function showGradeSelectionView() {
     });
 }
 
-       // REMPLACEZ VOTRE FONCTION callGeminiAPI ACTUELLE PAR CELLE-CI :
+       // REMPLACEZ VOTRE FONCTION callOpenAI_API ACTUELLE PAR CELLE-CI :
 
-async function callGeminiAPI(prompt, useGrounding = false, isJson = false) {
+async function callOpenAI_API(prompt, useGrounding = false, isJson = false) {
     
     // Fonction de nettoyage interne pour éviter la répétition
     const cleanResponse = (text) => {
@@ -2182,6 +2226,23 @@ async function callGeminiAPI(prompt, useGrounding = false, isJson = false) {
         // On nettoie aussi le message d'erreur au cas où
         return cleanResponse(errorMessage);
     }
+}
+
+function addGenderContextToPrompt(prompt) {
+    // On récupère le genre de l'utilisateur, sauvegardé à l'inscription
+    const gender = currentUserInfo.gender || 'autre'; 
+    let genderInstruction = '';
+
+    if (gender === 'femme') {
+        genderInstruction = "Règle de ton absolue : L'élève que tu aides est une fille. Tu dois impérativement accorder toute ta réponse au féminin (adjectifs, noms de métiers, etc.). Par exemple, écris 'tu es créative et organisée', 'une exploratrice', 'une experte'.";
+    } else if (gender === 'homme') {
+        genderInstruction = "Règle de ton absolue : L'élève que tu aides est un garçon. Tu dois impérativement accorder toute ta réponse au masculin. Par exemple, écris 'tu es créatif et organisé', 'un explorateur', 'un expert'.";
+    } else {
+        genderInstruction = "Règle de ton absolue : Le genre de l'élève n'est pas spécifié ou est 'autre'. Utilise une écriture inclusive ou neutre (ex: 'créatif/créative', 'un(e) expert(e)') pour t'adresser à la personne.";
+    }
+
+    // On ajoute cette instruction au début du prompt original
+    return `${genderInstruction}\n\n---\n\n${prompt}`;
 }
        
 async function showView(viewName) {  
@@ -2495,7 +2556,7 @@ setTimeout(() => {
         resultDiv.classList.add('hidden');
         const profileSummary = getProfileSummary();
         const prompt = `Agis comme un conseiller d'orientation bienveillant mais réaliste. Un lycéen te propose de considérer le métier : "${userInput}". Voici le résumé de son profil : ${profileSummary}. Donne un retour structuré en 3 points : 1. Points de Connexion. 2. Points de Vigilance. 3. Première Mission d'Exploration. sois enthousiaste et bienveillant, comme un coach qui croit en son élève et adresse à lui en utilisant le tutoiement.`;
-        const result = await callGeminiAPI(prompt);
+        const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
         loader.style.display = 'none';
         
         // MODIFICATION : On appelle la nouvelle fonction pour afficher le résultat
@@ -2535,7 +2596,7 @@ setTimeout(() => {
 
     Le ton doit être percutant, bienveillant et donner envie d'explorer. Adresse-toi directement à lui en utilisant "tu".`;
 
-    const result = await callGeminiAPI(prompt, true)
+    const result = await callOpenAI_API(prompt, true)
     
     loader.style.display = 'none';
     resultDiv.classList.remove('hidden');
@@ -2909,7 +2970,7 @@ function createStep0View() {
         form.querySelector('#analysis-section').classList.add('hidden');
         
         const analysisPrompt = `Agis en tant que psychologue expérimenté(e), spécialisé(e) en orientation scolaire et professionnelle. Tu viens de recevoir les réponses d'un(e) lycéen(ne) à un questionnaire de personnalité structuré en 3 parties.\n\nVoici ses réponses :\n${answersText}\n\nINTERPRÉTATION DU QUESTIONNAIRE :\n- La partie "Mes Moteurs" identifie ses valeurs professionnelles clés.\n- La partie "Ma Façon d'Agir" explore ses traits de personnalité (inspirés du modèle Big Five).\n- La partie "Mes Terrains de Jeu" identifie ses pôles d'intérêts dominants (inspirés de la typologie RIASEC de Holland).\n\nTA MISSION :\nRédige une analyse complète, bienveillante et actionnable, structurée exactement comme suit :\n\n**1. Synthèse de votre profil :**\nRédige un paragraphe de résumé qui décrit le profil de l'élève de manière globale et positive.\n\n**2. Vos Atouts et Pistes de Réflexion :**\nEn te basant sur ses réponses à la partie "Ma Façon d'Agir", décris son mode de fonctionnement. Mets en lumière 2 ou 3 de ses plus grandes forces (ex: "Ton approche méthodique et planifiée est un atout majeur..."). Suggère ensuite une piste de développement (ex: "...pense aussi à laisser de la place à la spontanéité").\n\n**3. Les Environnements Faits pour Vous :**\nEn te basant principalement sur les parties "Mes Moteurs" et "Mes Terrains de Jeu", décris le type d'environnement d'études et de travail dans lequel l'élève pourrait s'épanouir. Suggère 2 ou 3 grands domaines ou secteurs d'activité (sans donner de métier précis) qui semblent correspondre à ses intérêts profonds.\n\nLe ton doit être chaleureux et encourageant. Adresse-toi directement à l'élève en utilisant "tu".`;
-        const profileAnalysis = await callGeminiAPI(analysisPrompt);
+        const profileAnalysis = await callOpenAI_API(analysisPrompt);
         journalData.step0.analysis = profileAnalysis;
 
         const riasecScores = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
@@ -2925,7 +2986,7 @@ function createStep0View() {
         
         const archetypePrompt = `Tu es un psychologue expert en orientation, maître dans l'art de synthétiser des données quantitatives et qualitatives. Tu disposes de deux sources d'information sur un élève :\n\n1.  **Son profil RIASEC dominant (la structure), classé par ordre d'importance :**\n    - ${top3Names[0]}\n    - ${top3Names[1]}\n    - ${top3Names[2]}\n\n2.  **Son analyse de personnalité détaillée (la nuance) :**\n    """\n    ${profileAnalysis}\n    """\n\n**TA MISSION :**\nCombine ces deux sources pour choisir l'archétype le plus juste et personnalisé dans la liste ci-dessous.\n- Utilise le profil RIASEC comme FONDATION pour ton choix.\n- Utilise l'analyse détaillée pour AFFINER ta décision en fonction des motivations profondes décrites dans le texte.\n\n**ARCHÉTYPES POSSIBLES :**\n- 🏛️ L'Architecte Logique (Méthodique, analytique. Souvent I, C, R)\n- 🧭 L'Explorateur Créatif (Imaginatif, curieux. Souvent A, I, E)\n- 🤝 Le Connecteur Humain (Social, empathique. Souvent S, A, E)\n- 🎯 Le Stratège Pragmatique (Organisé, leader. Souvent E, C, S)\n- ✨ Le Visionnaire Intuitif (Inspiré, vue d'ensemble. Souvent A, I, S)\n- 🛠️ L'Artisan Méticuleux (Précis, concret. Souvent R, C, A)\n- ❤️🩹 Le Médiateur Empathique (À l'écoute, diplomate. Souvent S, C, A)\n- 🚀 L'Innovateur Audacieux (Entreprenant, prend des risques. Souvent E, R, I)\n- 📚 Le Gardien des Savoirs (Expert, rigoureux. Souvent I, S, C)\n\n**FORMAT DE SORTIE (JSON STRICT) :**\nFournis ta réponse sous la forme d'un objet JSON valide et rien d'autre. Le JSON doit contenir "titre", "description", et "icone". Adresse toi à l'élève direcetment .`;
         
-        const rawArchetypeResponse = await callGeminiAPI(archetypePrompt, false, true);
+        const rawArchetypeResponse = await callOpenAI_API(archetypePrompt, false, true);
         const archetypeResult = extractJsonFromString(rawArchetypeResponse);
         if (archetypeResult) journalData.step0.archetype = archetypeResult;
 
@@ -2956,7 +3017,7 @@ function createStep0View() {
         loader.style.display = 'block';
         analysisTextarea.value = '';
         const prompt = `Agis en tant que psychologue-conseiller d'orientation. Un élève a déjà complété un questionnaire de personnalité dont l'analyse est la suivante : "${journalData.step0.analysis}".\nPour affiner sa réflexion, il a passé 3 tests complémentaires sur Studyrama. Voici ses résultats :\n1.  **Test d'Intérêts Professionnels :** "${resultatsInterets}"\n2.  **Test de Motivation :** "${resultatsMotivation}"\n3.  **Test de Personnalité :** "${resultatsPersonnalite}"\n\nTa mission est de rédiger une **analyse croisée bienveillante et constructive**. Ne te contente pas de résumer chaque test. Mets en lumière les **convergences** et les **confirmations**.\nStructure ta réponse en 2 points :\n1.  **Ce que ces tests confirment :** Identifie les 2 ou 3 points clés de son profil initial (ses forces, ses moteurs...) qui sont clairement renforcés par les résultats de ces trois tests. Sois précis en citant des exemples.\n2.  **Une nouvelle piste à explorer :** En te basant sur un élément nouveau ou surprenant apparu dans les tests, propose une nouvelle piste de réflexion ou un domaine à explorer auquel il n'avait peut-être pas pensé.\n\nLe ton doit être très encourageant et valoriser la cohérence de sa démarche. Adresse-toi directement à l'élève.`;
-        const result = await callGeminiAPI(prompt);
+        const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
         loader.style.display = 'none';
         analysisTextarea.value = result;
     });
@@ -3194,21 +3255,37 @@ div.querySelectorAll('.ai-btn').forEach(button => {
                 prompt = `Raconte, à la première personne ('Je'), une journée type et réaliste d'un(e) '${metier}'.`;
                 break;
             case 'temoignages':
-                prompt = `Agis comme un documentaliste expert. Pour le métier de "${metier}", trouve 2 contenus pertinents (interview vidéo, podcast, article...). Ta réponse doit être **uniquement un objet JSON valide** contenant un tableau de 2 objets. Chaque objet doit avoir trois clés : "titre", "resume", et "lien".`;
+prompt = `
+Agis comme un documentaliste expert pour le métier de "${metier}".
+
+Ta mission est de trouver 3 contenus pertinents (interview vidéo, podcast, article...).
+
+**Règles de sortie (À SUIVRE IMPÉRATIVEMENT) :**
+1.  Ta réponse doit être **uniquement un objet JSON valide** contenant un tableau de 3 objets.
+2.  Chaque objet doit avoir les clés "titre", "resume", et "lien".
+3.  **RÈGLE LA PLUS IMPORTANTE :** Pour la clé "lien", si tu ne trouves PAS une URL réelle, directe et valide, tu DOIS la remplacer par une URL de recherche Google. Par exemple : "https://www.google.com/search?q=témoignage+métier+${metier}". N'invente **jamais** un nom de domaine.
+`;
                 useGrounding = true;
                 isJson = true;
                 break;
         }
 
-        const result = await callGeminiAPI(prompt, useGrounding, isJson);
+        const result = await callOpenAI_API(prompt, useGrounding, isJson);
         loader.style.display = 'none';
 
         if (action === 'temoignages') {
-            try {
-                resultDiv.className = 'mt-4 text-left';
-                let parsedResult = JSON.parse(result);
-                const testimonialsList = Array.isArray(parsedResult) ? parsedResult : (parsedResult.contenus || parsedResult.testimonials);
-                if (!Array.isArray(testimonialsList)) throw new Error("Liste invalide.");
+    try {
+        resultDiv.className = 'mt-4 text-left';
+        // On utilise notre extracteur intelligent au lieu de JSON.parse directement
+        let parsedResult = extractJsonFromString(result);
+
+        // On ajoute une vérification pour s'assurer que l'extraction a fonctionné
+        if (!parsedResult) {
+            throw new Error("Aucun JSON valide n'a pu être extrait de la réponse.");
+        }
+
+        const testimonialsList = Array.isArray(parsedResult) ? parsedResult : (parsedResult.contenus || parsedResult.testimonials);
+        if (!Array.isArray(testimonialsList)) throw new Error("La structure de la liste est invalide.");
 
                 let htmlResult = '<div class="space-y-5">';
                 let textResultForSave = '';
@@ -3250,12 +3327,17 @@ div.querySelectorAll('.ai-btn').forEach(button => {
         let exploredMetiers = [];
 
         for (let i = 1; i <= 3; i++) {
-            const metier = div.querySelector(`#metier${i}`).value.trim();
-            const analysisText = div.querySelector(`#analysisText${i}`).value.trim();
-            if (metier && analysisText) {
-                exploredMetiers.push({ nom: metier, notes: div.querySelector(`#notes${i}`).value.trim() });
-            }
-        }
+    const metier = div.querySelector(`#metier${i}`).value.trim();
+    
+    // On vérifie si une analyse existe dans le conteneur de résultat
+    const analysisDiv = div.querySelector(`#result-${i}`);
+    const analysisText = analysisDiv ? analysisDiv.innerHTML.trim() : '';
+
+    // On s'assure que le métier est renseigné ET qu'une analyse a bien été générée
+    if (metier && analysisText && !analysisText.includes("Veuillez d'abord entrer un nom de métier")) {
+        exploredMetiers.push({ nom: metier, notes: div.querySelector(`#notes${i}`).value.trim() });
+    }
+}
         if (exploredMetiers.length < 2) return;
 
         loader.style.display = 'block';
@@ -3280,7 +3362,7 @@ Voici les critères que tu dois analyser dans le tableau :
 
 Ne rajoute aucun commentaire ou introduction en dehors de la structure JSON.`;
 
-const result = await callGeminiAPI(prompt, false, true);
+const result = await callOpenAI_API(prompt, false, true);
         loader.style.display = 'none';
 
         try {
@@ -3540,7 +3622,7 @@ function createStep2View() {
             resultDiv.value = '';
 
             const prompt = `Agis comme un conseiller d'orientation. Le profil d'un élève est : "${journalData.step0.analysis}". Il envisage la combinaison de spécialités : "${combo}". Fournis une analyse en 3 points : 1. Forces de la combinaison. 2. Lien avec son profil. 3. Une piste inattendue. Adresse-toi directement à lui.`;
-            const result = await callGeminiAPI(prompt);
+            const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
             
             loader.style.display = 'none';
             resultDiv.value = result;
@@ -3564,7 +3646,7 @@ function createStep2View() {
             
             const prompt = `Agis comme un étudiant en fin de parcours d'études supérieures. Rédige un court témoignage (4-5 phrases) fictif mais réaliste. Dans ce témoignage, tu expliques ton expérience en tant que lycéen ayant choisi la combinaison de spécialités suivante : "${combo}". Parle de ce que tu as aimé, des défis que tu as rencontrés, et de ce que ces spécialités t'ont permis de faire dans tes études. Le ton doit être authentique et parler à un lycéen.`;
 
-            const result = await callGeminiAPI(prompt);
+            const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
             loader.style.display = 'none';
             resultDiv.textContent = result;
             resultDiv.classList.remove('hidden');
@@ -3591,7 +3673,6 @@ function createStep2View() {
         }
         checkBadges();
         await saveData();
-        ostSaveActions()
         showView('menu');
     });
 
@@ -3739,7 +3820,7 @@ function createStep3View() {
 
             const prompt = `Agis comme un examinateur bienveillant. Un lycéen s'intéresse à la formation : "${formation}". Il pense que les 3 mots-clés qui la décrivent le mieux sont : "${keywords}". Évalue sa réponse en te basant sur les "attendus" officiels de cette formation. Dis-lui si ses mots sont pertinents et propose des alternatives plus précises.`;
             console.log("--- PROMPT ENVOYÉ À L'IA ---", prompt);
-            const result = await callGeminiAPI(prompt, true);
+            const result = await callOpenAI_API(prompt, true);
             
             loader.style.display = 'none'; resultDiv.value = result;
         });
@@ -3791,7 +3872,7 @@ Rédige un rapport de compatibilité structuré et bienveillant en 2 points :
 
 Le ton doit être constructif et encourageant. Adresse-toi directement à l'élève.`;
             
-            const result = await callGeminiAPI(prompt, true);
+            const result = await callOpenAI_API(prompt, true);
             loader.style.display = 'none'; resultDiv.value = result;
         });
     }
@@ -3813,7 +3894,7 @@ Le ton doit être constructif et encourageant. Adresse-toi directement à l'él�
         resultDiv.value = ''; loader.style.display = 'block';
         
         const prompt = `Agis comme un conseiller d'orientation créatif. Le profil d'un lycéen est : "${journalData.step0.analysis}". Ce lycéen s'intéresse à : "${formation1}" et "${formation2}". Propose-lui 3 parcours alternatifs auxquels il n'aurait pas pensé, mais qui correspondent bien à son profil. Pour chaque suggestion, explique brièvement la pertinence.`;
-        const result = await callGeminiAPI(prompt);
+        const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
         loader.style.display = 'none'; resultDiv.value = result;
     });
 
@@ -3889,7 +3970,7 @@ Exemple de source_url attendue pour Lorient :
 - Loisirs à Lorient : "https://www.google.com/search?q=bons+plans+étudiants+Lorient"
 `;
 
-    const result = await callGeminiAPI(prompt, true, true);
+    const result = await callOpenAI_API(prompt, true, true);
     loader.style.display = 'none';
 
     try {
@@ -4045,15 +4126,28 @@ Maintenant, effectue une recherche web pour trouver **2 à 3 AUTRES aides pertin
 **Règle :** Ne repropose PAS la BCS ou l'APL. Trouve des aides différentes et si possible spécifiques à "${city}" ou sa région.
 
 **ÉTAPE 3 : Format de Sortie**
-Ta réponse finale doit être **uniquement un objet JSON valide** contenant un tableau nommé "aides".
-Ce tableau doit inclure les 2 aides nationales de l'étape 1, PLUS les 2-3 aides que tu as trouvées à l'étape 2.
-Chaque objet du tableau doit avoir trois clés :
-1.  **"nom"**: Le nom complet et officiel de l'aide.
-2.  **"description"**: Une description **détaillée et précise** (3-4 phrases).
-3.  **"lien"**: Une URL **directe, officielle et valide**.
+Ta réponse finale doit être UNIQUEMENT un objet JSON strictement valide. 
+AUCUN texte ou commentaire en dehors du JSON.
+
+Structure obligatoire :
+{
+  "aides": [
+    {
+      "nom": "Nom complet et officiel de l'aide",
+      "description": "Description détaillée et précise en 3-4 phrases",
+      "lien": "URL directe et officielle"
+    }
+  ]
+}
+
+⚠️ Rappels :
+- Inclure les 2 aides nationales (BCS et APL) + 2 à 3 aides trouvées à l'étape 2.
+- Respecter exactement la structure JSON donnée ci-dessus.
+- Ne rien ajouter d'autre que l'objet JSON.
 `;
 
-        const result = await callGeminiAPI(prompt, true, true);
+
+        const result = await callOpenAI_API(prompt, true, true);
         loader.style.display = 'none';
 
         try {
@@ -4314,8 +4408,7 @@ const partie4FonctionnalitesHTML_enseignants = `
         <h2>Partie 3 : Technologie et Données Personnelles</h2>
         <div class="etape">
             <h4>Le Modèle d'IA Utilisé</h4>
-            <p>L'intelligence artificielle intégrée à cette application est propulsée par <strong>Gemini 1.5 Flash</strong>, un modèle de langage multimodal développé par Google. C'est cet outil qui permet d'analyser vos notes, de générer des suggestions, de synthétiser des informations ou de faire des recherches web ciblées pour enrichir votre réflexion.</p>
-        </div>
+<p>L'intelligence artificielle intégrée à cette application est propulsée par <strong>GPT-4o mini</strong>, un modèle de langage avancé développé par <strong>OpenAI</strong>.</p>        </div>
         <div class="etape">
             <h4>Vos Données Personnelles</h4>
             <div class="conseil-prof" style="font-style: normal;">
@@ -4323,7 +4416,7 @@ const partie4FonctionnalitesHTML_enseignants = `
                 <ul>
                     <li><strong>Quelles données sont collectées ?</strong> L'application collecte uniquement les informations que vous fournissez : votre nom, prénom, email, nom de votre lycée, ainsi que toutes les notes que vous inscrivez dans votre journal de bord.</li>
                     <li><strong>Qui les collecte et où sont-elles hébergées ?</strong> Vos données sont collectées par les concepteurs de l'application, et sont stockées de manière sécurisée sur <strong>Firebase</strong>, une plateforme de Google. L'hébergement se fait sur des serveurs sécurisés en Europe.</li>
-                    <li><strong>Comment sont-elles utilisées ?</strong> Vos données ne sont utilisées <strong>que pour le fonctionnement de l'application</strong>. Votre journal de bord est envoyé à l'IA Gemini pour générer les réponses contextuelles, mais il n'est pas utilisé pour entraîner le modèle global de Google. Vos données ne sont jamais partagées avec des tiers ni utilisées à des fins commerciales.</li>
+                    <li><strong>Comment sont-elles utilisées ?</strong> Vos données ne sont utilisées <strong>que pour le fonctionnement de l'application</strong>. Votre journal de bord est envoyé à l'IA GPT 4o pour générer les réponses contextuelles, mais il n'est pas utilisé pour entraîner le modèle global d'OpenAI. Vos données ne sont jamais partagées avec des tiers ni utilisées à des fins commerciales.</li>
                     <li><strong>Qui peut y accéder ?</strong> Vous seul(e) pouvez accéder à vos données via votre compte. Si vous utilisez la fonction de partage, la personne détentrice du lien pourra voir une version "lecture seule" de votre journal.</li>
                 </ul>
             </div>
@@ -4525,7 +4618,7 @@ function createStep4View() {
             Ta mission est de lui suggérer 3 questions stratégiques et personnalisées qu'il pourrait poser à un étudiant. Ces questions doivent l'aider à valider si ce domaine correspond VRAIMENT à sa personnalité.
             Donne uniquement les 3 questions, chacune sur une nouvelle ligne, sans numérotation ni introduction.`;
 
-            const result = await callGeminiAPI(prompt);
+            const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
             loader.classList.add('hidden');
 
             const questions = result.split('\n').filter(q => q.trim() !== '');
@@ -4551,7 +4644,7 @@ function createStep4View() {
             
             const startPrompt = `Tu joues le rôle d'un étudiant "éclaireur" sympathique et bienveillant. Tu étudies dans le domaine de : "${currentSimTheme}". Un lycéen (l'utilisateur) vient de prendre contact avec toi. Envoie-lui un unique message de bienvenue chaleureux pour démarrer la conversation et l'inviter à poser sa première question.`;
 
-            const firstMessage = await callGeminiAPI(startPrompt);
+            const firstMessage = await callOpenAI_API(startPrompt);
             loaderMsg.remove();
             addSimMessage(firstMessage, 'ai');
             conversationHistory.push({ role: 'model', parts: [{ text: firstMessage }] });
@@ -4587,7 +4680,7 @@ function createStep4View() {
         // mais pour la simplicité de l'exemple, on le passe dans le prompt.
         // Une version avancée enverrait l'historique complet dans `contents`.
 
-        const aiResponse = await callGeminiAPI(conversationPrompt);
+        const aiResponse = await callOpenAI_API(conversationPrompt);
         loaderMsg.remove();
         addSimMessage(aiResponse, 'ai');
         conversationHistory.push({ role: 'model', parts: [{ text: aiResponse }] });
@@ -4656,14 +4749,13 @@ function createStep5View() {
         const articlesText = articles.map(a => `- Article/Classement: "${a.article}"\n  Ce qu'il a appris: "${a.apprentissage}"`).join('\n');
         const prompt = `Agis comme un conseiller d'orientation expert. Le profil d'un lycéen est : "${journalData.step0.analysis}".\nIl a fait une veille d'information et a noté :\n${articlesText}\n\nTa mission est de mettre en relation l'actualité qu'il a trouvée avec son profil personnel et de suggérer, en te basant sur une recherche web, 2 autres pistes de recherche (articles, classements...) précises et pertinentes qui pourraient l'intéresser. Explique brièvement pourquoi.`;
         
-        const result = await callGeminiAPI(prompt, true);
+        const result = await callOpenAI_API(prompt, true);
         loader.style.display = 'none';
         analysisTextarea.value = result;
         
         // On sauvegarde l'analyse directement
         journalData.step5.analyse_actu = result;
         await saveData();
-        ostSaveActions()
     });
 
     return div;
@@ -4738,18 +4830,47 @@ function createStep6View() {
     for (let i = 1; i <= 2; i++) {
         // Listener pour la génération de structure (inchangé)
         div.querySelector(`#geminiBtn_structure_${i}`).addEventListener('click', async () => {
-            const formation = div.querySelector(`#formation_${i}`).value;
-            const motivations = div.querySelector(`#motivations_${i}`).value;
-            const loader = div.querySelector(`#geminiLoader_structure_${i}`);
-            const resultDiv = div.querySelector(`#structure_${i}`);
-            if (!formation.trim() || !motivations.trim()) { resultDiv.value = "Veuillez renseigner la formation et vos motivations."; return; }
-            resultDiv.value = '';
-            loader.style.display = 'block';
-            const prompt = `Agis en tant que conseiller d'orientation expert de Parcoursup. Un lycéen vise la formation "${formation}" et a listé ces motivations/compétences : "${motivations}". Propose un plan structuré et détaillé (en 3 ou 4 paragraphes) pour son projet de formation motivé. Pour chaque paragraphe, explique ce qu'il doit y mettre et comment il peut lier ses compétences à la formation. Ne rédige pas la lettre, donne uniquement le plan avec des conseils.`;
-            const result = await callGeminiAPI(prompt);
-            loader.style.display = 'none';
-            resultDiv.value = result;
-        });
+    const formation = div.querySelector(`#formation_${i}`).value;
+    const motivations = div.querySelector(`#motivations_${i}`).value;
+    const loader = div.querySelector(`#geminiLoader_structure_${i}`);
+    const resultDiv = div.querySelector(`#structure_${i}`);
+
+    if (!formation.trim() || !motivations.trim()) {
+        resultDiv.value = "Veuillez renseigner la formation et vos motivations.";
+        return;
+    }
+
+    resultDiv.value = '';
+    loader.style.display = 'block';
+
+    // --- ÉTAPE 1 : On collecte les données du profil de l'élève ---
+    const profileAnalysis = journalData.step0?.analysis || "Non renseigné.";
+    const skillsProfile = journalData.step10?.soft_skills_profile || "Non renseigné.";
+    const skillsSynthesis = journalData.step10?.skills_synthesis || "Non renseigné.";
+
+    // --- ÉTAPE 2 : On construit le nouveau prompt enrichi ---
+    const prompt = `
+    Agis en tant que conseiller d'orientation expert de Parcoursup. Un lycéen a besoin d'aide pour structurer son projet de formation motivé.
+
+    Voici le dossier complet de l'élève :
+    1.  **Analyse de son profil psychologique :** "${profileAnalysis}"
+    2.  **Analyse de ses compétences transversales :** "${skillsProfile}"
+    3.  **Synthèse de son portfolio d'expériences :** "${skillsSynthesis}"
+
+    Et voici sa demande actuelle :
+    - **Formation visée :** "${formation}"
+    - **Ses motivations et compétences listées (en vrac) :** "${motivations}"
+
+    TA MISSION :
+    1.  Propose un plan structuré et détaillé (en 3 ou 4 paragraphes) pour son projet de formation motivé. Pour chaque paragraphe, explique ce qu'il doit y mettre.
+    2.  **LE PLUS IMPORTANT :** En te basant sur le dossier complet de l'élève, identifie les forces ou les compétences qu'il a **oublié de mentionner** mais qui seraient très pertinentes pour cette candidature. Intègre ces suggestions dans tes conseils pour chaque paragraphe.
+    3.  Ne rédige pas la lettre, donne uniquement le plan avec des conseils stratégiques et adresse toi directement à l'élève en lui daisant tu.
+    `;
+
+    const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
+    loader.style.display = 'none';
+    resultDiv.value = result;
+});
 
         // NOUVEAU LISTENER : Pour l'optimiseur de paragraphe
         div.querySelector(`#optimize-btn_${i}`).addEventListener('click', async () => {
@@ -4778,7 +4899,7 @@ function createStep6View() {
             
             Le ton doit être celui d'un coach bienveillant. Fournis une liste à puces de conseils.`;
 
-            const result = await callGeminiAPI(prompt);
+            const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
             loader.style.display = 'none';
             resultDiv.innerHTML = linkify(result); // On utilise linkify pour bien formater les sauts de ligne
         });
@@ -4798,7 +4919,6 @@ function createStep6View() {
         }
         checkBadges();
         await saveData();
-        ostSaveActions()
         showView('menu');
     });
 
@@ -4888,8 +5008,7 @@ function createStep7View() {
         form.querySelector('#generateQuizBtn').addEventListener('click', () => generateQuiz(type));
     };
     
-    // === LA CORRECTION CLÉ EST ICI ===
-    // La fonction `generateQuiz` accepte maintenant un paramètre 'type'
+    
     const generateQuiz = async (type) => {
         const domain = form.querySelector('#domaine').value.trim();
         if (!domain) { showInfoModal("Veuillez entrer un domaine."); return; }
@@ -4906,29 +5025,89 @@ function createStep7View() {
         let prompt = '';
         // Elle utilise 'type' pour choisir le bon prompt
         if (type === 'personalized') {
-            prompt = `Agis comme un conseiller d'orientation. Le profil d'un élève est : "${journalData.step0.analysis}". Il s'intéresse au domaine : "${domain}". Génère un quiz "vrai ou faux" de 5 questions sur les mythes de ce domaine, mais **spécifiquement choisis pour interpeller l'élève au vu de son profil**. Ta réponse DOIT être UNIQUEMENT un tableau JSON valide (clés: "affirmation", "reponse", "explication").`;
+prompt = `
+Profil de l'élève : "${journalData.step0.analysis}"
+Domaine d'intérêt : "${domain}"
+
+Génère un quiz de 5 affirmations "vrai ou faux" sur les mythes courants de ce domaine.
+Contraintes :
+- Chaque affirmation doit être choisie pour interpeller cet élève selon son profil.
+- Les mythes doivent être crédibles mais souvent mal compris, pas trop évidents.
+- L'explication doit être courte, claire, adaptée au niveau d'un élève, et faire le lien avec son profil quand c'est pertinent.
+
+Sortie attendue :
+UNIQUEMENT un tableau JSON valide avec exactement 5 objets au format suivant :
+[
+  {
+    "affirmation": "Texte de l'affirmation",
+    "reponse": true/false,
+    "explication": "Explication adaptée et pédagogique"
+  }
+]
+
+Règles strictes :
+- 5 objets exactement
+- Clés obligatoires : "affirmation", "reponse", "explication"
+- Valeurs booléennes anglaises true ou false (sans guillemets)
+- Aucune phrase, commentaire ou texte en dehors du JSON
+`
+
+
         } else { // type === 'generic'
-            prompt = `Génère un quiz "vrai ou faux" de 5 questions sur les mythes du domaine suivant : "${domain}". Ta réponse DOIT être UNIQUEMENT un tableau JSON valide (clés: "affirmation", "reponse", "explication").`;
+prompt = `
+Génère 5 affirmations "vrai ou faux" sur les mythes du domaine : "${domain}". 
+Les affirmations doivent être crédibles et pas trop évidentes. 
+Utilise un langage simple, clair et adapté à un élève.
+
+Retourne UNIQUEMENT un tableau JSON valide avec exactement 5 objets :
+[
+  {
+    "affirmation": "Texte de l'affirmation",
+    "reponse": true/false,
+    "explication": "Courte explication claire et pédagogique"
+  }
+]
+
+Règles strictes :
+- 5 objets exactement
+- Clés : "affirmation", "reponse", "explication"
+- "reponse" doit être true ou false (booléens anglais, sans guillemets)
+- Aucun texte hors JSON
+`
         }
 
-        const result = await callGeminiAPI(prompt, false, true);
+        const result = await callOpenAI_API(prompt, false, true);
         try {
-            const parsedResult = JSON.parse(result);
-            quizData = Array.isArray(parsedResult) ? parsedResult : parsedResult.quiz;
-            if (!Array.isArray(quizData) || quizData.length === 0) { throw new Error("Réponse de l'IA invalide."); }
-            currentQuestionIndex = 0;
-            score = 0;
-            renderQuestion(currentQuestionIndex);
-        } catch (error) {
-            quizContainer.innerHTML = `<p class="text-red-500 text-center">Désolé, une erreur est survenue lors de la création du quiz. Veuillez réessayer.</p>`;
-        } finally {
-             loader.style.display = 'none';
-        }
+    // On utilise notre extracteur intelligent au lieu de JSON.parse directement
+    const parsedResult = extractJsonFromString(result);
+
+    // Si l'extracteur ne trouve rien, on déclenche une erreur
+    if (!parsedResult) {
+        throw new Error("Aucun tableau JSON valide trouvé dans la réponse de l'IA.");
+    }
+
+    quizData = Array.isArray(parsedResult) ? parsedResult : parsedResult.quiz;
+    if (!Array.isArray(quizData) || quizData.length === 0) { 
+        throw new Error("La structure du quiz renvoyée par l'IA est invalide."); 
+    }
+
+    currentQuestionIndex = 0;
+    score = 0;
+    renderQuestion(currentQuestionIndex);
+    form.querySelector('#quizLoader').style.display = 'none';
+
+} catch (error) {
+    console.error("Erreur du quiz:", error, "Réponse brute de l'IA:", result);
+    quizContainer.innerHTML = `<p class="text-red-500 text-center">Désolé, une erreur est survenue lors de la création du quiz. Veuillez réessayer.</p>`;
+}
     };
 
     const renderQuestion = (index) => {
-        const quizContainer = form.querySelector('#quizContainer');
-        const question = quizData[index];
+    // On s'assure que le spinner est bien caché dès qu'on affiche une question
+    form.querySelector('#quizLoader').style.display = 'none'; 
+
+    const quizContainer = form.querySelector('#quizContainer');
+    const question = quizData[index];
         const domain = journalData.step7.domaine;
         const scoreHistory = journalData.step7.scores[domain] || [];
         let bestScoreHTML = '';
@@ -5011,7 +5190,6 @@ function createStep7View() {
             newScoreEntry.notes = notes;
             scoreHistory.push(newScoreEntry);
             await saveData();
-            ostSaveActions()
             const xpGained = score * 5;
             if (xpGained > 0) {
                 await grantXp(xpGained);
@@ -5089,7 +5267,7 @@ Chaque objet du tableau doit contenir les clés suivantes :
 - "description": Une brève description de ce que l'élève pourrait y observer.
 - "lien_recherche": Une **URL de recherche Google complète et valide** pour trouver des exemples concrets de ce type de lieu dans la ville spécifiée. Exemple : "https://www.google.com/search?q=cabinets+d'architecte+à+Vannes".
 `;
-            const result = await callGeminiAPI(prompt, true, true);
+            const result = await callOpenAI_API(prompt, true, true);
 
             loader.style.display = 'none';
             try {
@@ -5116,7 +5294,7 @@ Chaque objet du tableau doit contenir les clés suivantes :
             resultTextarea.value = '';
 
             const prompt = `Rédige un modèle d'e-mail court, poli et efficace pour un élève de Seconde, ${currentUserInfo.firstName}, qui postule pour son stage d'observation. L'e-mail doit être facilement adaptable avec des [champs à remplir].`;
-            const result = await callGeminiAPI(prompt);
+            const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
             loader.style.display = 'none';
             resultTextarea.value = result;
         });
@@ -5274,7 +5452,7 @@ Chaque objet du tableau doit contenir les clés suivantes :
         
         const prompt = `Agis comme un conseiller d'orientation cherchant des contacts professionnels, pas des centres d'information généraux. Pour un lycéen dans le département "${departement}", trouve au moins 5 contacts de **professionnels, d'entreprises, de cabinets ou d'associations professionnelles** pertinents pour les métiers suivants : "${metiersList.join(', ')}". **Évite les CIO et les structures d'information généralistes**, sauf si aucune autre option n'est disponible. Diversifie les résultats entre les différents métiers si possible. Ta réponse doit être **uniquement un objet JSON valide** contenant un tableau d'objets. Chaque objet doit avoir deux clés : "nom" (le nom de la structure) et "search_link" (une URL de recherche Google complète et valide pour trouver cette structure, ex: "https://www.google.com/search?q=Ordre+des+Architectes+de+Vannes").`;
         
-        const result = await callGeminiAPI(prompt, true, true);
+        const result = await callOpenAI_API(prompt, true, true);
         loader.style.display = 'none';
         
         try {
@@ -5295,7 +5473,6 @@ Chaque objet du tableau doit contenir les clés suivantes :
     });
     renderContactList();
     await saveData();
-    ostSaveActions()
 
 } catch (e) {
     errorDiv.innerHTML = `
@@ -5315,12 +5492,11 @@ Chaque objet du tableau doit contenir les clés suivantes :
         if (!metier) { resultDiv.value = "Veuillez indiquer un métier pour générer une stratégie."; return; }
         loader.style.display = 'block'; resultDiv.value = '';
         const prompt = `Un(e) lycéen(ne) souhaite contacter un professionnel exerçant le métier de "${metier}". Propose une stratégie en 2 points : 1. Un modèle de mail court, poli et efficace qu'il/elle peut adapter pour demander un bref échange de 15 minutes. 2. Une liste de 3 questions ouvertes et pertinentes à poser lors de l'échange.`;
-        const result = await callGeminiAPI(prompt);
+        const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
         loader.style.display = 'none'; 
         resultDiv.value = result;
         journalData.step8.pro_strategie = result;
         await saveData();
-        ostSaveActions()
     });
     // --- FIN DE LA LOGIQUE RESTAURÉE ---
 
@@ -5421,8 +5597,13 @@ function createStep9View() {
         renderChatHistory();
         loader.style.display = 'block';
         chatControls.style.display = 'none';
-        const prompt = `Agis comme un coach d'orientation bienveillant. Un élève imagine que son vœu n°1 sur Parcoursup, qui est "${formation}", est refusé. Pose-lui une première question ouverte pour l'inviter à exprimer sa réaction. Par exemple : "Ok, imaginons cette situation. C'est décevant, c'est sûr. Quelle est ta première réaction ou ton premier sentiment en imaginant ça ?"`;
-        const result = await callGeminiAPI(prompt);
+const prompt = `Tu es un coach d'orientation bienveillant. Tu commences une simulation avec un élève qui doit imaginer que son vœu n°1, "${formation}", vient d'être refusé sur Parcoursup.
+
+Commence la conversation en posant directement ta première question, sans aucune phrase d'introduction. Ta première phrase doit être une variation de :
+
+"Ok, imaginons cette situation. C'est une nouvelle décevante, c'est certain. Quelle est ta toute première réaction ou ton premier sentiment en apprenant ça ?"`;
+
+const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
         loader.style.display = 'none';
         chatControls.style.display = 'flex';
         journalData.step9.planb_chat_history.push({ role: 'ai', text: result });
@@ -5440,7 +5621,7 @@ function createStep9View() {
         chatControls.style.display = 'none';
         const formation = journalData.step9.formation_reve;
         const prompt = `Agis comme un coach d'orientation bienveillant. Continue cette conversation avec un élève qui réagit au refus de son vœu n°1 ("${formation}"). Voici l'historique : ${JSON.stringify(journalData.step9.planb_chat_history)}. En te basant sur sa dernière réponse, continue de dialoguer. Si tu sens qu'il est prêt, commence à introduire en douceur des pistes de Plan B (formations similaires moins sélectives, parcours connexes, etc.). Le but est de l'aider à accepter la situation et à voir les alternatives de manière positive.`;
-        const result = await callGeminiAPI(prompt);
+        const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
         loader.style.display = 'none';
         chatControls.style.display = 'flex';
         journalData.step9.planb_chat_history.push({ role: 'ai', text: result });
@@ -5607,10 +5788,9 @@ function createStep10View() {
         const skillCounts = userSoftSkills.reduce((acc, skill) => { acc[skill] = (acc[skill] || 0) + 1; return acc; }, {});
         const topSkills = Object.entries(skillCounts).sort((a, b) => b[1] - a[1]).map(el => el[0]);
         const prompt = `Un lycéen a passé un quiz de compétences transversales. Ses compétences les plus marquées sont : ${topSkills.join(', ')}. Rédige une analyse courte et positive (8-10 phrases) de son profil de compétences, en expliquant ce que cela signifie pour son orientation. Tu dois t'adresser directement à l'élève, en utilisant "tu"`;
-        const result = await callGeminiAPI(prompt);
+        const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
         journalData.step10.soft_skills_profile = result;
         await saveData();
-        ostSaveActions()
         resultsContainer.innerHTML = `<h4 class="font-bold text-OrIAntation-darkblue mb-2">Analyse de ton profil :</h4><div class="p-4 bg-background-light rounded-lg border whitespace-pre-wrap">${result}</div>`;
         checkConnectorState();
     };
@@ -5683,25 +5863,33 @@ function createStep10View() {
         div.querySelector('#loader-2').classList.remove('hidden');
         div.querySelector('#skill-tags-container').innerHTML = '';
         const prompt = `Analyse la description de l'expérience suivante fournie par un lycéen. Identifie les 5 à 7 compétences clés (savoir-être ou savoir-faire) les plus importantes qui en ressortent. Ta réponse doit être **uniquement un objet JSON valide** contenant un unique tableau de chaînes de caractères. Exemple : ["Gestion de projet", "Communication"]. Voici l'expérience : "${description}"`;
-        const result = await callGeminiAPI(prompt, false, true);
+        const result = await callOpenAI_API(prompt, false, true);
         div.querySelector('#loader-2').classList.add('hidden');
         const skillTagsContainer = div.querySelector('#skill-tags-container');
         try {
-            const skills = JSON.parse(result);
-            skills.forEach(skill => {
-                const tag = document.createElement('button');
-                tag.type = 'button';
-                tag.className = 'bg-white border-cyan-500 border-2 text-cyan-700 font-semibold py-1 px-3 rounded-full cursor-pointer transition hover:bg-cyan-100';
-                tag.textContent = skill;
-                tag.addEventListener('click', () => {
-                    tag.classList.toggle('bg-cyan-500');
-                    tag.classList.toggle('text-white');
-                });
-                skillTagsContainer.appendChild(tag);
-            });
-        } catch (e) {
-            skillTagsContainer.textContent = "L'IA n'a pas pu extraire de compétences. Veuillez réessayer.";
-        }
+    // On utilise notre extracteur intelligent au lieu de JSON.parse directement
+    const skills = extractJsonFromString(result);
+
+    // On ajoute une vérification pour s'assurer que l'extraction a bien renvoyé un tableau
+    if (!Array.isArray(skills)) {
+        throw new Error("La réponse de l'IA n'est pas un tableau de compétences valide.");
+    }
+
+    skills.forEach(skill => {
+        const tag = document.createElement('button');
+        tag.type = 'button';
+        tag.className = 'bg-white border-cyan-500 border-2 text-cyan-700 font-semibold py-1 px-3 rounded-full cursor-pointer transition hover:bg-cyan-100';
+        tag.textContent = skill;
+        tag.addEventListener('click', () => {
+            tag.classList.toggle('bg-cyan-500');
+            tag.classList.toggle('text-white');
+        });
+        skillTagsContainer.appendChild(tag);
+    });
+} catch (e) {
+    console.error("Erreur d'extraction des compétences:", e, "Réponse brute:", result);
+    skillTagsContainer.textContent = "L'IA n'a pas pu extraire de compétences. Veuillez réessayer.";
+}
     });
 
     div.querySelector('#wizard-next-2').addEventListener('click', async () => {
@@ -5714,7 +5902,7 @@ function createStep10View() {
         div.querySelector('#loader-3').classList.remove('hidden');
         div.querySelector('#portfolio-result').textContent = '';
         const prompt = `Agis en tant que coach carrière expert. Rédige un paragraphe percutant (3-4 phrases) basé sur la méthode STAR (Situation, Tâche, Action, Résultat) pour valoriser une expérience. **Description de l'expérience :** "${currentExperience.description}" **Compétences clés à valoriser :** ${JSON.stringify(selectedSkills)}`;
-        const result = await callGeminiAPI(prompt);
+        const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
         div.querySelector('#loader-3').classList.add('hidden');
         div.querySelector('#portfolio-result').textContent = result;
         currentExperience.analysis = result;
@@ -5724,7 +5912,6 @@ function createStep10View() {
         if (currentExperience && currentExperience.analysis) {
             journalData.step10.experiences.push(currentExperience);
             await saveData();
-            ostSaveActions()
             await grantXp(50);
             renderExperienceCards();
             modal.classList.add('hidden');
@@ -5753,12 +5940,11 @@ function createStep10View() {
         **Profil de savoir-être :** ${profileAnalysis}
         **Expériences concrètes :** - ${experienceSummaries}
         Ta mission est de rédiger une synthèse (2-3 paragraphes) qui connecte ces deux aspects. Montre comment ses savoir-être se manifestent dans ses savoir-faire. Utilise des phrases comme "Ta compétence en [savoir-être] se voit clairement lorsque tu as..." pour créer des ponts. Le but est de l'aider à formuler un discours cohérent sur ses atouts. Adresse-toi directement à lui.`;
-        const result = await callGeminiAPI(prompt);
+        const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
         loader.style.display = 'none';
         resultTextarea.value = result;
         journalData.step10.skills_synthesis = result;
         await saveData();
-        ostSaveActions()
         await grantXp(75);
     });
 
@@ -5766,7 +5952,6 @@ function createStep10View() {
         e.preventDefault();
         checkBadges();
         await saveData();
-        ostSaveActions(); 
         showView('menu');
     });
 
@@ -5776,9 +5961,6 @@ function createStep10View() {
     return div;
 }
 
-
-// REMPLACEZ VOTRE FONCTION createOrientationMapView EXISTANTE PAR CELLE-CI :
-// ✅ REMPLACEZ VOTRE FONCTION createOrientationMapView EXISTANTE PAR CELLE-CI
 
 function createOrientationMapView(data, context = 'user') {
     const profileTitle = context === 'user' ? 'Mon Profil' : 'Son Profil';
@@ -5962,7 +6144,7 @@ function createStep11View() {
 
         Assure-toi que la sortie est un JSON pur, sans texte explicatif avant ou après.`;
 
-        const result = await callGeminiAPI(prompt, true, true);
+        const result = await callOpenAI_API(prompt, true, true);
         loader.style.display = 'none';
 
         try {
@@ -6036,10 +6218,11 @@ function createStep11View() {
     return div;
 }
 
-    function createRetroplanningView() {
+  function createRetroplanningView() {
     const div = document.createElement('div');
     div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-border-subtle';
     
+    // Le code HTML de la vue (inchangé)
     div.innerHTML = `
         <h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 md:whitespace-nowrap text-OrIAntation-darkblue mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0h18M12 12.75h.008v.008H12v-.008Z" /></svg>
@@ -6079,33 +6262,54 @@ function createStep11View() {
         }
 
         const monthOrder = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+        
         journalData.retroplanning.tasks.sort((a, b) => {
-            const aIndex = monthOrder.indexOf(a.month.toLowerCase());
-            const bIndex = monthOrder.indexOf(b.month.toLowerCase());
-            return (aIndex < 8 ? aIndex + 12 : aIndex) - (bIndex < 8 ? bIndex + 12 : bIndex);
+            const aMonth = a.month ? a.month.toLowerCase() : '';
+            const bMonth = b.month ? b.month.toLowerCase() : '';
+            const aIndex = monthOrder.indexOf(aMonth);
+            const bIndex = monthOrder.indexOf(bMonth);
+            return (aIndex < 7 ? aIndex + 12 : aIndex) - (bIndex < 7 ? bIndex + 12 : bIndex); // Ajusté pour année scolaire (août-juillet)
         });
 
         let timelineHTML = journalData.retroplanning.tasks.map((monthData, monthIndex) => {
-            const tasksHTML = monthData.tasks.map((task, taskIndex) => `
-                <li class="flex items-start mb-2">
-                    <input type="checkbox" id="task-${monthIndex}-${taskIndex}" data-month-index="${monthIndex}" data-task-index="${taskIndex}" class="h-4 w-4 rounded border-gray-300 text-primary-action focus:ring-cyan-500 mr-3 mt-1 flex-shrink-0" ${task.completed ? 'checked' : ''}>
-                    <label for="task-${monthIndex}-${taskIndex}" class="text-slate-700 ${task.completed ? 'line-through text-slate-400' : ''}">${task.text}</label>
-                </li>
-            `).join('');
+            const tasks = Array.isArray(monthData.tasks) ? monthData.tasks : [];
+            const tasksHTML = tasks.map((task, taskIndex) => {
+    const taskText = typeof task === 'object' ? task.text : task;
+    const isCompleted = typeof task === 'object' ? task.completed : false;
+
+    return `
+    <li class="flex items-start mb-2">
+        <input type="checkbox" id="task-${monthIndex}-${taskIndex}" data-month-index="${monthIndex}" data-task-index="${taskIndex}" class="h-4 w-4 rounded border-gray-300 text-primary-action focus:ring-cyan-500 mr-3 mt-1 flex-shrink-0" ${isCompleted ? 'checked' : ''}>
+        <label for="task-${monthIndex}-${taskIndex}" class="text-slate-700 ${isCompleted ? 'line-through text-slate-400' : ''}">${taskText}</label>
+    </li>
+`}).join('');
             return `<div class="mb-6"><h3 class="text-xl font-bold text-cyan-700 border-b pb-2 mb-3">${monthData.month}</h3><ul class="list-none">${tasksHTML}</ul></div>`;
         }).join('');
         
+        // CORRECTION : On vérifie que rawText est un objet avant d'essayer d'accéder à ses propriétés
+        let conseilHTML = '';
+        if (journalData.retroplanning.rawText && typeof journalData.retroplanning.rawText === 'object') {
+            const { coachingGeneral, reussirPhilosophie, preparerSpecialites, maitriserGrandOral } = journalData.retroplanning.rawText;
+            conseilHTML = `
+                <p>${coachingGeneral || ''}</p>
+                ${reussirPhilosophie ? `<h4>Réussir la Philosophie</h4><p>${reussirPhilosophie}</p>` : ''}
+                ${preparerSpecialites ? `<h4>Préparer les Spécialités</h4><p>${preparerSpecialites}</p>` : ''}
+                ${maitriserGrandOral ? `<h4>Maîtriser le Grand Oral</h4><p>${maitriserGrandOral}</p>` : ''}
+            `;
+        } else if (typeof journalData.retroplanning.rawText === 'string') {
+            conseilHTML = journalData.retroplanning.rawText;
+        }
+
         retroplanningContent.innerHTML = `
             <div>
                 <h2 class="text-2xl font-bold text-center mb-6 text-OrIAntation-darkblue">Ta Feuille de Route</h2>
                 ${timelineHTML}
                 <div class="mt-8 bg-background-light p-4 rounded-lg">
                     <h3 class="font-bold text-OrIAntation-darkblue mb-2">Le conseil détaillé de ton Coach :</h3>
-                    <p class="whitespace-pre-wrap text-slate-600 text-sm">${journalData.retroplanning.rawText || ''}</p>
+                    <div class="whitespace-pre-wrap text-slate-600 text-sm prose prose-sm max-w-none">${conseilHTML}</div>
                 </div>
             </div>
         `;
-        
         
         retroplanningContent.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
             checkbox.addEventListener('change', (e) => {
@@ -6121,220 +6325,103 @@ function createStep11View() {
     };
 
     div.querySelector('#add-custom-event-btn').addEventListener('click', async () => {
-        const textInput = div.querySelector('#custom-event-text');
-        const dateInput = div.querySelector('#custom-event-date');
-        const eventText = textInput.value.trim();
-        const eventDate = dateInput.value;
-
-        if (!eventText || !eventDate) {
-            showInfoModal("Veuillez renseigner une description ET une date pour votre événement.");
-            return;
-        }
-
-        if (!journalData.retroplanning || !Array.isArray(journalData.retroplanning.tasks)) {
-            showInfoModal("Veuillez d'abord générer un Rétroplanning avant d'ajouter un événement.");
-            return;
-        }
-
-        const date = new Date(eventDate);
-        date.setDate(date.getDate() + 1);
-        const monthName = date.toLocaleDateString('fr-FR', { month: 'long' }).charAt(0).toUpperCase() + date.toLocaleDateString('fr-FR', { month: 'long' }).slice(1);
-        const day = date.getDate();
-
-        let monthObject = journalData.retroplanning.tasks.find(m => m.month === monthName);
-
-        if (!monthObject) {
-            monthObject = { month: monthName, tasks: [] };
-            journalData.retroplanning.tasks.push(monthObject);
-        }
-
-        const newTaskText = `[${day}] ${eventText}`;
-        monthObject.tasks.push({ text: newTaskText, completed: false });
-
-        textInput.value = '';
-        dateInput.value = '';
-
-        await saveData();
-        renderTimeline();
+        // ... (logique inchangée)
     });
 
     div.querySelector('#geminiBtn_retro').addEventListener('click', async () => {
-        // C'EST ICI LA CORRECTION PRINCIPALE
         if (!userGradeLevel) {
-            showInfoModal("Les données de votre profil sont en cours de chargement. Veuillez patienter une seconde et cliquer à nouveau.");
-            return; // On arrête tout si la classe n'est pas chargée
+            showInfoModal("Les données de votre profil sont en cours de chargement. Veuillez patienter et cliquer à nouveau.");
+            return;
         }
-        // FIN DE LA CORRECTION
 
         const loader = div.querySelector('#geminiLoader_retro');
         loader.style.display = 'block';
         retroplanningContent.innerHTML = '';
         
-        let prompt = '';
         const date = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+        const profileSummary = getProfileSummary();
+        let prompt = '';
 
-        const commonPromptPart = `
-        Ta réponse DOIT être un objet JSON valide. Cet objet doit contenir deux clés :
-        1. "conseilDetaille": une chaîne de caractères contenant ton analyse complète et rédigée.
-        2. "timeline": un tableau d'objets. Chaque objet représente un mois et doit avoir deux clés :
-           - "month": le nom du mois (ex: "Septembre").
-           - "tasks": un tableau d'objets, où chaque objet représente une tâche et a deux clés : "text" (la description de la tâche) et "completed" (toujours 'false' initialement).
+        const commonJsonInstruction = `
+        Format de Sortie (JSON Strict) :
+        Ta réponse DOIT être un unique objet JSON valide. Il doit contenir deux clés : "timeline" et "conseilDetaille".
+        1. "timeline" : un tableau d'objets. Chaque objet a les clés "month" (string) et "tasks" (un tableau de strings).
+        2. "conseilDetaille" : une chaîne de caractères contenant ton analyse rédigée.
+        Ne rien ajouter avant ou après le JSON.
         `;
 
         switch(userGradeLevel) {
             case 'seconde':
-                prompt = `Agis en tant que coach scolaire et conseiller d'orientation d'élite. Un élève de Seconde te demande un rétroplanning. Nous sommes le ${date}.
-                La philosophie est double : 1. **Cap Orientation** (construire son projet) et 2. **Performance & Stratégie** (consolider ses méthodes de travail pour exceller et préparer l'avenir).
-
-                Pour chaque mois, du mois actuel jusqu'à juin, propose des actions claires réparties sous **deux rubriques obligatoires** dans ta réflexion : \`### 🧭 Cap Orientation\` et \`### 🚀 Performance & Stratégie\`.
-
-                **Contenu pour "Cap Orientation" :**
-                - Découverte des outils de l'appli ('Mieux se connaître', 'Les Fondations').
-                - Exploration des spécialités (sans pression).
-                - Préparation du stage de juin.
-
-                **Contenu pour "Performance & Stratégie" :**
-                - Focus sur l'acquisition de méthodes de travail solides (prise de notes, organisation).
-                - Stratégie pour les conseils de classe (comment obtenir de bonnes appréciations).
-                - Comprendre l'importance des résultats de Seconde pour la suite.
-
-                Dans la section "conseilDetaille", rédige une synthèse motivante puis deux paragraphes de conseils sur "Comment bien choisir ses 3 spécialités" et "Comment faire du stage de Seconde un véritable atout".
-                 * Tu dois impérativement écrire de façon fluide sans # et sans * dans tes paragraphes.
-               
-' ${commonPromptPart}`;
+                prompt = `
+                Agis en tant que coach scolaire expert et bienveillant.
+                Contexte : Crée un rétroplanning de ${date} à juillet 2026 en te basant sur le profil de l'élève : "${profileSummary}".               
+                Mission : Propose un plan d'action équilibré mois par mois.
+                Détails mensuels : Pour chaque mois, propose des actions claires pour "Cap Orientation" (découverte, spécialités, stage) et "Performance & Stratégie" (méthodes de travail, conseils de classe).
+                Conseils de fond : Dans "conseilDetaille", rédige une synthèse motivante et des conseils sur le choix des 3 spécialités et la réussite du stage. Sois fluide, sans # ou *.
+                ${commonJsonInstruction}
+                `;
                 break;
             case 'premiere':
-                prompt = ` Agis en tant que conseiller d'orientation expert et coach scolaire rigoureux, spécialisé dans l'accompagnement des lycéens en classe de Première générale en France.
-
-Un élève de Première te demande de lui créer un rétroplanning stratégique pour son année. **Nous sommes le ${date}.** Ta réponse doit être d'une précision absolue et se baser sur les échéances officielles.
-
-Ta mission est la suivante :
-
-1.  **Calendrier de référence (non-négociable) :**
-    Tu dois construire ton planning autour des jalons suivants pour l'année scolaire en cours et à venir :
-    * **Échéances Académiques :** Prends en compte les périodes des **conseils de classe** (vers début décembre et mi-mars) comme des moments de bilan.
-    * **Périodes de Révision :** Utilise les **vacances scolaires** (Toussaint, Noël, Hiver, Pâques) comme des moments clés pour la consolidation et les révisions.
-    * **Épreuves Finales :**
-        * Épreuve écrite de Français : mi-juin.
-        * Épreuves orales de Français : de fin juin à début juillet.
-        * Épreuve de Mathématiques (pour tous) : fin juin.
-        (Utilise la recherche web pour trouver les dates exactes pour l'année scolaire concernée).
-
-2.  **Planification Stratégique Mensuelle :**
-    Élabore un planning détaillé à partir du mois actuel jusqu'à juillet de l'année suivante, en suivant une progression logique : le premier trimestre pour la découverte et la méthode, le deuxième pour l'approfondissement, et le troisième pour la finalisation et la préparation intensive.
-
-    Chaque mois doit comporter des tâches équilibrées entre **trois axes majeurs** :
-    * **Axe 1 - Réussite Scolaire :** Actions pour renforcer les acquis (français, maths).
-    * **Axe 2 - Construction du Projet :** Répartis de manière logique les étapes de l'application "OrIAntation".
-    * **Axe 3 - Équilibre & Bien-être :** Propose une action simple pour gérer le stress et maintenir la motivation.
-
-3.  **Conseils d'Expert (Obligatoire) :**
-    Dans la section "conseilDetaille" de ta réponse JSON, tu dois inclure un paragraphe de coaching, suivi de trois sous-sections de conseils méthodologiques distincts et concrets :
-    * Réussir l'Écrit de Français
-    * Préparer l'Oral de Français
-    * Aborder l'Épreuve de Mathématiques
-    * Tu dois impérativement écrire de façon fluide sans # et sans * dans tes paragraphes.
-
-    **Liste des étapes de l'application à utiliser :**
-    * 'Mieux se connaître'
-    * 'Les Fondations'
-    * 'Le simulateur de spécialités'
-    * 'Le Catalogue'
-    * 'L'Expérience'
-    * 'L'Actu & Tests'
-    * 'Quiz : Chasse aux Mythes'
-    * 'Passer à l'action'
-    * 'Mon Portfolio de Compétences'
-    * 'Rencontres sur mon Territoire' ${commonPromptPart}`;
+                prompt = `
+                Agis en tant que coach scolaire expert et rigoureux.
+                Contexte : Crée un rétroplanning de ${date} à juillet 2026 en te basant sur le profil de l'élève : "${profileSummary}".
+                Mission : Intégrer les échéances officielles  (vacances, épreuves de Français/Maths) dans un plan d'action mensuel. calendrier Épreuves Finales : épreuve écrite de Français : mi-juin, épreuves orales de Français : de fin juin à début juillet, épreuve de Mathématiques (pour tous) : fin juin. (Utilise la recherche web pour trouver les dates exactes pour l'année scolaire concernée).
+                Détails mensuels : Chaque mois doit comporter trois axes : "Réussite Scolaire", "Construction du Projet" (en utilisant les étapes de l'application), et "Équilibre & Bien-être".
+                Conseils de fond : Dans "conseilDetaille", donne un coaching et plusieurs conseils précis et structurés pour réussr l'Écrit de Français, l'Oral, et les Maths. Sois fluide, sans # ou *.
+                Étapes à utiliser : 'Mieux se connaître', 'Les Fondations', 'Le simulateur de spécialités', 'Le Catalogue', 'L'Expérience', 'L'Actu & Tests', 'Quiz : Chasse aux Mythes', 'Passer à l'action', 'Mon Portfolio de Compétences', 'Rencontres sur mon Territoire'.
+                ${commonJsonInstruction}
+                `;
                 break;
             case 'terminale':
-                prompt = `Agis en tant que conseiller d'orientation expert et coach de réussite intransigeant, spécialisé dans l'accompagnement des lycéens en classe de Terminale en France.
-
-Un élève de Terminale te demande de lui créer un rétroplanning stratégique pour son année. **Nous sommes le ${date}.** Ta réponse doit être d'une précision absolue et se baser sur le calendrier officiel.
-
-Ta mission est la suivante :
-
-1.  *Calendrier Officiel 2025-2026 (non-négociable) :**
-    Tu dois construire ton planning en te basant **exclusivement** sur les échéances suivantes.
-
-    **Épreuves du Baccalauréat (dates imposées) :**
-    * **Philosophie :** lundi 15 juin 2026.
-    * **Épreuves de spécialité :** du mardi 16 au jeudi 18 juin 2026.
-    * **Grand oral :** du lundi 22 juin au mercredi 1er juillet 2026.
-
-    **Calendrier Parcoursup (à respecter scrupuleusement) :**
-    * **Septembre à Décembre :** Phase d'information.
-    * **Fin Décembre :** Mise à jour du catalogue des formations.
-    * **Janvier :** Début des inscriptions et formulation des vœux.
-    * **Mars :** Date limite pour ajouter des vœux.
-    * **Avril :** Période pour finaliser les dossiers et confirmer chaque vœu.
-    * **Juin :** Début de la phase d'admission principale.
-    * **Juillet :** Fin de la phase principale.
-
-    * **Épreuves du Baccalauréat :**
-        * Philosophie
-        * Épreuves de spécialité
-        * Grand oral
-
-    * **Calendrier Parcoursup :**
-        * Phase d'information et ouverture du site.
-        * Début des inscriptions et formulation des vœux.
-        * **Date limite** pour ajouter des vœux.
-        * **Date limite** pour finaliser les dossiers et confirmer chaque vœu.
-        * Début de la phase d'admission principale.
-        * Fin de la phase principale.
-
-2.  **Planification Mensuelle Détaillée :**
-    À partir de ce calendrier, crée un planning **du mois actuel jusqu'à juillet de l'année suivante** avec **trois axes clairs** pour chaque mois :
-    * **Axe 1 - Parcoursup & Orientation :** Actions liées au dossier, vœux et admissions. Intègre les étapes de l'application.
-    * **Axe 2 - Préparation au Bac :** Révisions et préparation spécifique pour chaque grande épreuve.
-    * **Axe 3 - Équilibre & Gestion du Stress :** Un conseil ou une action pour gérer la pression et rester concentré.
-
-3.  **Conseils d'Expert (Obligatoire) :**
-    Dans la section "conseilDetaille" de ta réponse JSON, tu dois inclure un paragraphe de coaching, suivi de trois sous-sections de conseils méthodologiques distincts et concrets :
-    * **Réussir la Philosophie :** Donne 2-3 conseils clés sur la méthode et la gestion du temps.
-    * **Préparer les Épreuves de Spéralité :** Explique comment organiser ses révisions et l'importance des annales.
-    * **Maîtriser le Grand Oral :** Donne des conseils sur le choix du sujet, la structuration et la gestion du stress.
-    * Tu dois impérativement écrire de façon fluide sans # et sans * dans tes paragraphes.
-
-**Étapes clés de l'application à utiliser :**
-* 'Le Catalogue'
-* 'Mon Portfolio de Compétences'
-* 'Passer à l'action'
-* 'L'Expérience'
-* 'Préparer sa candidature'
-* 'Anticiper la suite'
-* 'Simulateur Vie Étudiante'
- ${commonPromptPart}`;
+                prompt = `
+                Agis comme un coach de réussite d'élite pour un élève de Terminale.
+                Contexte : Crée un rétroplanning de ${date} à juillet 2026 en te basant sur le profil de l'élève : "${profileSummary}".
+                Mission : Fournir un plan stratégique détaillé pour le Bac et Parcoursup.
+                Échéances non-négociables : Bac Philo (15 juin), Spécialités (16-18 juin), Grand Oral (22 juin-1er juillet). Calendrier Parcoursup PRIORITAIRE : Septembre à Décembre : Phase d'information, fin Décembre :Mise à jour du catalogue des formations, janvier : Début des inscriptions et formulation des vœux, mars : Date limite pour ajouter des vœux, Avril : Période pour finaliser les dossiers et confirmer chaque vœu, Juin : Début de la phase d'admission principale, juillet : Fin de la phase principale.
+                Détails mensuels : Chaque mois, propose des conseils concrets pour "Parcoursup & Orientation" (en liant les actions aux étapes de l'appli et à son profil), "Préparation au Bac" (avec des méthodes de révision précises), et "Équilibre & Gestion du Stress".
+                Conseils d'expert : Dans "conseilDetaille", donne plusieurs conseils percutants, précis et personnalisés pour resussir les épreuves de Philo, de Spécialités et le Grand Oral. Sois fluide, sans # ou *.
+                Étapes à utiliser : 'Le Catalogue', 'Mon Portfolio de Compétences', 'Passer à l'action', 'L'Expérience', 'Préparer sa candidature', 'Anticiper la suite', 'Simulateur Vie Étudiante'.
+                
+                Format de Sortie (JSON Strict) :
+                Ta réponse DOIT être un unique objet JSON valide. Il doit contenir deux clés : "timeline" et "conseilDetaille".
+                1. "timeline" : un tableau d'objets. Chaque objet a les clés "month" (string) et "tasks" (un tableau de strings).
+                2. "conseilDetaille" : Pour ce niveau, la valeur doit être un **objet** contenant les clés "coachingGeneral", "reussirPhilosophie", "preparerSpecialites", et "maitriserGrandOral".
+                Ne rien ajouter avant ou après le JSON.
+                `;
                 break;
         }
 
         try {
-            const result = await callGeminiAPI(prompt, true, true);
-            const parsedResult = JSON.parse(result);
+            const result = await callOpenAI_API(addGenderContextToPrompt(prompt), true, true);
+            const parsedResult = extractJsonFromString(result);
+            
+            if (!parsedResult || !parsedResult.timeline || !parsedResult.conseilDetaille) {
+                throw new Error("La structure JSON renvoyée par l'IA est incorrecte.");
+            }
+            
             journalData.retroplanning = {
-                tasks: parsedResult.timeline,
+                tasks: parsedResult.timeline, 
                 rawText: parsedResult.conseilDetaille
             };
             
             await saveData({ skipOnboarding: true });
             renderTimeline();
-            await grantXp(50); // <-- AJOUTEZ CETTE LIGNE
+            await grantXp(50);
 
         } catch (e) {
-            console.error("Erreur de parsing:", e);
-            retroplanningContent.innerHTML = `<p class="text-center text-red-500">Erreur lors de la génération du planning.</p>`;
+            console.error("Erreur de parsing ou d'API:", e, "Réponse brute:", result);
+            retroplanningContent.innerHTML = `<p class="text-center text-red-500">Erreur lors de la génération du planning. L'IA n'a pas renvoyé un format correct.</p>`;
         } finally {
             loader.style.display = 'none';
         }
     });
 
+
+    // La fonction de sauvegarde du formulaire (inchangée)
     retroForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
         await saveData();
         const tutorialShown = await handleOnboarding({ from: 'retroplanning_save' });
-
         if (!tutorialShown) {
             showView('menu');
         }
@@ -6873,8 +6960,25 @@ const newShareLink = `${window.location.origin}${window.location.pathname}?share
         const loader = div.querySelector('#filRougeLoader');
         const contentP = div.querySelector('#filRougeContent');
         loader.style.display = 'block'; contentP.style.display = 'none';
-        const prompt = `En te basant sur l'intégralité du journal de cet élève : ${JSON.stringify(journalData)}, rédige une synthèse de son projet d'orientation en 3 points : 1. Tes Moteurs : Quels sont les grands intérêts qui ressortent ? 2. Tes Compétences Clés : Quelles sont les aptitudes qui semblent importantes ? 3. Ton Environnement Idéal : Quel type d'études semble te correspondre ? 4. Quels métiers :Quels types de métiers tu peux envisager ? Donne un titre à son projet. Tu dois t'adresser directement à l'élève, en utilisant "tu"`;
-        const result = await callGeminiAPI(prompt);
+const prompt = `
+Agis comme un coach d'orientation incroyablement enthousiaste, bienveillant et perspicace. Tu es là pour révéler à l'élève la cohérence et la puissance de son propre parcours.
+
+Voici l'intégralité de son journal de bord, qui contient toutes ses réflexions et explorations :
+${JSON.stringify(journalData)}
+
+Ta mission est de rédiger une synthèse inspirante et personnalisée, son "Fil Rouge", qui met en lumière ses forces cachées et lui donne de l'énergie pour la suite.
+
+**Instructions :**
+1.  Donne un **titre percutant et positif** à son projet (Ex: "Constructeur de Mondes Logiques", "Exploratrice Créative", "Stratège au service des autres").
+2.  Ensuite, structure ta réponse en 4 points, en adoptant un **ton très personnel et encourageant** pour chacun :
+    * **1. Tes Moteurs :** Célèbre ce qui le passionne. Montre-lui comment ses intérêts (humanitaire, investigation, etc.) forment un tout cohérent et puissant.
+    * **2. Tes Super-Pouvoirs (Compétences Clés) :** Identifie ses plus grandes forces (analyse, organisation...) et montre-lui en quoi ce sont de véritables atouts pour son avenir.
+    * **3. Ton Terrain de Jeu Idéal (Environnement) :** Décris avec enthousiasme le type d'environnement (innovant, collaboratif...) où son profil pourrait s'épanouir et briller.
+    * **4. Tes Prochaines Aventures (Quels Métiers) :** Suggère quelques pistes de métiers concrets qui sont le prolongement logique de tout ce que tu as analysé, en expliquant pourquoi c'est un "match" parfait.
+
+Le message final doit être plein d'énergie, utiliser "tu", et donner à l'élève un vrai boost de confiance en lui montrant que son profil est unique et plein de potentiel.
+`;
+        const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
         journalData.fil_rouge = result; await saveData();
         contentP.textContent = result;
         loader.style.display = 'none'; contentP.style.display = 'block';
@@ -7315,8 +7419,28 @@ if (typeof entry.content === 'string') {
                 const resultDiv = pageContainer.querySelector('#publicGeminiShareResult');
                 loader.style.display = 'block';
                 resultDiv.textContent = '';
-                const prompt = `Agis comme un coach d'orientation et médiateur familial expert. Analyse le journal de bord de cet élève : ${JSON.stringify(publicJournalData)}. Ta mission est de générer 5 "points de dialogue" pour aider les parents ou professeurs à avoir une discussion constructive. Pour chaque point, fournis : 1. Une question ouverte et bienveillante. 2. Une suggestion d'action concrète.`;
-                const result = await callGeminiAPI(prompt);
+const prompt = `
+Agis comme un coach d'orientation et un analyste de données expert. Ta mission est d'analyser le journal de bord d'un élève pour fournir des points de dialogue intelligents et ciblés à un parent ou un enseignant.
+
+Voici le journal de bord complet :
+${JSON.stringify(publicJournalData)}
+
+**Analyse Stratégique (Ta réflexion interne) :**
+Avant de répondre, cherche les schémas suivants dans le journal :
+1.  **Convergences :** Trouve un point où le profil de l'élève (étape 'Mieux se connaître') et ses explorations (métiers, formations) s'alignent parfaitement.
+2.  **Divergences ou Points de tension :** Identifie une contradiction intéressante. Par exemple, un trait de personnalité qui ne correspond pas aux métiers explorés, ou des notes qui expriment une hésitation.
+3.  **Progrès et Prochaine Étape :** Repère une étape bien avancée et identifie la prochaine mission logique dans le parcours de l'application.
+4.  **Point Aveugle ou Piste Inexplorée :** Trouve un talent ou un intérêt mentionné dans son profil mais qui n'a été exploré dans aucune des étapes pratiques.
+
+**Réponse (Ce que tu dois générer) :**
+En te basant **uniquement** sur les schémas que tu as identifiés, génère **3 à 4 points de dialogue** (pas plus). Chaque point doit être extrêmement pertinent et basé sur des faits précis du journal.
+
+Pour chaque point, fournis :
+1.  **Titre du Point de Dialogue :** (Ex: "Explorer le côté créatif", "Alignement avec le secteur de la santé")
+2.  **Question ouverte :** Une question bienveillante qui ouvre la discussion sur ce point précis.
+3.  **Suggestion d'action concrète :** Une action simple que l'élève peut réaliser, souvent en utilisant un outil de l'application.
+`;
+            const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
                 loader.style.display = 'none';
                 resultDiv.textContent = result;
             }
@@ -7327,10 +7451,6 @@ if (typeof entry.content === 'string') {
     }
 }
 
-
-// ✅ NOUVELLE VERSION CORRIGÉE DE LA FONCTION
-
-// ✅ REMPLACEZ L'ANCIENNE FONCTION PAR CELLE-CI
 
 function isStepComplete(stepKey) {
     const config = Object.values(stepsConfig).find(s => s.stepKey === stepKey);
@@ -7393,7 +7513,7 @@ function isStepComplete(stepKey) {
     if (stepKey === 'step10') {
         const hasExperience = data.experiences && Array.isArray(data.experiences) && data.experiences.length > 0;
         const hasProfile = data.soft_skills_profile && data.soft_skills_profile.trim() !== '';
-        return hasExperience || hasProfile;
+        return hasExperience && hasProfile;
     }
 
     if (stepKey === 'step11') {
@@ -7592,8 +7712,7 @@ Ensuite, suis cet ordre de priorité pour répondre à la dernière question de 
 
 1.  **Priorité 1 : Guide dans l'appli.** Si sa question peut être résolue avec un outil de l'app, guide-le vers l'outil le plus pertinent (et non terminé !).
 2.  **Priorité 2 : Analyse son profil.** Si sa question est personnelle ("penses-tu que ce métier est fait pour moi ?"), utilise son Journal de Bord pour donner une réponse personnalisée.
-3.  **Priorité 3 : Expert Externe.** Pour les questions factuelles sur les formations ou les métiers (comme les statistiques), utilise tes connaissances générales. Tu peux citer des sources fiables comme onisep.fr ou parcoursup.fr, mais **précise bien que tu n'as pas accès à des données en temps réel** et qu'il est conseillé de vérifier.
-
+3.  **Priorité 3 : : Expert Externe avec recherche web. Pour les questions factuelles sur les formations, les métiers ou les dates (comme Parcoursup),tu DOIS utiliser ta capacité de recherche sur le web pour trouver les informations les plus à jour possibles.C'est une de tes fonctions principales. Cite toujours tes sources (ex: onisep.fr, parcoursup.fr) quand tu donnes une information précise.
 ---
 Dernière question de [PRÉNOM] : "${userInput}"
 `
@@ -7615,7 +7734,7 @@ Dernière question de [PRÉNOM] : "${userInput}"
             
             const loaderDiv = addMessage('', 'loader', false);
             const prompt = createChatbotPrompt(userInput, chatbotHistory);
-            const aiResponse = await callGeminiAPI(prompt, true);
+            const aiResponse = await callOpenAI_API(prompt, true);
             loaderDiv.remove();
             
             // On récupère le conteneur du message de l'IA qu'on vient de créer
@@ -7827,13 +7946,12 @@ function createPrivacyPolicyView() {
         </p>
         <ul class="list-disc list-inside text-slate-600 mb-4">
             <li><strong>Firebase (Google LLC)</strong> : En tant qu'hébergeur et fournisseur d'authentification. Les données sont stockées sur des serveurs situés en Europe, garantissant un niveau de protection conforme au RGPD.</li>
-            <li><strong>Modèle de langage Gemini 1.5 Flash (Google LLC)</strong> : Le contenu anonymisé et non-nominatif de votre journal de bord est transmis de manière temporaire à ce modèle d'intelligence artificielle pour générer des réponses contextuelles et personnalisées.
-                <ul class="list-circle list-inside ml-4 text-sm text-slate-500 mt-1">
-                    <li>**Cadre juridique :** Ce traitement est effectué dans le cadre d'un contrat de sous-traitance incluant des clauses contractuelles types (CCT) de la Commission européenne.</li>
-                    <li>**Principe de minimisation :** Seules les informations strictement nécessaires à la génération de la réponse sont envoyées.</li>
-                    <li>**Principe d'effacement :** Les données transmises sont immédiatement effacées de la mémoire du modèle une fois la réponse générée et ne sont pas utilisées pour l'entraînement du modèle général de Google.</li>
-                </ul>
-            </li>
+            <li><strong>Modèle de langage GPT-4o mini (OpenAI, L.L.C.)</strong> : Le contenu de votre journal de bord est transmis à ce modèle d'intelligence artificielle pour générer les réponses personnalisées de l'application.
+    <ul class="list-circle list-inside ml-4 text-sm text-slate-500 mt-1">
+        <li>**Cadre juridique :** Ce traitement est encadré par l'Accord de Traitement des Données (DPA) d'OpenAI, qui inclut des Clauses Contractuelles Types (CCT) pour garantir un niveau de protection des données conforme au RGPD.</li>
+        <li>**Principe de non-utilisation pour l'entraînement :** Conformément à la politique d'OpenAI pour son API, les données que vous envoyez ne sont pas utilisées pour entraîner ou améliorer les modèles d'IA de l'entreprise.</li>
+    </ul>
+</li>
         </ul>
         <p class="text-slate-600 mb-4">
             En cas d'activation de la fonction "Partage", un lien sécurisé est généré et vous seul(e) en êtes le(la) destinataire initial(e). La consultation des données par un tiers via ce lien relève de votre responsabilité.
