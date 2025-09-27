@@ -1493,13 +1493,19 @@ function showForgotPasswordView() {
         e.preventDefault();
         const email = document.getElementById('email').value;
         try {
-            await sendPasswordResetEmail(auth, email);
-            authMessage.textContent = "Si un compte existe pour cet e-mail, un lien de réinitialisation vient d'être envoyé.";
-            authMessage.className = 'text-green-600 text-center mt-4';
-        } catch (error) {
-            authMessage.textContent = "Une erreur est survenue. Veuillez réessayer.";
-            authMessage.className = 'text-red-500 text-center mt-4';
+    const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
+    await sendEmail({
+        templateId: 1, // 👈 REMPLACEZ PAR L'ID DE VOTRE TEMPLATE BREVO
+        toEmail: email,
+        params: {
+            // Vous pouvez passer des paramètres à votre template, comme le nom de l'utilisateur
         }
+    });
+    authMessage.textContent = "Si un compte existe, un e-mail de réinitialisation vient d'être envoyé.";
+} catch (error) {
+    console.error("Erreur lors de l'appel de la fonction d'envoi :", error);
+    authMessage.textContent = "Une erreur est survenue. Veuillez réessayer.";
+}
     });
 
     document.getElementById('backToLoginButton').addEventListener('click', showLoginView);
@@ -1586,24 +1592,32 @@ signupForm.addEventListener('submit', async (e) => {
     }
 
     try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
 
-        // --- AJOUT IMPORTANT ---
-        // On envoie l'e-mail de vérification juste après la création du compte
-        await sendEmailVerification(user);
-        // ---------------------
+    // On génère le lien de vérification Firebase
+    const actionCodeSettings = {
+        url: window.location.origin // URL de retour après vérification
+    };
+    const verificationLink = await generateEmailVerificationLink(auth, user.email, actionCodeSettings);
 
-        currentUserId = user.uid;
-        currentUserInfo = { firstName, lastName, schoolName, gender };
-        journalData.has_consented = true; 
-        await saveData(true);
-        // onAuthStateChanged va maintenant détecter cet utilisateur
-        // et afficher la page de vérification car user.emailVerified est false.
+    // On appelle notre fonction Cloud pour envoyer l'e-mail via Brevo
+    const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
+    await sendEmail({
+        templateId: 1, // 👈 REMPLACEZ PAR L'ID DE VOTRE TEMPLATE BREVO POUR LA VÉRIFICATION
+        toEmail: user.email,
+        params: {
+            // "verificationLink" est le nom du paramètre dans votre template Brevo
+            verificationLink: verificationLink 
+        }
+    });
 
-    } catch (error) {
-        authError.textContent = "Erreur lors de la création du compte. Le mot de passe doit faire 6 caractères minimum.";
-    }
+    // ... reste du code de sauvegarde ...
+} catch (error) {
+    console.error("Erreur lors de l'inscription ou de l'envoi de l'e-mail :", error);
+    authError.textContent = "Erreur lors de la création du compte.";
+}
+
 });
     showLoginButton.addEventListener('click', showLoginView);
     showPrivacyPolicyButton.addEventListener('click', () => {

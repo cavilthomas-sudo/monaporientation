@@ -1,5 +1,38 @@
 const functions = require("firebase-functions/v1");
 const axios = require("axios");
+
+// On récupère la clé API stockée
+const brevoApiKey = functions.config().brevo.key;
+
+exports.sendTransactionalEmail = functions.https.onCall(async (data, context) => {
+    // On vérifie que l'utilisateur est bien authentifié
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Vous devez être connecté.');
+    }
+
+    const { templateId, toEmail, params } = data;
+    const brevoApiUrl = 'https://api.brevo.com/v3/smtp/email';
+
+    const payload = {
+        to: [{ email: toEmail }],
+        templateId: templateId,
+        params: params
+    };
+
+    const headers = {
+        'api-key': brevoApiKey,
+        'Content-Type': 'application/json'
+    };
+
+    try {
+        await axios.post(brevoApiUrl, payload, { headers });
+        return { success: true };
+    } catch (error) {
+        console.error("Erreur d'envoi de l'email via Brevo:", error.response?.data);
+        throw new functions.https.HttpsError('internal', "Impossible d'envoyer l'email.");
+    }
+});
+
 const cors = require("cors")({ origin: true });
 
 // On récupère la clé secrète OpenAI que vous avez configurée
