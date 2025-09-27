@@ -740,9 +740,7 @@ step5: {
         fields: []
     },
 };
-// MODIFIEZ VOTRE OBJET badgesConfig AVEC CE NOUVEAU BLOC
 
-// ✅ REMPLACEZ VOTRE ANCIEN OBJET badgesConfig PAR CELUI-CI
 
 const badgesConfig = {
     explorateur: {
@@ -2871,7 +2869,7 @@ function createStep0View() {
             <p class="text-slate-600 my-4">Bravo, tu as fait le tour. Clique maintenant sur le bouton pour obtenir ton profil personnalisé.</p>
             <button type="button" id="analyzeProfileBtn" class="bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">✨ Analyser mon profil</button>
         </div>
-        <div id="geminiLoader_step0" class="hidden mt-4"><div class="loader"></div></div>
+        <div id="openaiLoader_step0" class="hidden mt-4"><div class="loader"></div></div>
         <div id="results-wrapper" class="mt-8 space-y-8">
             <div id="archetype-container"></div>
             <div id="analysis-container"></div>
@@ -2896,9 +2894,9 @@ function createStep0View() {
                 <textarea id="test_personnalite" name="test_personnalite" rows="4" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Copie-colle ici le texte de tes résultats...">${journalData.step0.test_personnalite || ''}</textarea>
             </div>
             <div class="text-center mb-4">
-                <button type="button" id="geminiBtn_test_croise" class="bg-teal-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-teal-600 transition">💡 Lancer l'analyse croisée</button>
+                <button type="button" id="openaiBtn_test_croise" class="bg-teal-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-teal-600 transition">💡 Lancer l'analyse croisée</button>
             </div>
-            <div id="geminiLoader_test_croise" class="hidden"><div class="loader"></div></div>
+            <div id="openaiLoader_test_croise" class="hidden"><div class="loader"></div></div>
             <div class="mb-6">
                 <label for="analyse_tests_croisee" class="block text-md font-medium text-slate-700 mb-2">Analyse croisée par l'IA</label>
                 <textarea id="analyse_tests_croisee" name="analyse_tests_croisee" rows="8" class="w-full p-3 border border-slate-300 rounded-lg bg-background-light" readonly>${journalData.step0.analyse_tests_croisee || ''}</textarea>
@@ -2952,7 +2950,7 @@ function createStep0View() {
     };
     
     form.querySelector('#analyzeProfileBtn').addEventListener('click', async () => {
-        const loader = div.querySelector('#geminiLoader_step0');
+        const loader = div.querySelector('#openaiLoader_step0');
         const submitContainer = div.querySelector('#submit-container');
         const answersText = questions.map(q => {
             const answerValue = journalData.step0[`q${q.id}`];
@@ -3000,8 +2998,8 @@ function createStep0View() {
         await grantXp(100);
     });
 
-    form.querySelector('#geminiBtn_test_croise').addEventListener('click', async () => {
-        const loader = div.querySelector('#geminiLoader_test_croise');
+    form.querySelector('#openaiBtn_test_croise').addEventListener('click', async () => {
+        const loader = div.querySelector('#openaiLoader_test_croise');
         const resultatsInterets = div.querySelector('#test_interets').value;
         const resultatsMotivation = div.querySelector('#test_motivation').value;
         const resultatsPersonnalite = div.querySelector('#test_personnalite').value;
@@ -3057,11 +3055,11 @@ function createStep0View() {
                     <label for="${field.id}" class="block text-md font-medium text-slate-700 mb-2">${field.label}</label>
                     <div class="flex items-center space-x-2">
                         <input type="text" id="${field.id}" name="${field.id}" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="${field.placeholder}" value="${value}">
-                        <button type="button" id="geminiBtn_${field.id}" class="bg-cyan-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-cyan-700 transition" title="Explorer les débouchés avec l'IA">✨</button>
+                        <button type="button" id="openaiBtn_${field.id}" class="bg-cyan-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-cyan-700 transition" title="Explorer les débouchés avec l'IA">✨</button>
                         <button type="button" id="daySimBtn_${field.id}" class="bg-sky-500 text-white font-semibold py-3 px-4 rounded-lg hover:bg-sky-600 transition" title="Simuler une journée type">📅</button>
                     </div>
-                    <div id="geminiLoader_${field.id}" class="hidden mt-4"><div class="loader"></div></div>
-                    <div id="geminiResult_${field.id}" class="mt-4 p-4 bg-cyan-50 border border-cyan-200 rounded-lg text-slate-700 whitespace-pre-wrap"></div>
+                    <div id="openaiLoader_${field.id}" class="hidden mt-4"><div class="loader"></div></div>
+                    <div id="openaiResult_${field.id}" class="mt-4 p-4 bg-cyan-50 border border-cyan-200 rounded-lg text-slate-700 whitespace-pre-wrap"></div>
                 </div>
             `;
         }
@@ -3577,13 +3575,13 @@ function createStep2View() {
                     <textarea id="combo_${index}" name="combo_${index}" rows="2" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Ex: Maths, Physique-Chimie, SVT">${data.name || ''}</textarea>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <button type="button" id="geminiBtn_analyse_${index}" class="w-full bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">✨ Analyser et lier au profil</button>
+                    <button type="button" id="openaiBtn_analyse_${index}" class="w-full bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">✨ Analyser et lier au profil</button>
                     <button type="button" id="testimonial-btn_${index}" class="w-full bg-teal-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-teal-600 transition">🗣️ Voir un témoignage</button>
                 </div>
-                <div id="geminiLoader_analyse_${index}" class="hidden my-4"><div class="loader"></div></div>
+                <div id="openaiLoader_analyse_${index}" class="hidden my-4"><div class="loader"></div></div>
                 <div id="analyse-container_${index}" class="mt-6">
                      <div class="my-6 p-4 bg-background-light border border-border-subtle rounded-lg">
-                        <textarea id="geminiResult_analyse_${index}" name="geminiResult_analyse_${index}" rows="8" class="w-full p-2 border border-slate-300 rounded-lg bg-background-light" readonly>${data.analysis || ''}</textarea>
+                        <textarea id="openaiResult_analyse_${index}" name="openaiResult_analyse_${index}" rows="8" class="w-full p-2 border border-slate-300 rounded-lg bg-background-light" readonly>${data.analysis || ''}</textarea>
                     </div>
                 </div>
                 <div id="testimonial-loader_${index}" class="hidden my-4"><div class="loader"></div></div>
@@ -3610,14 +3608,14 @@ function createStep2View() {
             journalData.step2[`combo_${i}`] = { name: '', analysis: '', testimonial: '' };
         }
 
-        div.querySelector(`#geminiBtn_analyse_${i}`).addEventListener('click', async () => {
+        div.querySelector(`#openaiBtn_analyse_${i}`).addEventListener('click', async () => {
             const comboInput = div.querySelector(`#combo_${i}`);
             const combo = comboInput.value.trim();
             if (!combo) { showInfoModal("Veuillez d'abord nommer la combinaison."); return; }
             if (!journalData.step0.analysis) { showInfoModal("Veuillez d'abord compléter l'étape 'Mieux se connaître'."); return; }
             
-            const loader = div.querySelector(`#geminiLoader_analyse_${i}`);
-            const resultDiv = div.querySelector(`#geminiResult_analyse_${i}`);
+            const loader = div.querySelector(`#openaiLoader_analyse_${i}`);
+            const resultDiv = div.querySelector(`#openaiResult_analyse_${i}`);
             loader.style.display = 'block';
             resultDiv.value = '';
 
@@ -3663,7 +3661,7 @@ function createStep2View() {
         for (let i = 1; i <= 2; i++) {
             if (!journalData.step2[`combo_${i}`]) journalData.step2[`combo_${i}`] = {};
             journalData.step2[`combo_${i}`].name = formData.get(`combo_${i}`);
-            journalData.step2[`combo_${i}`].analysis = formData.get(`geminiResult_analyse_${i}`);
+            journalData.step2[`combo_${i}`].analysis = formData.get(`openaiResult_analyse_${i}`);
             // Le témoignage est déjà sauvegardé en temps réel
             for (let j = 1; j <= 5; j++) {
                 journalData.step2[`combo_${i}`][`domaine_${j}`] = formData.get(`domaine_${j}_${i}`);
@@ -3767,10 +3765,10 @@ function createStep3View() {
                     <label for="mots_cles${index}" class="block text-md font-medium text-slate-700 mb-2">Défi : Tes 3 mots-clés pour cette formation</label>
                     <div class="flex items-center gap-2">
                         <input type="text" id="mots_cles${index}" name="mots_cles${index}" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Ex: Logique, programmation, travail d'équipe" value="${data[`mots_cles${index}`] || ''}">
-                        <button type="button" id="geminiBtn_mots_cles${index}" class="bg-cyan-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-cyan-700 transition" title="Vérifier mes mots-clés">✨</button>
+                        <button type="button" id="openaiBtn_mots_cles${index}" class="bg-cyan-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-cyan-700 transition" title="Vérifier mes mots-clés">✨</button>
                     </div>
                 </div>
-                <div id="geminiLoader_mots_cles${index}" class="hidden"><div class="loader"></div></div>
+                <div id="openaiLoader_mots_cles${index}" class="hidden"><div class="loader"></div></div>
                 <div class="mb-6">
                     <label for="analyse_mots_cles${index}" class="block text-md font-medium text-slate-700 mb-2">Analyse de tes mots-clés par l'IA</label>
                     <textarea id="analyse_mots_cles${index}" name="analyse_mots_cles${index}" rows="4" class="w-full p-3 border border-slate-300 rounded-lg bg-background-light" readonly>${data[`analyse_mots_cles${index}`] || ''}</textarea>
@@ -3793,9 +3791,9 @@ function createStep3View() {
 </h2>
         <p class="text-slate-600 mb-4">Parfois, les meilleures options sont celles auxquelles on n'avait pas pensé. Sur la base de ton profil, l'IA peut te suggérer des parcours complémentaires ou différents.</p>
         <div class="text-center mb-4">
-            <button type="button" id="geminiBtn_alternatives" class="bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">✨ Suggérer des parcours alternatifs</button>
+            <button type="button" id="openaiBtn_alternatives" class="bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">✨ Suggérer des parcours alternatifs</button>
         </div>
-        <div id="geminiLoader_alternatives" class="hidden"><div class="loader"></div></div>
+        <div id="openaiLoader_alternatives" class="hidden"><div class="loader"></div></div>
         <div class="mb-6">
             <label for="suggestions" class="block text-md font-medium text-slate-700 mb-2">Pistes de réflexion suggérées par l'IA</label>
             <textarea id="suggestions" name="suggestions" rows="8" class="w-full p-3 border border-slate-300 rounded-lg bg-background-light" readonly>${journalData.step3.suggestions || ''}</textarea>
@@ -3807,10 +3805,10 @@ function createStep3View() {
     // Setup des listeners pour les boutons
     for (let i = 1; i <= 2; i++) {
         // Listener pour le défi mots-clés
-        div.querySelector(`#geminiBtn_mots_cles${i}`).addEventListener('click', async () => {
+        div.querySelector(`#openaiBtn_mots_cles${i}`).addEventListener('click', async () => {
             const formation = div.querySelector(`#formation${i}`).value;
             const keywords = div.querySelector(`#mots_cles${i}`).value;
-            const loader = div.querySelector(`#geminiLoader_mots_cles${i}`);
+            const loader = div.querySelector(`#openaiLoader_mots_cles${i}`);
             const resultDiv = div.querySelector(`#analyse_mots_cles${i}`);
 
             if (!formation.trim() || !keywords.trim()) {
@@ -3878,8 +3876,8 @@ Le ton doit être constructif et encourageant. Adresse-toi directement à l'él�
     }
 
     // Listener pour les suggestions alternatives
-    div.querySelector('#geminiBtn_alternatives').addEventListener('click', async () => {
-        const loader = div.querySelector('#geminiLoader_alternatives');
+    div.querySelector('#openaiBtn_alternatives').addEventListener('click', async () => {
+        const loader = div.querySelector('#openaiLoader_alternatives');
         const resultDiv = div.querySelector('#suggestions');
         const formation1 = div.querySelector('#formation1').value;
         const formation2 = div.querySelector('#formation2').value;
@@ -4676,7 +4674,7 @@ function createStep4View() {
         
         HISTORIQUE : ${JSON.stringify(conversationHistory)}`;
         
-        // Note: Gemini gère mieux l'historique directement dans le payload,
+        // Note: OpenAI gère mieux l'historique directement dans le payload,
         // mais pour la simplicité de l'exemple, on le passe dans le prompt.
         // Une version avancée enverrait l'historique complet dans `contents`.
 
@@ -4712,9 +4710,9 @@ function createStep5View() {
     // On ajoute manuellement la section d'analyse
     const analysisSectionHTML = `
         <div class="text-center my-6">
-            <button type="button" id="geminiBtn_actu" class="bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">✨ Analyser mon actualité</button>
+            <button type="button" id="openaiBtn_actu" class="bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">✨ Analyser mon actualité</button>
         </div>
-        <div id="geminiLoader_actu" class="hidden"><div class="loader"></div></div>
+        <div id="openaiLoader_actu" class="hidden"><div class="loader"></div></div>
         <div class="mb-6">
             <textarea id="analyse_actu" name="analyse_actu" rows="8" class="w-full p-3 border border-slate-300 rounded-lg bg-background-light" readonly>${journalData.step5.analyse_actu || ''}</textarea>
         </div>
@@ -4724,8 +4722,8 @@ function createStep5View() {
     const submitButton = form.querySelector('button[type="submit"]');
     submitButton.insertAdjacentHTML('beforebegin', analysisSectionHTML);
     
-    div.querySelector('#geminiBtn_actu').addEventListener('click', async () => {
-        const loader = div.querySelector('#geminiLoader_actu');
+    div.querySelector('#openaiBtn_actu').addEventListener('click', async () => {
+        const loader = div.querySelector('#openaiLoader_actu');
         const analysisTextarea = div.querySelector('#analyse_actu');
         
         const articles = [
@@ -4796,9 +4794,9 @@ function createStep6View() {
                     <textarea id="motivations_${index}" name="motivations_${index}" rows="5" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Ex: J'aime résoudre des problèmes logiques, j'ai suivi la spé NSI...">${lettreData.motivations || ''}</textarea>
                 </div>
                 <div class="text-center mb-4">
-                    <button type="button" id="geminiBtn_structure_${index}" class="bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">✨ Générer une structure de lettre</button>
+                    <button type="button" id="openaiBtn_structure_${index}" class="bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">✨ Générer une structure de lettre</button>
                 </div>
-                <div id="geminiLoader_structure_${index}" class="hidden"><div class="loader"></div></div>
+                <div id="openaiLoader_structure_${index}" class="hidden"><div class="loader"></div></div>
                  <div class="mb-6">
                     <label for="structure_${index}" class="block text-md font-medium text-slate-700 mb-2">Proposition de structure</label>
                     <textarea id="structure_${index}" name="structure_${index}" rows="10" class="w-full p-3 border border-slate-300 rounded-lg bg-background-light" readonly>${lettreData.structure || ''}</textarea>
@@ -4829,10 +4827,10 @@ function createStep6View() {
 
     for (let i = 1; i <= 2; i++) {
         // Listener pour la génération de structure (inchangé)
-        div.querySelector(`#geminiBtn_structure_${i}`).addEventListener('click', async () => {
+        div.querySelector(`#openaiBtn_structure_${i}`).addEventListener('click', async () => {
     const formation = div.querySelector(`#formation_${i}`).value;
     const motivations = div.querySelector(`#motivations_${i}`).value;
-    const loader = div.querySelector(`#geminiLoader_structure_${i}`);
+    const loader = div.querySelector(`#openaiLoader_structure_${i}`);
     const resultDiv = div.querySelector(`#structure_${i}`);
 
     if (!formation.trim() || !motivations.trim()) {
@@ -5325,7 +5323,7 @@ Chaque objet du tableau doit contenir les clés suivantes :
                 <input type="text" id="pro_metier2" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Métier #2 (optionnel)">
                 <input type="text" id="pro_metier3" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Métier #3 (optionnel)">
             </div>
-            <button type="button" id="geminiBtn_find_pro" class="w-full bg-cyan-600 text-white font-semibold py-2 px-3 rounded-lg hover:bg-cyan-700">🔎 Lancer la recherche</button>
+            <button type="button" id="openaiBtn_find_pro" class="w-full bg-cyan-600 text-white font-semibold py-2 px-3 rounded-lg hover:bg-cyan-700">🔎 Lancer la recherche</button>
             <div id="loader-find-pro" class="hidden"><div class="loader"></div></div>
             <div id="find-pro-error"></div>
         </div>
@@ -5338,8 +5336,8 @@ Chaque objet du tableau doit contenir les clés suivantes :
                 <h3 class="font-bold text-azimut-darkblue mb-2">Stratégie de Contact</h3>
                 <p class="text-sm text-slate-600 mb-2">Besoin d'aide pour rédiger un mail ou préparer tes questions ?</p>
                 <input type="text" id="pro_metier_aide" class="w-full p-2 border border-slate-300 rounded-lg mb-2" placeholder="Rappelle le métier concerné">
-                <button type="button" id="geminiBtn_contact_pro" class="w-full bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">✉️ Générer une stratégie</button>
-                <div id="geminiLoader_pro_contact" class="hidden"><div class="loader"></div></div>
+                <button type="button" id="openaiBtn_contact_pro" class="w-full bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">✉️ Générer une stratégie</button>
+                <div id="openaiLoader_pro_contact" class="hidden"><div class="loader"></div></div>
                 <textarea id="pro_strategie" rows="8" class="w-full mt-2 p-2 border border-slate-300 rounded-lg bg-slate-100" readonly></textarea>
             </div>
         </div>
@@ -5425,7 +5423,7 @@ Chaque objet du tableau doit contenir les clés suivantes :
     });
     
     // --- DÉBUT DE LA LOGIQUE RESTAURÉE ---
-    div.querySelector('#geminiBtn_find_pro').addEventListener('click', async () => {
+    div.querySelector('#openaiBtn_find_pro').addEventListener('click', async () => {
         const departement = div.querySelector('#pro_departement').value.trim();
         const metier1 = div.querySelector('#pro_metier1').value.trim();
         const metier2 = div.querySelector('#pro_metier2').value.trim();
@@ -5485,9 +5483,9 @@ Chaque objet du tableau doit contenir les clés suivantes :
 }
     });
 
-    div.querySelector('#geminiBtn_contact_pro').addEventListener('click', async () => {
+    div.querySelector('#openaiBtn_contact_pro').addEventListener('click', async () => {
         const metier = div.querySelector('#pro_metier_aide').value.trim();
-        const loader = div.querySelector('#geminiLoader_pro_contact');
+        const loader = div.querySelector('#openaiLoader_pro_contact');
         const resultDiv = div.querySelector('#pro_strategie');
         if (!metier) { resultDiv.value = "Veuillez indiquer un métier pour générer une stratégie."; return; }
         loader.style.display = 'block'; resultDiv.value = '';
@@ -5554,9 +5552,9 @@ function createStep9View() {
                 <input type="text" id="reussite_type" name="reussite_type" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Ex: Licence de Droit, BUT..." value="${journalData.step9.reussite_type || ''}">
             </div>
             <div class="text-center mb-4">
-                <button type="button" id="geminiBtn_reussite" class="bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">✨ Me coacher pour la 1ère année</button>
+                <button type="button" id="openaiBtn_reussite" class="bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">✨ Me coacher pour la 1ère année</button>
             </div>
-            <div id="geminiLoader_reussite" class="hidden"><div class="loader"></div></div>
+            <div id="openaiLoader_reussite" class="hidden"><div class="loader"></div></div>
             <div class="mb-6">
                 <label for="reussite_conseils" class="block text-md font-medium text-slate-700 mb-2">Conseils de réussite par l'IA</label>
                 <textarea id="reussite_conseils" name="reussite_conseils" rows="8" class="w-full p-3 border border-slate-300 rounded-lg bg-background-light" readonly>${journalData.step9.reussite_conseils || ''}</textarea>
@@ -5637,7 +5635,7 @@ const result = await callOpenAI_API(addGenderContextToPrompt(prompt));
         }
     });
 
-    div.querySelector('#geminiBtn_reussite').addEventListener('click', async () => { /* ... (code inchangé) ... */ });
+    div.querySelector('#openaiBtn_reussite').addEventListener('click', async () => { /* ... (code inchangé) ... */ });
     
     form.addEventListener('submit', async(e) => { /* ... (code inchangé) ... */ });
             
@@ -6039,9 +6037,9 @@ function createStep11View() {
 
     form.innerHTML += `
         <div class="text-center mb-4">
-            <button type="button" id="geminiBtn_local" class="w-full sm:w-auto bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">🌍 Lancer la recherche locale</button>
+            <button type="button" id="openaiBtn_local" class="w-full sm:w-auto bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">🌍 Lancer la recherche locale</button>
         </div>
-        <div id="geminiLoader_local" class="hidden"><div class="loader"></div></div>
+        <div id="openaiLoader_local" class="hidden"><div class="loader"></div></div>
         <div id="results-container" class="mt-8"></div>
         <hr class="my-12 border-slate-300">
         <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Préparer mes visites</h2>
@@ -6049,15 +6047,15 @@ function createStep11View() {
             <div class="bg-background-light p-4 rounded-lg border">
                 <h3 class="font-bold text-OrIAntation-darkblue mb-2">Préparer une JPO</h3>
                 <input type="text" id="jpo_ecole" name="jpo_ecole" class="w-full p-2 border border-slate-300 rounded-lg mb-2" placeholder="Nom de l'école ou formation" value="${journalData.step11.jpo_ecole || ''}">
-                <button type="button" id="geminiBtn_jpo" class="w-full bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">💡 Générer des questions</button>
-                <div id="geminiLoader_jpo" class="hidden"><div class="loader"></div></div>
+                <button type="button" id="openaiBtn_jpo" class="w-full bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">💡 Générer des questions</button>
+                <div id="openaiLoader_jpo" class="hidden"><div class="loader"></div></div>
                 <textarea id="jpo_questions" name="jpo_questions" rows="8" class="w-full mt-2 p-2 border border-slate-300 rounded-lg bg-slate-100" readonly>${journalData.step11.jpo_questions || ''}</textarea>
             </div>
             <div class="bg-background-light p-4 rounded-lg border">
                 <h3 class="font-bold text-OrIAntation-darkblue mb-2">Préparer une visite de Salon</h3>
                 <input type="text" id="salon_nom" name="salon_nom" class="w-full p-2 border border-slate-300 rounded-lg mb-2" placeholder="Nom du salon (ex: Salon de l'Étudiant)" value="${journalData.step11.salon_nom || ''}">
-                <button type="button" id="geminiBtn_salon" class="w-full bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">🎯 Préparer ma visite</button>
-                <div id="geminiLoader_salon" class="hidden"><div class="loader"></div></div>
+                <button type="button" id="openaiBtn_salon" class="w-full bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">🎯 Préparer ma visite</button>
+                <div id="openaiLoader_salon" class="hidden"><div class="loader"></div></div>
                 <textarea id="salon_preparation" name="salon_preparation" rows="8" class="w-full mt-2 p-2 border border-slate-300 rounded-lg bg-slate-100" readonly>${journalData.step11.salon_preparation || ''}</textarea>
             </div>
         </div>
@@ -6065,9 +6063,9 @@ function createStep11View() {
     `;
 
     const locationInput = div.querySelector('#location');
-    const searchBtn = div.querySelector('#geminiBtn_local');
-    const jpoBtn = div.querySelector('#geminiBtn_jpo');
-    const salonBtn = div.querySelector('#geminiBtn_salon');
+    const searchBtn = div.querySelector('#openaiBtn_local');
+    const jpoBtn = div.querySelector('#openaiBtn_jpo');
+    const salonBtn = div.querySelector('#openaiBtn_salon');
     const resultsContainer = div.querySelector('#results-container');
 
     const renderResults = (data) => {
@@ -6118,7 +6116,7 @@ function createStep11View() {
             showInfoModal("Veuillez indiquer une ville ou un département.");
             return;
         }
-        const loader = div.querySelector('#geminiLoader_local');
+        const loader = div.querySelector('#openaiLoader_local');
         loader.style.display = 'block';
         resultsContainer.innerHTML = '';
         const today = new Date();
@@ -6233,7 +6231,7 @@ function createStep11View() {
         </div>
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6"><p class="font-semibold text-cyan-900"><b>Ta mission :</b> Clique sur le bouton pour que l'IA te crée un rétroplanning sur-mesure. Coche ensuite les cases au fur et à mesure de ton avancée !</p></div>
         <div class="text-center mb-6">
-            <button type="button" id="geminiBtn_retro" class="bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">📅 Générer / Mettre à jour mon Rétroplanning</button>
+            <button type="button" id="openaiBtn_retro" class="bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">📅 Générer / Mettre à jour mon Rétroplanning</button>
         </div>
         <div class="my-8 p-4 bg-background-light border border-border-subtle rounded-lg">
              <h3 class="font-bold text-OrIAntation-darkblue mb-3">Ajouter un événement personnalisé</h3>
@@ -6243,7 +6241,7 @@ function createStep11View() {
                  <button type="button" id="add-custom-event-btn" class="bg-teal-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-600 transition whitespace-nowrap">Ajouter</button>
              </div>
         </div>
-        <div id="geminiLoader_retro" class="hidden"><div class="loader"></div></div>
+        <div id="openaiLoader_retro" class="hidden"><div class="loader"></div></div>
         <div id="retroplanning-content"></div>
         
         <form id="retroForm" class="hidden">
@@ -6328,13 +6326,13 @@ function createStep11View() {
         // ... (logique inchangée)
     });
 
-    div.querySelector('#geminiBtn_retro').addEventListener('click', async () => {
+    div.querySelector('#openaiBtn_retro').addEventListener('click', async () => {
         if (!userGradeLevel) {
             showInfoModal("Les données de votre profil sont en cours de chargement. Veuillez patienter et cliquer à nouveau.");
             return;
         }
 
-        const loader = div.querySelector('#geminiLoader_retro');
+        const loader = div.querySelector('#openaiLoader_retro');
         loader.style.display = 'block';
         retroplanningContent.innerHTML = '';
         
@@ -6355,8 +6353,8 @@ function createStep11View() {
                 prompt = `
                 Agis en tant que coach scolaire expert et bienveillant.
                 Contexte : Crée un rétroplanning de ${date} à juillet 2026 en te basant sur le profil de l'élève : "${profileSummary}".               
-                Mission : Propose un plan d'action équilibré mois par mois.
-                Détails mensuels : Pour chaque mois, propose des actions claires pour "Cap Orientation" (découverte, spécialités, stage) et "Performance & Stratégie" (méthodes de travail, conseils de classe).
+                Mission : Propose un plan d'action équilibré mois par mois. Calendrier obligatoire : satge de seconde en JUIN. 
+                Détails mensuels : Pour chaque mois, propose des actions claires pour "Cap Orientation" (découverte, spécialités, stage. En utilisant les étapes de l'application) et "Performance & Stratégie" (méthodes de travail, conseils de classe).
                 Conseils de fond : Dans "conseilDetaille", rédige une synthèse motivante et des conseils sur le choix des 3 spécialités et la réussite du stage. Sois fluide, sans # ou *.
                 ${commonJsonInstruction}
                 `;
@@ -7377,8 +7375,8 @@ if (typeof entry.content === 'string') {
             <div class="mt-8 border-t pt-6 text-center">
                 <button id="publicShareBtn" class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">🤝 Préparer une discussion</button>
             </div>
-            <div id="publicGeminiShareLoader" class="hidden"><div class="loader"></div></div>
-            <div id="publicGeminiShareResult" class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg text-slate-700 whitespace-pre-wrap"></div>`;
+            <div id="publicOpenAIShareLoader" class="hidden"><div class="loader"></div></div>
+            <div id="publicOpenAIShareResult" class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg text-slate-700 whitespace-pre-wrap"></div>`;
         pageContainer.appendChild(discussionSection);
 
         mainApp.innerHTML = '';
@@ -7415,8 +7413,8 @@ if (typeof entry.content === 'string') {
             }
             // Cas 3 : Clic sur le bouton "Préparer une discussion"
             else if (shareBtn) {
-                const loader = pageContainer.querySelector('#publicGeminiShareLoader');
-                const resultDiv = pageContainer.querySelector('#publicGeminiShareResult');
+                const loader = pageContainer.querySelector('#publicOpenAIShareLoader');
+                const resultDiv = pageContainer.querySelector('#publicOpenAIShareResult');
                 loader.style.display = 'block';
                 resultDiv.textContent = '';
 const prompt = `
