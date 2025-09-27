@@ -2858,9 +2858,6 @@ function createProfileInfographic(step0Data, context = 'user') {
             `;
         }
 
-// =======================================================================
-// --- FONCTION createStep0View FINALE ET 100% COMPLÈTE ---
-// =======================================================================
 function createStep0View() {
     const config = stepsConfig.step0;
     const div = createStepView({ ...config, fields: [] });
@@ -2917,8 +2914,11 @@ function createStep0View() {
             <div id="analysis-container"></div>
             <div id="infographic-container"></div>
             <div id="submit-container" class="text-center pt-4 hidden">
-                <button type="submit" class="w-full bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700 transition">✔️ Terminer l'étape et voir le menu</button>
-            </div>
+    <div class="flex flex-col sm:flex-row gap-4">
+        <button type="button" id="retake-quiz-btn" class="w-full sm:w-1/2 bg-slate-200 text-OrIAntation-darkblue font-semibold py-3 px-6 rounded-lg hover:bg-slate-300 transition">🔄 Recommencer le test</button>
+        <button type="submit" class="w-full sm:w-1/2 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700 transition">✔️ Terminer et sauvegarder</button>
+    </div>
+</div>
         </div>
         <hr class="my-12 border-slate-300">
         <div id="pour-aller-plus-loin" class="hidden">
@@ -3058,7 +3058,7 @@ Tu es un psychologue expert en orientation, maître dans l'art de créer des pro
 
   <etape_2>
     **2. Création de la Variante Personnalisée :**
-    Crée une variante unique de l'archétype principal en fusionnant les traits des profils RIASEC <secondaire> et <tertiaire>. Tu dois inventer un nom de variante et écrire une description qui combine les trois traits.
+    Crée une variante unique de l'archétype principal en fusionnant les traits des profils RIASEC <secondaire> et <tertiaire>. Tu dois inventer un nom de variante composé de **deux mots maximum** (ex: "Analyste Créatif", "Bâtisseuse Sociale") et écrire une description qui combine les trois traits.
 
     <exemple>
       - Profil : Investigateur (I) + Artistique (A) + Social (S)
@@ -3081,6 +3081,10 @@ const rawArchetypeResponse = await callOpenAI_API(addGenderContextToPrompt(arche
 
         const archetypeResult = extractJsonFromString(rawArchetypeResponse);
         if (archetypeResult) journalData.step0.archetype = archetypeResult;
+
+if (!journalData.step0.analysis_timestamp) { // On n'enregistre que la 1ère fois
+    journalData.step0.analysis_timestamp = new Date().getTime();
+}
 
         renderAnalysis(profileAnalysis);
         if(archetypeResult) renderArchetype(archetypeResult);
@@ -3139,6 +3143,52 @@ const rawArchetypeResponse = await callOpenAI_API(addGenderContextToPrompt(arche
     
     renderQuestion(0);
     
+
+    div.querySelector('#retake-quiz-btn').addEventListener('click', async () => {
+    const lastTimestamp = journalData.step0.analysis_timestamp || 0;
+    const now = new Date().getTime();
+    const daysSinceLastTest = (now - lastTimestamp) / (1000 * 60 * 60 * 24);
+    const cooldownDays = 90; // Délai de 3 mois (environ 90 jours)
+
+    // Si le délai n'est pas écoulé, on affiche la fenêtre modale éducative
+    if (daysSinceLastTest < cooldownDays) {
+        const daysRemaining = Math.ceil(cooldownDays - daysSinceLastTest);
+        const title = "Une nouvelle photographie de toi-même 📸";
+        const contentHTML = `
+            <div class="space-y-3 text-slate-600 text-left">
+                <p>Ton profil est comme une photographie de tes intérêts à un moment précis. C'est un excellent point de départ !</p>
+                <p class="font-semibold">À ton âge, on se construit et on évolue très vite. C'est pourquoi il est intéressant de refaire ce test de temps en temps pour voir comment ta réflexion a mûri.</p>
+                <p class="p-3 bg-cyan-50 border border-cyan-200 rounded-lg text-center">
+                    Tu pourras refaire le test dans <strong>${daysRemaining} jour(s)</strong>.
+                </p>
+                <p>D'ici là, continue d'explorer les autres étapes pour affiner ta connaissance de toi-même !</p>
+            </div>
+        `;
+        createSimpleModal(title, contentHTML); // On utilise la modale simple pour un meilleur affichage
+        return;
+    }
+
+    // Si le délai est écoulé, on affiche le message de confirmation
+    const confirmed = await showConfirmationModal(
+        "C'est le bon moment pour prendre une nouvelle 'photographie' de ton profil et voir comment tu as évolué. Tes résultats actuels seront remplacés par les nouveaux. Veux-tu continuer ?"
+    );
+    
+    if (confirmed) {
+    // On réinitialise les données du quiz et des résultats
+    journalData.step0 = {
+        ...stepsConfig.step0.fields.reduce((acc, field) => ({ ...acc, [field.id]: '' }), {}),
+        analysis: '',
+        archetype: null,
+        riasecScores: {},
+        // On remet le timestamp à zéro pour que le prochain test enregistre une nouvelle date
+        analysis_timestamp: 0 
+    };
+    await saveData();
+    
+    // On rafraîchit la vue pour réafficher le questionnaire
+    showView('step0');
+}
+});
     return div;
 }
         
