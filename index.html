@@ -2470,7 +2470,8 @@ if(filledCount > 0) {
         </div>
     `;
 // On remplace "grid..." par "flex flex-wrap justify-center..."
-div.innerHTML = levelDisplayHTML + progressBarHTML + guideCardHTML + `<div class="flex flex-wrap justify-center gap-6 mt-8 w-full">${gridHTML}</div>` + radarHTML;    
+// On ajoute une div avec une marge en bas (mb-8) autour de la barre de progression
+div.innerHTML = levelDisplayHTML + `<div class="max-w-xl mx-auto my-8 mb-8">${progressBarHTML}</div>` + guideCardHTML + `<div class="flex flex-wrap justify-center gap-6 mt-8 w-full">${gridHTML}</div>` + radarHTML;  
 
 setTimeout(() => {
     const canvas = div.querySelector('#xp-chart'); // On cible le nouvel ID unique
@@ -2647,6 +2648,25 @@ setTimeout(() => {
             createSimpleModal(title, contentHTML);
         });
     });
+
+   div.querySelector('#progress-help-btn').addEventListener('click', () => {
+    const title = "À quoi correspondent les coches ?";
+    const contentHTML = `
+        <div class="space-y-4 text-slate-600 text-left">
+            <p>Les coches à côté des étapes vous permettent de suivre votre progression en un coup d'œil.</p>
+            <div>
+                <h4 class="font-semibold text-OrIAntation-darkblue"><span class="text-orange-400 font-bold">✔</span> Coche Orange</h4>
+                <p class="text-sm pl-6">Signifie que vous avez <strong>commencé</strong> à explorer une étape, mais que vous ne l'avez pas encore terminée.</p>
+            </div>
+            <div>
+                <h4 class="font-semibold text-OrIAntation-darkblue"><span class="text-green-500 font-bold">✔</span> Coche Verte</h4>
+                <p class="text-sm pl-6">Signifie que vous avez <strong>terminé</strong> l'étape en remplissant toutes les informations principales demandées.</p>
+            </div>
+            <p class="pt-4 border-t mt-4">Votre objectif est de faire passer un maximum d'étapes au vert pour construire le projet d'orientation le plus complet et le plus solide possible !</p>
+        </div>
+    `;
+    createSimpleModal(title, contentHTML);
+}); 
 
     return div;
 }
@@ -2981,10 +3001,62 @@ function createStep0View() {
 
         const riasecNames = { R: 'Réaliste', I: 'Investigateur', A: 'Artistique', S: 'Social', E: 'Entreprenant', C: 'Conventionnel' };
         const top3Names = Object.entries(riasecScores).sort(([,a],[,b]) => b-a).slice(0, 3).map(([letter]) => riasecNames[letter]);
-        
-        const archetypePrompt = `Tu es un psychologue expert en orientation, maître dans l'art de synthétiser des données quantitatives et qualitatives. Tu disposes de deux sources d'information sur un élève :\n\n1.  **Son profil RIASEC dominant (la structure), classé par ordre d'importance :**\n    - ${top3Names[0]}\n    - ${top3Names[1]}\n    - ${top3Names[2]}\n\n2.  **Son analyse de personnalité détaillée (la nuance) :**\n    """\n    ${profileAnalysis}\n    """\n\n**TA MISSION :**\nCombine ces deux sources pour choisir l'archétype le plus juste et personnalisé dans la liste ci-dessous.\n- Utilise le profil RIASEC comme FONDATION pour ton choix.\n- Utilise l'analyse détaillée pour AFFINER ta décision en fonction des motivations profondes décrites dans le texte.\n\n**ARCHÉTYPES POSSIBLES :**\n- 🏛️ L'Architecte Logique (Méthodique, analytique. Souvent I, C, R)\n- 🧭 L'Explorateur Créatif (Imaginatif, curieux. Souvent A, I, E)\n- 🤝 Le Connecteur Humain (Social, empathique. Souvent S, A, E)\n- 🎯 Le Stratège Pragmatique (Organisé, leader. Souvent E, C, S)\n- ✨ Le Visionnaire Intuitif (Inspiré, vue d'ensemble. Souvent A, I, S)\n- 🛠️ L'Artisan Méticuleux (Précis, concret. Souvent R, C, A)\n- ❤️🩹 Le Médiateur Empathique (À l'écoute, diplomate. Souvent S, C, A)\n- 🚀 L'Innovateur Audacieux (Entreprenant, prend des risques. Souvent E, R, I)\n- 📚 Le Gardien des Savoirs (Expert, rigoureux. Souvent I, S, C)\n\n**FORMAT DE SORTIE (JSON STRICT) :**\nFournis ta réponse sous la forme d'un objet JSON valide et rien d'autre. Le JSON doit contenir "titre", "description", et "icone". Adresse toi à l'élève direcetment .`;
-        
-        const rawArchetypeResponse = await callOpenAI_API(archetypePrompt, false, true);
+        const userGender = currentUserInfo.gender || 'autre';
+
+        const archetypePrompt = `
+<role>
+Tu es un psychologue expert en orientation, maître dans l'art de créer des profils synthétiques et inspirants.
+</role>
+
+<contexte>
+  <genre>${userGender}</genre>
+  <riasec>
+    <majeur>${top3Names[0]}</majeur>
+    <secondaire>${top3Names[1]}</secondaire>
+    <tertiaire>${top3Names[2]}</tertiaire>
+  </riasec>
+  <analyse_personnalite>
+    ${profileAnalysis}
+  </analyse_personnalite>
+</contexte>
+
+<mission>
+  Ta mission est de créer un archétype sur mesure en deux temps.
+
+  <etape_1>
+    **1. Identification de l'Archétype Principal :**
+    Identifie l'archétype principal qui correspond au profil RIASEC <majeur> parmi cette liste :
+    - Réaliste (R) : Le Bâtisseur / La Bâtisseuse (Icône : 🛠️).
+    - Investigateur (I) : L'Analyste (Icône : 🔬).
+    - Artistique (A) : Le Créatif / La Créative (Icône : 🎨).
+    - Social (S) : Le Connecteur / La Connectrice (Icône : 🤝).
+    - Entreprenant (E) : L'Initiateur / L'Initiatrice (Icône : 🚀).
+    - Conventionnel (C) : L'Organisateur / L'Organisatrice (Icône : 🏛️).
+  </etape_1>
+
+  <etape_2>
+    **2. Création de la Variante Personnalisée :**
+    Crée une variante unique de l'archétype principal en fusionnant les traits des profils RIASEC <secondaire> et <tertiaire>. Tu dois inventer un nom de variante et écrire une description qui combine les trois traits.
+
+    <exemple>
+      - Profil : Investigateur (I) + Artistique (A) + Social (S)
+      - Variante possible : "L'Analyste Humaniste"
+      - Description : "Tu combines la rigueur de l'Analyste avec la sensibilité du Créatif et une forte envie d'aider les autres."
+    </exemple>
+  </etape_2>
+</mission>
+
+<format_de_sortie>
+  La réponse DOIT être un unique objet JSON valide, sans aucun texte avant ou après.
+  - "icone": L'icône de l'archétype principal.
+  - "titre": Le nom de la variante personnalisée, accordé au <genre> de l'élève.
+  - "description": La description personnalisée qui fusionne les trois traits RIASEC.
+</format_de_sortie>
+`;
+
+// L'appel à l'API reste le même
+const rawArchetypeResponse = await callOpenAI_API(addGenderContextToPrompt(archetypePrompt), false, true);
+
         const archetypeResult = extractJsonFromString(rawArchetypeResponse);
         if (archetypeResult) journalData.step0.archetype = archetypeResult;
 
@@ -7554,11 +7626,17 @@ function isStepComplete(stepKey) {
     const progressPercentage = totalTrackableSteps > 0 ? (completedStepsCount / totalTrackableSteps) * 100 : 0;
 
     return `
-        <div class="max-w-xl mx-auto my-8">
-            <div class="flex justify-between mb-1">
-                <span class="text-base font-medium text-cyan-700">Progression des Étapes</span>
-                <span class="text-sm font-medium text-cyan-700">${Math.round(progressPercentage)}%</span>
-            </div>
+        <div class="flex justify-between items-center mb-1">
+    <span class="text-base font-medium text-cyan-700 flex items-center gap-2">
+        Progression des Étapes
+        <button id="progress-help-btn" class="text-slate-400 hover:text-cyan-600" title="À quoi correspondent les coches ?">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
+            </svg>
+        </button>
+    </span>
+    <span class="text-sm font-medium text-cyan-700">${Math.round(progressPercentage)}%</span>
+</div>
             <div class="w-full bg-slate-200 rounded-full h-2.5">
                 <div class="bg-cyan-600 h-2.5 rounded-full" style="width: ${progressPercentage}%"></div>
             </div>
