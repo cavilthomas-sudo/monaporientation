@@ -2249,7 +2249,7 @@ async function callOpenAI_API(prompt, useGrounding = false, isJson = false) {
         return text;
     };
 
-    const functionUrl = "https://us-central1-monapp0rientation.cloudfunctions.net/generateContent"; 
+const functionUrl = "https://europe-west1-monapp0rientation.cloudfunctions.net/generateContent";
 
     try {
         const response = await fetch(functionUrl, {
