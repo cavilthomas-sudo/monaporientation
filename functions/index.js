@@ -90,7 +90,7 @@ exports.generateContent = functions
             }
 
             const payload = {
-                model: "gpt-4o-mini",
+                model: "gpt-4o",
                 messages: [{ "role": "user", "content": prompt }]
             };
 

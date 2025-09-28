@@ -65,6 +65,15 @@
 
         #mainApp { display: none; }
 
+        .fiche-content {
+         overflow-wrap: break-word;
+         word-wrap: break-word;
+         }
+
+         .fiche-colonne-contenu {
+    /* Astuce CSS pour corriger les bugs de dépassement dans une grille */
+    min-width: 0; 
+         }
         
 
         .loader {
@@ -774,14 +783,16 @@ const badgesConfig = {
         }
     },
     stratege: {
-        icon: '💠',
-        title: "Architecte Stratégique",
-        description: "Décerné pour avoir traité les informations afin de bâtir un plan d'avenir et des scénarios alternatifs.",
-        criteria: () => {
-const retroplanningComplete = journalData.retroplanning && journalData.retroplanning.rawText && journalData.retroplanning.rawText.coachingGeneral && journalData.retroplanning.rawText.coachingGeneral.trim() !== '';            const step9Complete = isStepComplete('step9');
-            return retroplanningComplete && step9Complete;
-        }
-    },
+    icon: '💠',
+    title: "Architecte Stratégique",
+    description: "Décerné pour avoir traité les informations afin de bâtir un plan d'avenir et des scénarios alternatifs.",
+    criteria: () => {
+        // On vérifie maintenant si le tableau de tâches existe et n'est pas vide.
+        const retroplanningComplete = journalData.retroplanning && Array.isArray(journalData.retroplanning.tasks) && journalData.retroplanning.tasks.length > 0;
+        const step9Complete = isStepComplete('step9');
+        return retroplanningComplete && step9Complete;
+    }
+},
     connecteur: {
         icon: '🌐',
         title: "Hub Réseau",
@@ -2961,8 +2972,16 @@ function createStep0View() {
 </div>
         </div>
         <hr class="my-12 border-slate-300">
+
         <div id="pour-aller-plus-loin" class="hidden">
             <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Pour aller plus loin : Croise les regards</h2>
+            
+            <p class="text-slate-600 mb-6">
+                Pour une analyse encore plus riche, tu peux passer des tests complémentaires sur des sites spécialisés et copier-coller les résultats ici. L'IA les croisera avec ton profil OrIAntation pour une synthèse encore plus fine.
+                <br>
+                <a href="https://test-orientation.studyrama.com/profil/lyceen" target="_blank" class="font-semibold text-primary-action hover:underline">Trouver des tests sur Studyrama.com ↗</a>
+            </p>
+
             <div class="mb-6">
                 <label for="test_interets" class="block text-md font-medium text-slate-700 mb-2">1. Résultats du Test d'Intérêts Professionnels</label>
                 <textarea id="test_interets" name="test_interets" rows="4" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Copie-colle ici le texte de tes résultats...">${journalData.step0.test_interets || ''}</textarea>
@@ -3006,30 +3025,36 @@ function createStep0View() {
     };
 
     const renderQuestion = (index) => {
-        if (index >= questions.length) {
-            form.querySelector('#quiz-wrapper').classList.add('hidden');
-            form.querySelector('#analysis-section').classList.remove('hidden');
-            return;
-        }
-        const question = questions[index];
-        const progressPercent = ((index + 1) / questions.length) * 100;
-        form.querySelector('#quiz-progress-bar').style.width = `${progressPercent}%`;
-        form.querySelector('#quiz-progress-text').textContent = `Question ${index + 1} / ${questions.length}`;
-        form.querySelector('#quiz-part-text').textContent = question.part;
-        const answersHTML = Object.entries(question.options).map(([value, data]) => 
-            `<button type="button" data-value="${value}" class="answer-btn w-full text-left p-4 my-2 bg-white border border-slate-300 rounded-lg hover:bg-cyan-100 hover:border-cyan-400 transition">${data.text}</button>`
-        ).join('');
-        const questionContainer = form.querySelector('#quiz-question-container');
-        questionContainer.innerHTML = `<div class="fade-in"><p class="text-lg font-semibold text-OrIAntation-darkblue mb-6">${question.label}</p><div class="flex flex-col">${answersHTML}</div></div>`;
-        questionContainer.querySelectorAll('.answer-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const qId = `q${question.id}`;
-                journalData.step0[qId] = e.target.dataset.value;
-                currentQuestionIndex++;
+    if (index >= questions.length) {
+        form.querySelector('#quiz-wrapper').classList.add('hidden');
+        form.querySelector('#analysis-section').classList.remove('hidden');
+        return;
+    }
+    const question = questions[index];
+    const progressPercent = ((index + 1) / questions.length) * 100;
+    form.querySelector('#quiz-progress-bar').style.width = `${progressPercent}%`;
+    form.querySelector('#quiz-progress-text').textContent = `Question ${index + 1} / ${questions.length}`;
+    form.querySelector('#quiz-part-text').textContent = question.part;
+    const answersHTML = Object.entries(question.options).map(([value, data]) => 
+        `<button type="button" data-value="${value}" class="answer-btn w-full text-left p-4 my-2 bg-white border border-slate-300 rounded-lg hover:bg-cyan-100 hover:border-cyan-400 transition">${data.text}</button>`
+    ).join('');
+    const questionContainer = form.querySelector('#quiz-question-container');
+    questionContainer.innerHTML = `<div class="fade-in"><p class="text-lg font-semibold text-OrIAntation-darkblue mb-6">${question.label}</p><div class="flex flex-col">${answersHTML}</div></div>`;
+    
+    questionContainer.querySelectorAll('.answer-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const qId = `q${question.id}`;
+            journalData.step0[qId] = e.target.dataset.value;
+            currentQuestionIndex++;
+            
+            // ✅ LA CORRECTION EST ICI
+            // On ajoute un minuscule délai pour éviter le bug d'affichage aléatoire
+            setTimeout(() => {
                 renderQuestion(currentQuestionIndex);
-            });
+            }, 10); // 10 millisecondes suffisent
         });
-    };
+    });
+};
     
     form.querySelector('#analyzeProfileBtn').addEventListener('click', async () => {
         const loader = div.querySelector('#openaiLoader_step0');
@@ -3477,7 +3502,7 @@ Ta mission est de trouver 3 contenus pertinents (interview vidéo, podcast, arti
                 });
                 htmlResult += '</div>';
                 resultDiv.innerHTML = htmlResult;
-                resultToSave = textResultForSave.trim();
+                resultToSave = JSON.stringify(testimonialsList);
             } catch (e) {
                 resultDiv.className = 'mt-4 p-4 bg-background-light border border-border-subtle rounded-lg text-slate-700 min-h-[100px] whitespace-pre-wrap';
                 resultDiv.innerHTML = "L'IA n'a pas pu formater les témoignages. <pre class='whitespace-pre-wrap text-xs'>" + result + "</pre>";
@@ -3604,94 +3629,149 @@ const result = await callOpenAI_API(prompt, false, true);
     checkSubmitButtonState();
 
     const addSearchFunctionality = (index) => {
-        const metierInput = form.querySelector(`#metier${index}`);
-        const searchResultsContainer = form.querySelector(`#search-results-${index}`);
+    const metierInput = form.querySelector(`#metier${index}`);
+    const searchResultsContainer = form.querySelector(`#search-results-${index}`);
+    
+    const resultsWrapper = document.createElement('div');
+    resultsWrapper.className = 'absolute z-10 w-full bg-white border border-slate-200 rounded-md mt-1 max-h-48 overflow-y-auto shadow-lg';
+    searchResultsContainer.appendChild(resultsWrapper);
+
+    const displayMetierFiche = (metier) => {
+        const ficheContainer = form.querySelector(`#fiche-metier-container-${index}`);
+        let ficheHTML = `
+            <div class="p-6 bg-white border-2 border-cyan-100 rounded-2xl space-y-6 text-slate-700 text-left relative transition-all duration-300 ease-in-out shadow-lg">
+                <button type="button" class="absolute top-3 right-3 text-slate-400 hover:text-slate-600 font-bold text-2xl p-1 leading-none" title="Fermer la fiche">×</button>
+                <div class="text-center border-b pb-4">
+                    <h2 class="text-2xl font-bold text-OrIAntation-darkblue">${metier.libelle || metier.nom_metier}</h2>
+                    ${metier.accroche_metier ? `<p class="text-slate-500 mt-2 italic">"${metier.accroche_metier}"</p>` : ''}
+                </div>
+        `;
+
+        if (metier.centres_interet && metier.centres_interet.centre_interet) {
+            const items = Array.isArray(metier.centres_interet.centre_interet) ? metier.centres_interet.centre_interet : [metier.centres_interet.centre_interet];
+            const tagsHTML = items.map(item => `<span class="bg-cyan-100 text-cyan-800 text-sm font-semibold mr-2 mb-2 px-3 py-1 rounded-full">${item.libelle}</span>`).join('');
+            ficheHTML += `
+                <div>
+                    <h3 class="font-bold text-OrIAntation-darkblue mb-3 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6.429 9.75 2.25 12l4.179 2.25m0-4.5 5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-5.571 3-5.571-3Z" /></svg>
+                        Centres d'intérêt associés
+                    </h3>
+                    <div class="flex flex-wrap">${tagsHTML}</div>
+                </div>
+            `;
+        }
         
-        const resultsWrapper = document.createElement('div');
-        resultsWrapper.className = 'absolute z-10 w-full bg-white border border-slate-200 rounded-md mt-1 max-h-48 overflow-y-auto shadow-lg';
-        searchResultsContainer.appendChild(resultsWrapper);
+        // ✅ LA CORRECTION COMMENCE ICI : On crée deux colonnes séparées
+        let column1HTML = '';
+        let column2HTML = '';
+        
+        const champsInteressants = [
+            { key: 'nature_travail', titre: 'Nature du travail', icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21v-4.5m0 4.5h4.5m-4.5 0L9 15M21 3.75v4.5m0-4.5h-4.5m4.5 0L15 9" /></svg>` },
+            { key: 'competences', titre: 'Compétences requises', icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" /></svg>` },
+            { key: 'condition_travail', titre: 'Conditions de travail', icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>` },
+            { key: 'vie_professionnelle', titre: 'Vie professionnelle', icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" /></svg>` },
+            { key: 'acces_metier', titre: 'Accès au métier', icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.57 50.57 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" /></svg>` },
+            { key: 'niveau_acces_min._', titre: 'Niveau d\'accès minimal', icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18" /></svg>` }
+        ];
 
-        metierInput.addEventListener('input', async () => {
-            const searchTerm = metierInput.value.trim().toLowerCase();
-            resultsWrapper.innerHTML = ''; 
+        const getValue = (obj, path) => path.split('.').reduce((acc, part) => acc && acc[part], obj);
 
-            if (searchTerm.length < 3) return;
-
-            try {
-                const metiersRef = collection(db, "onisep_metiers_xml"); 
-                const q = query(metiersRef, where("nom_metier", ">=", searchTerm), where("nom_metier", "<=", searchTerm + '\uf8ff'), limit(10));
-                const querySnapshot = await getDocs(q);
-
-                if (querySnapshot.empty) {
-                    const fallbackDiv = document.createElement('div');
-                    fallbackDiv.className = 'p-3 text-center cursor-pointer text-sky-700 hover:bg-sky-100';
-                    const googleSearchQuery = `site:onisep.fr ${metierInput.value.trim()}`;
-                    const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(googleSearchQuery)}`;
-                    fallbackDiv.innerHTML = `Aucun résultat. Rechercher "<strong>${metierInput.value.trim()}</strong>" sur Onisep.fr ↗`;
-                    fallbackDiv.addEventListener('click', () => { window.open(googleUrl, '_blank'); resultsWrapper.innerHTML = ''; });
-                    resultsWrapper.appendChild(fallbackDiv);
+        champsInteressants.forEach((champ, i) => {
+            const valeur = getValue(metier, champ.key);
+            if (valeur && typeof valeur === 'string') {
+                const sectionHTML = `
+                    <div class="mb-6">
+                        <h3 class="font-bold text-OrIAntation-darkblue mb-2 flex items-center gap-2">${champ.icon} ${champ.titre}</h3>
+                        <div class="text-sm prose prose-sm max-w-none fiche-content">${valeur}</div>
+                    </div>
+                `;
+                // On répartit les sections dans les deux colonnes
+                if (i % 2 === 0) {
+                    column1HTML += sectionHTML;
                 } else {
-                    querySnapshot.forEach((doc) => {
-                        const metier = doc.data();
-                        const resultDiv = document.createElement('div');
-                        resultDiv.className = 'p-2 cursor-pointer hover:bg-cyan-100';
-                        resultDiv.textContent = metier.libelle || metier.nom_metier;
-
-                        resultDiv.addEventListener('click', () => {
-                            metierInput.value = metier.libelle || metier.nom_metier; 
-                            resultsWrapper.innerHTML = '';
-                            
-                            // On cible le conteneur dans la page
-                            const ficheContainer = form.querySelector(`#fiche-metier-container-${index}`);
-                            
-                            let ficheHTML = `<div class="p-4 bg-background-light border border-border-subtle rounded-lg space-y-4 text-slate-700 text-left relative transition-all duration-300 ease-in-out">
-                                <button type="button" class="absolute top-2 right-2 text-slate-400 hover:text-slate-600 font-bold text-xl p-1 leading-none" title="Fermer la fiche">&times;</button>
-                                <h2 class="text-xl font-bold text-OrIAntation-darkblue">${metier.libelle || metier.nom_metier}</h2>`;
-                            
-                            const champsInteressants = [
-                                { key: 'accroche_metier', titre: 'En bref' }, { key: 'nature_travail', titre: 'Nature du travail' },
-                                { key: 'competences', titre: 'Compétences requises' }, { key: 'condition_travail', titre: 'Conditions de travail' },
-                                { key: 'vie_professionnelle', titre: 'Vie professionnelle' }, { key: 'acces_metier', titre: 'Accès au métier' },
-                                { key: 'niveau_acces_min._', titre: 'Niveau d\'accès minimal' },
-                                { key: 'formations_min_requise.formation_min_requise.libelle', titre: 'Formation minimale requise' }
-                            ];
-                            const getValue = (obj, path) => path.split('.').reduce((acc, part) => acc && acc[part], obj);
-                            champsInteressants.forEach(champ => {
-                                let contenuFinalHTML = '';
-                                if (champ.key === 'centres_interet' && metier.centres_interet && metier.centres_interet.centre_interet) {
-                                    const items = Array.isArray(metier.centres_interet.centre_interet) ? metier.centres_interet.centre_interet : [metier.centres_interet.centre_interet];
-                                    contenuFinalHTML = `<ul class="list-disc list-inside">${items.map(item => `<li>${item.libelle}</li>`).join('')}</ul>`;
-                                } else {
-                                    const valeur = getValue(metier, champ.key);
-                                    if (valeur && typeof valeur === 'string') contenuFinalHTML = `<div>${valeur}</div>`;
-                                }
-                                if (contenuFinalHTML) ficheHTML += `<div><h3 class="font-bold text-OrIAntation-darkblue mb-2">${champ.titre}</h3>${contenuFinalHTML}</div>`;
-                            });
-                            if (metier.vie_professionnelle) {
-                                const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(metier.libelle + " salaire débutant")}`;
-                                ficheHTML += `<div class="border-t pt-4 mt-4"><h3 class="font-bold text-OrIAntation-darkblue mb-2">Pour aller plus loin</h3><a href="${googleSearchUrl}" target="_blank" class="inline-block text-sm bg-sky-100 text-sky-800 font-semibold py-1 px-3 rounded-lg hover:bg-sky-200 transition">🔎 Rechercher des estimations de salaire ↗</a></div>`;
-                            }
-                            ficheHTML += `</div>`;
-                            
-                            // On insère le HTML dans la page
-                            ficheContainer.innerHTML = ficheHTML;
-
-                            // On ajoute l'événement pour le bouton "Fermer"
-                            ficheContainer.querySelector('button').addEventListener('click', () => {
-                                ficheContainer.innerHTML = '';
-                            });
-                        });
-                        resultsWrapper.appendChild(resultDiv);
-                    });
+                    column2HTML += sectionHTML;
                 }
-            } catch (error) {
-                console.error("Erreur de recherche Firestore : ", error);
-                resultsWrapper.innerHTML = `<div class="p-2 text-red-500">Erreur de recherche.</div>`;
             }
         });
-        document.addEventListener('click', (e) => { if (!metierInput.contains(e.target)) resultsWrapper.innerHTML = ''; });
+
+        // On assemble la grille finale avec les deux colonnes
+        ficheHTML += `
+             <div class="grid md:grid-cols-2 gap-x-8 pt-4 border-t">
+                <div class="fiche-colonne-contenu">${column1HTML}</div>
+                <div class="fiche-colonne-contenu">${column2HTML}</div>
+            </div>
+        `;
+
+        if (metier.vie_professionnelle) {
+            const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(metier.libelle + " salaire débutant")}`;
+            ficheHTML += `
+                <div class="border-t pt-4 mt-4">
+                    <h3 class="font-bold text-OrIAntation-darkblue mb-2">Pour aller plus loin</h3>
+                    <a href="${googleSearchUrl}" target="_blank" class="inline-block text-sm bg-sky-100 text-sky-800 font-semibold py-1 px-3 rounded-lg hover:bg-sky-200 transition">🔎 Rechercher des estimations de salaire ↗</a>
+                </div>`;
+        }
+        ficheHTML += `</div>`;
+        
+        ficheContainer.innerHTML = ficheHTML;
+        ficheContainer.querySelector('button').addEventListener('click', () => { ficheContainer.innerHTML = ''; });
     };
 
+    metierInput.addEventListener('input', async () => {
+        const searchTerm = metierInput.value.trim().toLowerCase();
+        resultsWrapper.innerHTML = ''; 
+
+        if (searchTerm.length < 3) return;
+
+        try {
+            const metiersRef = collection(db, "onisep_metiers_xml"); 
+            const q = query(metiersRef, where("nom_metier", ">=", searchTerm), where("nom_metier", "<=", searchTerm + '\uf8ff'), limit(10));
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                const fallbackDiv = document.createElement('div');
+                fallbackDiv.className = 'fallback-search p-3 text-center cursor-pointer text-sky-700 hover:bg-sky-100';
+                const googleSearchQuery = `site:onisep.fr ${metierInput.value.trim()}`;
+                fallbackDiv.dataset.url = `https://www.google.com/search?q=${encodeURIComponent(googleSearchQuery)}`;
+                fallbackDiv.innerHTML = `Aucun résultat. Rechercher "<strong>${metierInput.value.trim()}</strong>" sur Onisep.fr ↗`;
+                resultsWrapper.appendChild(fallbackDiv);
+            } else {
+                querySnapshot.forEach((doc) => {
+                    const metier = doc.data();
+                    const resultDiv = document.createElement('div');
+                    resultDiv.className = 'result-item p-2 cursor-pointer hover:bg-cyan-100';
+                    resultDiv.textContent = metier.libelle || metier.nom_metier;
+                    // On stocke les données complètes dans l'élément pour y accéder au clic
+                    resultDiv.dataset.metier = JSON.stringify(metier);
+                    resultDiv.dataset.libelle = metier.libelle || metier.nom_metier;
+                    resultsWrapper.appendChild(resultDiv);
+                });
+            }
+        } catch (error) {
+            console.error("Erreur de recherche Firestore : ", error);
+            resultsWrapper.innerHTML = `<div class="p-2 text-red-500">Erreur de recherche.</div>`;
+        }
+    });
+    
+    // On utilise la délégation d'événement pour gérer les clics sur les résultats
+    resultsWrapper.addEventListener('click', (e) => {
+        const target = e.target;
+        if (target.classList.contains('result-item')) {
+            metierInput.value = target.dataset.libelle;
+            resultsWrapper.innerHTML = '';
+            displayMetierFiche(JSON.parse(target.dataset.metier));
+        } else if (target.classList.contains('fallback-search')) {
+            window.open(target.dataset.url, '_blank');
+            resultsWrapper.innerHTML = '';
+        }
+    });
+
+    // Écouteur pour fermer la liste des résultats si on clique ailleurs
+    document.addEventListener('click', (e) => {
+        if (!searchResultsContainer.contains(e.target)) {
+            resultsWrapper.innerHTML = '';
+        }
+    });
+};
     // On applique la fonctionnalité de recherche aux 3 champs
     addSearchFunctionality(1);
     addSearchFunctionality(2);
@@ -4271,15 +4351,17 @@ Exemple de source_url attendue pour Lorient :
 });
 
     div.querySelector('#aides-btn').addEventListener('click', async () => {
-        const city = cityInput.value.trim();
-        if (!city) {
-            showInfoModal("Veuillez d'abord renseigner une ville.");
-            return;
-        }
-        const loader = div.querySelector('#loader-aides');
-        const resultDiv = div.querySelector('#aides-result');
-        loader.style.display = 'block';
-        resultDiv.innerHTML = '';
+    const city = cityInput.value.trim();
+    if (!city) {
+        showInfoModal("Veuillez d'abord renseigner une ville.");
+        return;
+    }
+    const loader = div.querySelector('#loader-aides');
+    const resultDiv = div.querySelector('#aides-result');
+    loader.style.display = 'block';
+    resultDiv.innerHTML = '';
+
+
 
         const prompt = `
 Agis comme un conseiller expert et un chercheur web méticuleux, spécialisé dans les aides financières pour les étudiants et les jeunes en France.
@@ -4333,27 +4415,31 @@ Structure obligatoire :
         loader.style.display = 'none';
 
         try {
-            const data = JSON.parse(result);
-            if (data.aides && data.aides.length > 0) {
-                let htmlResult = '<div class="space-y-4">';
-                data.aides.forEach(aide => {
-                    htmlResult += `
-                        <div class="bg-white p-4 rounded-lg shadow border border-border-subtle">
-                            <h4 class="font-bold text-cyan-700">${aide.nom}</h4>
-                            <p class="text-slate-600 text-sm my-2">${aide.description}</p>
-                            <a href="${aide.lien}" target="_blank" class="text-primary-action font-semibold hover:underline text-sm">En savoir plus ↗</a>
-                        </div>
-                    `;
-                });
-                htmlResult += '</div>';
-                resultDiv.innerHTML = htmlResult;
-            } else {
-                resultDiv.innerHTML = `<p class="text-center text-slate-500">Aucune aide structurée n'a pu être trouvée par l'IA.</p>`;
-            }
-        } catch (e) {
-            resultDiv.innerHTML = `<p class="text-red-500 text-center">L'IA n'a pas pu formater les aides correctement. Voici sa réponse brute :</p><pre class="whitespace-pre-wrap text-xs bg-slate-100 p-2 rounded mt-2">${result}</pre>`;
+        // ✅ LA CORRECTION EST ICI :
+        // On utilise notre fonction intelligente au lieu de JSON.parse directement.
+        const data = extractJsonFromString(result);
+
+        if (data && data.aides && data.aides.length > 0) {
+            let htmlResult = '<div class="space-y-4">';
+            data.aides.forEach(aide => {
+                htmlResult += `
+                    <div class="bg-white p-4 rounded-lg shadow border border-border-subtle">
+                        <h4 class="font-bold text-cyan-700">${aide.nom}</h4>
+                        <p class="text-slate-600 text-sm my-2">${aide.description}</p>
+                        <a href="${aide.lien}" target="_blank" class="text-primary-action font-semibold hover:underline text-sm">En savoir plus ↗</a>
+                    </div>
+                `;
+            });
+            htmlResult += '</div>';
+            resultDiv.innerHTML = htmlResult;
+        } else {
+            // Si data est null ou ne contient pas d'aides
+            throw new Error("La structure des aides est invalide ou manquante.");
         }
-    });
+    } catch (e) {
+        resultDiv.innerHTML = `<p class="text-red-500 text-center">L'IA n'a pas pu formater les aides correctement. Voici sa réponse brute :</p><pre class="whitespace-pre-wrap text-xs bg-slate-100 p-2 rounded mt-2">${result}</pre>`;
+    }
+});
 
     return div;
 }
@@ -6403,17 +6489,60 @@ function createStep11View() {
   function createRetroplanningView() {
     const div = document.createElement('div');
     div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-border-subtle';
-    
-    // Le code HTML de la vue (inchangé)
+
+    // --- ÉTAPE 1 : La "Source de Vérité" - Les plannings par niveau sont inscrits en dur dans le code ---
+    const retroplanningData = {
+        seconde: [
+            { month: "Septembre", tasks: ["S'adapter au rythme du lycée et établir un planning de travail hebdomadaire.", "Utiliser l'étape 'Mieux se connaître' pour réaliser son auto-évaluation de début d'année."] },
+            { month: "Octobre", tasks: ["Faire un premier bilan sur ses matières fortes et celles à travailler.", "Commencer à explorer des secteurs d'activité via l'étape 'Les Fondations'."] },
+            { month: "Novembre", tasks: ["Se préparer pour le premier conseil de classe.", "Utiliser l'étape 'Le simulateur de spécialités' pour découvrir les combinaisons possibles sans pression."] },
+            { month: "Décembre", tasks: ["Analyser son premier bulletin et ajuster ses méthodes de travail.", "Profiter des vacances pour discuter de ses premières explorations avec ses proches."] },
+            { month: "Janvier", tasks: ["Début de la phase de dialogue sur l'orientation.", "Utiliser l'étape 'Rencontres sur mon Territoire' pour repérer les Journées Portes Ouvertes (JPO)."] },
+            { month: "Février", tasks: ["Participer à des JPO ou des salons d'orientation.", "Explorer les formations post-bac liées aux spécialités envisagées avec 'Le Catalogue'."] },
+            { month: "Mars", tasks: ["Préparer et formuler ses vœux provisoires de spécialités.", "Utiliser l'étape 'L'Expérience' pour préparer des questions à poser à des étudiants."] },
+            { month: "Avril", tasks: ["Confirmer ses choix et préparer les arguments pour le conseil de classe du 3ème trimestre.", "Commencer à réfléchir à des idées pour le stage d'observation de juin."] },
+            { month: "Mai", tasks: ["Valider ses vœux définitifs de spécialités.", "Utiliser l'étape 'Passer à l'action' pour organiser activement ses démarches de stage."] },
+            { month: "Juin", tasks: ["Effectuer son stage d'observation obligatoire de deux semaines.", "Utiliser l'étape 'Mon Portfolio de Compétences' pour valoriser l'expérience du stage."] },
+            { month: "Juillet", tasks: ["Faire le bilan de son année et de son stage.", "Se reposer !"] }
+        ],
+        premiere: [
+            { month: "Septembre", tasks: ["Consolider les bases dans ses 3 spécialités.", "Approfondir sa connaissance des métiers avec l'étape 'Les Fondations'."] },
+            { month: "Octobre", tasks: ["Préparer les premières évaluations importantes (épreuves communes).", "Utiliser 'Le Catalogue' pour lier ses spécialités à des formations post-bac précises."] },
+            { month: "Novembre", tasks: ["Travailler la méthodologie de la dissertation et du commentaire (Français).", "Utiliser l'étape 'Fact Checking' pour déconstruire les idées reçues sur certaines filières."] },
+            { month: "Décembre", tasks: ["Faire le bilan du premier trimestre et ajuster ses efforts.", "Commencer à valoriser ses projets et expériences dans 'Mon Portfolio de Compétences'."] },
+            { month: "Janvier", tasks: ["Participer activement aux JPO et salons pour affiner son projet.", "Utiliser l'étape 'L'Expérience' pour contacter des étudiants des filières qui l'intéressent."] },
+            { month: "Février", tasks: ["Choisir la spécialité qui sera abandonnée en Terminale.", "Simuler l'impact de ce choix avec 'Le simulateur de spécialités'."] },
+            { month: "Mars", tasks: ["Débuter les révisions intensives pour les épreuves de fin d'année.", "Utiliser 'Passer à l'action' pour planifier des rencontres avec des professionnels."] },
+            { month: "Avril", tasks: ["Se concentrer sur les épreuves de mathématqiues et de français.", "S'entraîner pour l'oral de français."] },
+            { month: "Mai", tasks: ["Continuer à préparer les épreuves de mathématqiues et de français", "Utiliser le 'Simulateur Vie Étudiante' pour se projeter financièrement."] },
+            { month: "Juin", tasks: ["Passer les épreuves finales (Français écrit/oral, Matématiques)."] },
+            { month: "Juillet", tasks: ["Faire le bilan de l'année et préparer sa rentrée en Terminale.", "Se reposer !"] }
+        ],
+        terminale: [
+            { month: "Septembre", tasks: ["Se familiariser avec le calendrier Parcoursup et les attendus des formations visées.", "Finaliser sa liste de vœux potentiels avec 'Le Catalogue'."] },
+            { month: "Octobre", tasks: ["Préparer son premier bac blanc.", "Utiliser 'Mon Portfolio de Compétences' pour rassembler tous les éléments à valoriser."] },
+            { month: "Novembre", tasks: ["Commencer la rédaction des brouillons pour la rubrique 'Activités et centres d'intérêt'.", "Utiliser l'étape 'Préparer sa candidature' pour structurer ses projets de formation motivés."] },
+            { month: "Décembre", tasks: ["Profiter des vacances pour finaliser ses recherches et rédiger ses projets motivés.", "Faire le bilan du premier trimestre."] },
+            { month: "Janvier", tasks: ["S'inscrire sur Parcoursup et commencer à formuler ses vœux.", "S'entraîner à l'argumentation pour le Grand Oral."] },
+            { month: "Février", tasks: ["Poursuivre la saisie des vœux et la rédaction des projets motivés.", "Préparer les bacs blancs."] },
+            { month: "Mars", tasks: ["Date limite pour formuler ses vœux sur Parcoursup.", " préparer activement les épreuves de spécialités."] },
+            { month: "Avril", tasks: ["Finaliser et confirmer chaque vœu sur Parcoursup.", "Utiliser l'étape 'Anticiper la suite' pour préparer un plan B."] },
+            { month: "Mai", tasks: ["Débuter les révisions intensives pour la Philosophie et le Grand Oral.", "Se préparer psychologiquement à la phase d'admission."] },
+            { month: "Juin", tasks: ["Début de la phase d'admission principale de Parcoursup.", "Passer les épreuves de Philosophie, les 2 spécialités et le Grand Oral."] },
+            { month: "Juillet", tasks: ["Gérer les réponses de Parcoursup et la phase d'admission complémentaire si besoin.", "Fêter la fin du lycée !"] }
+        ]
+    };
+
+    // --- ÉTAPE 2 : Le HTML de la page, simple et structuré ---
     div.innerHTML = `
-        <h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 md:whitespace-nowrap text-OrIAntation-darkblue mb-6">
+        <h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 text-OrIAntation-darkblue mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0h18M12 12.75h.008v.008H12v-.008Z" /></svg>
             <span>Mon Rétroplanning</span>
         </h1>
         <div class="text-slate-600 mb-4 space-y-2">
             <p>Pour ton orientation, un bon planning est essentiel ! Cet outil part des grandes échéances de ton année et te propose un plan d'action mois par mois pour y arriver sans stress.</p>
         </div>
-        <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6"><p class="font-semibold text-cyan-900"><b>Ta mission :</b> Clique sur le bouton pour que l'IA te crée un rétroplanning sur-mesure. Coche ensuite les cases au fur et à mesure de ton avancée !</p></div>
+        <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6"><p class="font-semibold text-cyan-900"><b>Ta mission :</b> Clique sur le bouton pour obtenir ton planning et tes conseils personnalisés. Coche ensuite les cases au fur et à mesure de ton avancée !</p></div>
         <div class="text-center mb-6">
             <button type="button" id="openaiBtn_retro" class="bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">📅 Générer / Mettre à jour mon Rétroplanning</button>
         </div>
@@ -6427,7 +6556,6 @@ function createStep11View() {
         </div>
         <div id="openaiLoader_retro" class="hidden"><div class="loader"></div></div>
         <div id="retroplanning-content"></div>
-        
         <form id="retroForm" class="hidden">
             <button type="submit" class="w-full mt-4 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700 transition">✔️ Terminer et sauvegarder</button>
         </form>
@@ -6438,57 +6566,41 @@ function createStep11View() {
     
     const renderTimeline = () => {
         if (!journalData.retroplanning || !journalData.retroplanning.tasks || journalData.retroplanning.tasks.length === 0) {
-            retroplanningContent.innerHTML = `<p class="text-center text-slate-500">Cliquez sur le bouton ci-dessus pour générer votre planning personnalisé.</p>`;
+            retroplanningContent.innerHTML = `<p class="text-center text-slate-500">Cliquez sur le bouton "Générer" pour obtenir votre planning personnalisé.</p>`;
             retroForm.classList.add('hidden');
             return;
         }
 
-        const monthOrder = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
-        
-        journalData.retroplanning.tasks.sort((a, b) => {
-            const aMonth = a.month ? a.month.toLowerCase() : '';
-            const bMonth = b.month ? b.month.toLowerCase() : '';
-            const aIndex = monthOrder.indexOf(aMonth);
-            const bIndex = monthOrder.indexOf(bMonth);
-            return (aIndex < 7 ? aIndex + 12 : aIndex) - (bIndex < 7 ? bIndex + 12 : bIndex); // Ajusté pour année scolaire (août-juillet)
-        });
-
         let timelineHTML = journalData.retroplanning.tasks.map((monthData, monthIndex) => {
-            const tasks = Array.isArray(monthData.tasks) ? monthData.tasks : [];
-            const tasksHTML = tasks.map((task, taskIndex) => {
-    const taskText = typeof task === 'object' ? task.text : task;
-    const isCompleted = typeof task === 'object' ? task.completed : false;
-
-    return `
-    <li class="flex items-start mb-2">
-        <input type="checkbox" id="task-${monthIndex}-${taskIndex}" data-month-index="${monthIndex}" data-task-index="${taskIndex}" class="h-4 w-4 rounded border-gray-300 text-primary-action focus:ring-cyan-500 mr-3 mt-1 flex-shrink-0" ${isCompleted ? 'checked' : ''}>
-        <label for="task-${monthIndex}-${taskIndex}" class="text-slate-700 ${isCompleted ? 'line-through text-slate-400' : ''}">${taskText}</label>
-    </li>
-`}).join('');
+            const tasksHTML = monthData.tasks.map((task, taskIndex) => `
+                <li class="flex items-center mb-2">
+                    <input type="checkbox" id="task-${monthIndex}-${taskIndex}" data-month-index="${monthIndex}" data-task-index="${taskIndex}" class="h-4 w-4 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500 mr-3 flex-shrink-0" ${task.completed ? 'checked' : ''}>
+                    <label for="task-${monthIndex}-${taskIndex}" class="text-slate-700 ${task.completed ? 'line-through text-slate-400' : ''}">${task.text}</label>
+                </li>
+            `).join('');
             return `<div class="mb-6"><h3 class="text-xl font-bold text-cyan-700 border-b pb-2 mb-3">${monthData.month}</h3><ul class="list-none">${tasksHTML}</ul></div>`;
         }).join('');
-        
-        // CORRECTION : On vérifie que rawText est un objet avant d'essayer d'accéder à ses propriétés
+
         let conseilHTML = '';
         if (journalData.retroplanning.rawText && typeof journalData.retroplanning.rawText === 'object') {
-            const { coachingGeneral, reussirPhilosophie, preparerSpecialites, maitriserGrandOral } = journalData.retroplanning.rawText;
-            conseilHTML = `
-                <p>${coachingGeneral || ''}</p>
-                ${reussirPhilosophie ? `<h4>Réussir la Philosophie</h4><p>${reussirPhilosophie}</p>` : ''}
-                ${preparerSpecialites ? `<h4>Préparer les Spécialités</h4><p>${preparerSpecialites}</p>` : ''}
-                ${maitriserGrandOral ? `<h4>Maîtriser le Grand Oral</h4><p>${maitriserGrandOral}</p>` : ''}
-            `;
-        } else if (typeof journalData.retroplanning.rawText === 'string') {
-            conseilHTML = journalData.retroplanning.rawText;
+            const conseils = journalData.retroplanning.rawText;
+            for (const key in conseils) {
+                if (Object.prototype.hasOwnProperty.call(conseils, key)) {
+                    const value = conseils[key];
+                    const title = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                    let content = (typeof value === 'object' && value !== null) ? Object.values(value).join('\n\n') : value;
+                    conseilHTML += `<h4 class="font-bold text-OrIAntation-darkblue mt-4 mb-2">${title}</h4><p class="whitespace-pre-wrap text-slate-600 text-sm">${content}</p>`;
+                }
+            }
         }
-
+        
         retroplanningContent.innerHTML = `
             <div>
                 <h2 class="text-2xl font-bold text-center mb-6 text-OrIAntation-darkblue">Ta Feuille de Route</h2>
                 ${timelineHTML}
-                <div class="mt-8 bg-background-light p-4 rounded-lg">
-                    <h3 class="font-bold text-OrIAntation-darkblue mb-2">Le conseil détaillé de ton Coach :</h3>
-                    <div class="whitespace-pre-wrap text-slate-600 text-sm prose prose-sm max-w-none">${conseilHTML}</div>
+                <div class="mt-8 bg-background-light p-6 rounded-lg border border-border-subtle">
+                    <h3 class="text-xl font-bold text-center text-OrIAntation-darkblue mb-2">Le conseil détaillé de ton Coach :</h3>
+                    <div class="prose prose-sm max-w-none">${conseilHTML}</div>
                 </div>
             </div>
         `;
@@ -6497,110 +6609,103 @@ function createStep11View() {
             checkbox.addEventListener('change', (e) => {
                 const monthIndex = e.target.dataset.monthIndex;
                 const taskIndex = e.target.dataset.taskIndex;
-                journalData.retroplanning.tasks[monthIndex].tasks[taskIndex].completed = e.target.checked;
-                saveData();
-                renderTimeline();
+                if (journalData.retroplanning.tasks[monthIndex] && journalData.retroplanning.tasks[monthIndex].tasks[taskIndex]) {
+                    journalData.retroplanning.tasks[monthIndex].tasks[taskIndex].completed = e.target.checked;
+                }
             });
         });
         
         retroForm.classList.remove('hidden');
     };
 
-    div.querySelector('#add-custom-event-btn').addEventListener('click', async () => {
-        // ... (logique inchangée)
+    div.querySelector('#add-custom-event-btn').addEventListener('click', () => {
+        const textInput = div.querySelector('#custom-event-text');
+        const dateInput = div.querySelector('#custom-event-date');
+        const eventText = textInput.value.trim();
+        const eventDate = dateInput.value;
+
+        if (!eventText || !eventDate) {
+            showInfoModal("Veuillez renseigner une description ET une date.");
+            return;
+        }
+        if (!journalData.retroplanning || !Array.isArray(journalData.retroplanning.tasks)) {
+            showInfoModal("Veuillez d'abord générer un Rétroplanning.");
+            return;
+        }
+
+        const monthNames = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+        const monthIndex = new Date(eventDate).getMonth();
+        const monthName = monthNames[monthIndex];
+        
+        let monthObject = journalData.retroplanning.tasks.find(m => m.month === monthName);
+        if (!monthObject) {
+            monthObject = { month: monthName, tasks: [] };
+            journalData.retroplanning.tasks.push(monthObject);
+        }
+        
+        monthObject.tasks.push({ text: eventText, completed: false });
+        textInput.value = '';
+        dateInput.value = '';
+        renderTimeline();
     });
 
     div.querySelector('#openaiBtn_retro').addEventListener('click', async () => {
         if (!userGradeLevel) {
-            showInfoModal("Les données de votre profil sont en cours de chargement. Veuillez patienter et cliquer à nouveau.");
+            showInfoModal("Les données de votre profil sont en cours de chargement.");
             return;
         }
-
         const loader = div.querySelector('#openaiLoader_retro');
         loader.style.display = 'block';
         retroplanningContent.innerHTML = '';
         
-        const date = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+        const masterTasks = retroplanningData[userGradeLevel];
+        const currentMonthIndex = new Date().getMonth();
+        const monthOrder = monthNames;
+        
+        const timelineResult = masterTasks.filter(monthData => {
+            const monthIndex = monthOrder.indexOf(monthData.month);
+            if (currentMonthIndex > 6) { // Période Août-Décembre
+                return monthIndex >= currentMonthIndex || monthIndex <= 6;
+            } else { // Période Janvier-Juillet
+                return monthIndex >= currentMonthIndex && monthIndex <= 6;
+            }
+        });
+        
+        let promptConseils = '';
         const profileSummary = getProfileSummary();
-        let prompt = '';
-
-        const commonJsonInstruction = `
-        Format de Sortie (JSON Strict) :
-        Ta réponse DOIT être un unique objet JSON valide. Il doit contenir deux clés : "timeline" et "conseilDetaille".
-        1. "timeline" : un tableau d'objets. Chaque objet a les clés "month" (string) et "tasks" (un tableau de strings).
-        2. "conseilDetaille" : une chaîne de caractères contenant ton analyse rédigée.
-        Ne rien ajouter avant ou après le JSON.
-        `;
-
         switch(userGradeLevel) {
-            case 'seconde':
-                prompt = `
-                Agis en tant que coach scolaire expert et bienveillant.
-                Contexte : Crée un rétroplanning de ${date} à juillet 2026 en te basant sur le profil de l'élève : "${profileSummary}".               
-                Mission : Propose un plan d'action équilibré mois par mois. Calendrier obligatoire : satge de seconde en JUIN. 
-                Détails mensuels : Pour chaque mois, propose des actions claires pour "Cap Orientation" (découverte, spécialités, stage. En utilisant les étapes de l'application) et "Performance & Stratégie" (méthodes de travail, conseils de classe).
-                Conseils de fond : Dans "conseilDetaille", rédige une synthèse motivante et des conseils sur le choix des 3 spécialités et la réussite du stage. Sois fluide, sans # ou *.
-                Étapes à utiliser : 'Le Catalogue', 'Mon Portfolio de Compétences', 'Passer à l'action', 'L'Expérience', 'Préparer sa candidature', 'Anticiper la suite', 'Simulateur Vie Étudiante'.
-                ${commonJsonInstruction}
-                `;
+            case 'seconde': 
+                promptConseils = `Agis comme un coach d'orientation expert... Le profil de l'élève de Seconde est : "${profileSummary}". <Format>JSON avec clés "coachingGeneral", "choixSpecialites", "reussiteStage"...</Format>`;
                 break;
             case 'premiere':
-                prompt = `
-                Agis en tant que coach scolaire expert et rigoureux.
-                Contexte : Crée un rétroplanning de ${date} à juillet 2026 en te basant sur le profil de l'élève : "${profileSummary}".
-                Mission : Intégrer les échéances officielles  (vacances, épreuves de Français/Maths) dans un plan d'action mensuel. calendrier Épreuves Finales : épreuve écrite de Français : mi-juin, épreuves orales de Français : de fin juin à début juillet, épreuve de Mathématiques (pour tous) : fin juin. (Utilise la recherche web pour trouver les dates exactes pour l'année scolaire concernée).
-                Détails mensuels : Chaque mois doit comporter trois axes : "Réussite Scolaire", "Construction du Projet" (en utilisant les étapes de l'application), et "Équilibre & Bien-être".
-                Conseils de fond : Dans "conseilDetaille", donne un coaching et plusieurs conseils précis et structurés pour réussr l'Écrit de Français, l'Oral, et les Maths. Sois fluide, sans # ou *.
-                Étapes à utiliser : 'Mieux se connaître', 'Les Fondations', 'Le simulateur de spécialités', 'Le Catalogue', 'L'Expérience', 'L'Actu & Tests', 'Quiz : Chasse aux Mythes', 'Passer à l'action', 'Mon Portfolio de Compétences', 'Rencontres sur mon Territoire'.
-                ${commonJsonInstruction}
-                `;
+                promptConseils = `Agis comme un coach expert... Le profil de l'élève de Première est : "${profileSummary}". <Format>JSON avec clés "coachingGeneral", "reussiteEpreuves", "affinerOrientation"...</Format>`;
                 break;
             case 'terminale':
-                prompt = `
-                Agis comme un coach de réussite d'élite pour un élève de Terminale.
-                Contexte : Crée un rétroplanning de ${date} à juillet 2026 en te basant sur le profil de l'élève : "${profileSummary}".
-                Mission : Fournir un plan stratégique détaillé pour le Bac et Parcoursup.
-                Échéances non-négociables : Bac Philo (15 juin), Spécialités (16-18 juin), Grand Oral (22 juin-1er juillet). Calendrier Parcoursup PRIORITAIRE : Septembre à Décembre : Phase d'information, fin Décembre :Mise à jour du catalogue des formations, janvier : Début des inscriptions et formulation des vœux, mars : Date limite pour ajouter des vœux, Avril : Période pour finaliser les dossiers et confirmer chaque vœu, Juin : Début de la phase d'admission principale, juillet : Fin de la phase principale.
-                Détails mensuels : Chaque mois, propose des conseils concrets pour "Parcoursup & Orientation" (en liant les actions aux étapes de l'appli et à son profil), "Préparation au Bac" (avec des méthodes de révision précises), et "Équilibre & Gestion du Stress".
-                Conseils d'expert : Dans "conseilDetaille", donne plusieurs conseils percutants, précis et personnalisés pour resussir les épreuves de Philo, de Spécialités et le Grand Oral. Sois fluide, sans # ou *.
-                Étapes à utiliser : 'Le Catalogue', 'Mon Portfolio de Compétences', 'Passer à l'action', 'L'Expérience', 'Préparer sa candidature', 'Anticiper la suite', 'Simulateur Vie Étudiante'.
-                
-                Format de Sortie (JSON Strict) :
-                Ta réponse DOIT être un unique objet JSON valide. Il doit contenir deux clés : "timeline" et "conseilDetaille".
-                1. "timeline" : un tableau d'objets. Chaque objet a les clés "month" (string) et "tasks" (un tableau de strings).
-                2. "conseilDetaille" : Pour ce niveau, la valeur doit être un **objet** contenant les clés "coachingGeneral", "reussirPhilosophie", "preparerSpecialites", et "maitriserGrandOral".
-                Ne rien ajouter avant ou après le JSON.
-                `;
+                promptConseils = `Agis comme un coach d'élite... Le profil de l'élève de Terminale est : "${profileSummary}". <Format>JSON avec clés "coachingGeneral", "strategieParcoursup", "reussiteBac"...</Format>`;
                 break;
         }
 
         try {
-            const result = await callOpenAI_API(addGenderContextToPrompt(prompt), true, true);
-            const parsedResult = extractJsonFromString(result);
-            
-            if (!parsedResult || !parsedResult.timeline || !parsedResult.conseilDetaille) {
-                throw new Error("La structure JSON renvoyée par l'IA est incorrecte.");
-            }
-            
+            const conseilsResponse = await callOpenAI_API(addGenderContextToPrompt(promptConseils), false, true);
+            const conseilsResult = extractJsonFromString(conseilsResponse);
+            if (!conseilsResult) throw new Error("L'IA n'a pas pu générer les conseils détaillés.");
+
             journalData.retroplanning = {
-                tasks: parsedResult.timeline, 
-                rawText: parsedResult.conseilDetaille
+                tasks: timelineResult.map(month => ({ ...month, tasks: month.tasks.map(taskText => ({ text: taskText, completed: false })) })),
+                rawText: conseilsResult
             };
             
             await saveData({ skipOnboarding: true });
             renderTimeline();
             await grantXp(50);
-
         } catch (e) {
-            console.error("Erreur de parsing ou d'API:", e, "Réponse brute:", result);
-            retroplanningContent.innerHTML = `<p class="text-center text-red-500">Erreur lors de la génération du planning. L'IA n'a pas renvoyé un format correct.</p>`;
+            console.error("Erreur lors de la génération des conseils:", e);
+            retroplanningContent.innerHTML = `<p class="text-center text-red-500">Désolé, une erreur est survenue lors de la génération des conseils. Veuillez réessayer.</p>`;
         } finally {
             loader.style.display = 'none';
         }
     });
 
-
-    // La fonction de sauvegarde du formulaire (inchangée)
     retroForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         await saveData();
@@ -6773,9 +6878,32 @@ if (stepKey === 'step1') {
                             if (aiResults.journee) {
                                 detailsHTML += `<div class="mb-3"><h4 class="font-semibold text-slate-700">Journée type :</h4><p class="whitespace-pre-wrap text-slate-600 text-sm">${aiResults.journee}</p></div>`;
                             }
-                            if (aiResults.temoignages) {
-                                detailsHTML += `<div><h4 class="font-semibold text-slate-700">Témoignages :</h4><p class="whitespace-pre-wrap text-slate-600 text-sm">${aiResults.temoignages}</p></div>`;
-                            }
+                            // --- Bloc de code à remplacer ---
+if (aiResults.temoignages) {
+    try {
+        const testimonials = JSON.parse(aiResults.temoignages);
+        if (Array.isArray(testimonials) && testimonials.length > 0) {
+            let testimonialsHTML = '<div class="space-y-4">';
+            testimonials.forEach(item => {
+                testimonialsHTML += `
+                    <div class="p-3 bg-white rounded-md">
+                        <div class="flex justify-between items-center">
+                            <h5 class="font-semibold text-OrIAntation-darkblue flex-1 pr-4">${item.titre}</h5>
+                            <a href="${item.lien}" target="_blank" class="flex-shrink-0 text-xs bg-cyan-100 text-cyan-800 font-semibold py-1 px-3 rounded-lg hover:bg-cyan-200 transition">Voir ↗</a>
+                        </div>
+                        <p class="text-sm text-slate-600 mt-2">${item.resume}</p>
+                    </div>
+                `;
+            });
+            testimonialsHTML += '</div>';
+
+            detailsHTML += `<div><h4 class="font-semibold text-slate-700 mb-2">Témoignages :</h4>${testimonialsHTML}</div>`;
+        }
+    } catch (e) {
+        // Fallback pour l'ancien format texte si besoin
+        detailsHTML += `<div><h4 class="font-semibold text-slate-700">Témoignages :</h4><p class="whitespace-pre-wrap text-slate-600 text-sm">${aiResults.temoignages}</p></div>`;
+    }
+}
 
                             if (detailsHTML) {
                                 aiContentHTML = `
@@ -7332,9 +7460,32 @@ if (stepKey === 'step1') {
                             if (aiResults.journee) {
                                 detailsHTML += `<div class="mb-3"><h4 class="font-semibold text-slate-700">Journée type :</h4><p class="whitespace-pre-wrap text-slate-600 text-sm">${aiResults.journee}</p></div>`;
                             }
-                            if (aiResults.temoignages) {
-                                detailsHTML += `<div><h4 class="font-semibold text-slate-700">Témoignages :</h4><p class="whitespace-pre-wrap text-slate-600 text-sm">${aiResults.temoignages}</p></div>`;
-                            }
+                            // --- Bloc de code à remplacer ---
+if (aiResults.temoignages) {
+    try {
+        const testimonials = JSON.parse(aiResults.temoignages);
+        if (Array.isArray(testimonials) && testimonials.length > 0) {
+            let testimonialsHTML = '<div class="space-y-4">';
+            testimonials.forEach(item => {
+                testimonialsHTML += `
+                    <div class="p-3 bg-white rounded-md">
+                        <div class="flex justify-between items-center">
+                            <h5 class="font-semibold text-OrIAntation-darkblue flex-1 pr-4">${item.titre}</h5>
+                            <a href="${item.lien}" target="_blank" class="flex-shrink-0 text-xs bg-cyan-100 text-cyan-800 font-semibold py-1 px-3 rounded-lg hover:bg-cyan-200 transition">Voir ↗</a>
+                        </div>
+                        <p class="text-sm text-slate-600 mt-2">${item.resume}</p>
+                    </div>
+                `;
+            });
+            testimonialsHTML += '</div>';
+
+            detailsHTML += `<div><h4 class="font-semibold text-slate-700 mb-2">Témoignages :</h4>${testimonialsHTML}</div>`;
+        }
+    } catch (e) {
+        // Fallback pour l'ancien format texte si besoin
+        detailsHTML += `<div><h4 class="font-semibold text-slate-700">Témoignages :</h4><p class="whitespace-pre-wrap text-slate-600 text-sm">${aiResults.temoignages}</p></div>`;
+    }
+}
 
                             if (detailsHTML) {
                                 aiContentHTML = `
