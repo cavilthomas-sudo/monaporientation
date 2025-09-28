@@ -371,34 +371,29 @@ function extractJsonFromString(str) {
     const mode = params.get('mode');
     const actionCode = params.get('oobCode');
 
-    // Cas où la page est ouverte depuis le lien de vérification de l'email
     if (mode === 'verifyEmail' && actionCode) {
         try {
             await applyActionCode(auth, actionCode);
-
-            // On remplace le contenu de la page par un message de succès
+            // Affiche un message de succès
             document.body.innerHTML = `
                 <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
-                    <img src="logo_surprises.PNG" alt="Logo OrIAntation" style="height: 128px; width: 128px; margin-bottom: 24px;">
                     <h1 style="font-size: 1.875rem; font-weight: bold; color: #1A3263;">Vérification réussie ! ✅</h1>
-                    <p style="color: #4A5568; margin-top: 1rem;">
-                        Votre compte est activé. L'onglet original de l'application va se mettre à jour.
-                    </p>
-                    <p style="color: #6B7280; font-size: 0.875rem; margin-top: 0.5rem;">
-                        (Cet onglet va se fermer automatiquement)
-                    </p>
+                    <p style="color: #4A5568; margin-top: 1rem;">Cet onglet va se fermer automatiquement...</p>
                 </div>
             `;
-
-            // On ferme cet onglet après 3 secondes
-            setTimeout(() => { window.close(); }, 3000);
-
         } catch (error) {
-            // En cas d'erreur (lien expiré...), on affiche un message clair
-            document.body.innerHTML = `<div style="text-align: center; padding: 40px;"><h2>Erreur</h2><p>Le lien de vérification est invalide ou a expiré. Veuillez refaire une demande.</p></div>`;
+            // ✅ LA CORRECTION : Affiche un message d'erreur
+            document.body.innerHTML = `
+                <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
+                    <h1 style="font-size: 1.875rem; font-weight: bold; color: #991B1B;">Erreur</h1>
+                    <p style="color: #4A5568; margin-top: 1rem;">Le lien de vérification est invalide ou a expiré. Cet onglet va se fermer.</p>
+                </div>
+            `;
+        } finally {
+            // ✅ LA CORRECTION : Ferme l'onglet DANS TOUS LES CAS (succès ou erreur)
+            setTimeout(() => { window.close(); }, 3500);
         }
     } 
-    // Cas où la page est ouverte depuis un lien de réinitialisation de mot de passe
     else if (mode === 'resetPassword' && actionCode) {
         showResetPasswordView(actionCode);
     }
@@ -2216,6 +2211,7 @@ function showWelcomeModal() {
         
       // ✅ NOUVELLE VERSION DE LA FONCTION
 
+// REMPLACEZ votre fonction showGradeSelectionView par celle-ci
 function showGradeSelectionView() {
     mainApp.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in text-center">
@@ -2233,13 +2229,10 @@ function showGradeSelectionView() {
         button.addEventListener('click', async (e) => {
             // 1. On met à jour la variable de classe
             userGradeLevel = e.target.dataset.grade; 
-            
             // 2. On sauvegarde ce choix dans la base de données
             await saveData(); 
-            
-            // 3. ✅ LA CORRECTION EST ICI : On recharge TOUTES les données de l'utilisateur
+            // 3. ✅ LA CORRECTION : On recharge TOUTES les données de l'utilisateur
             await loadData();
-            
             // 4. On affiche le menu principal, qui sera maintenant complet
             showView('menu');
         });
