@@ -1400,20 +1400,13 @@ function showVerificationView(user) {
     authContainer.style.display = 'block';
     mainApp.style.display = 'none';
 
-    // ✅ AJOUT : Nettoie un ancien minuteur au cas où.
     if (verificationTimer) clearInterval(verificationTimer);
 
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in text-center">
             <img src="logo_surprises.PNG" alt="Logo OrIAntation" class="mx-auto h-32 w-32 mb-4">
-            
             <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Vérifiez votre adresse e-mail</h2>
-            <p class="text-slate-600 mb-6">
-                Un e-mail de vérification a été envoyé à <strong>${user.email}</strong>.
-                Veuillez cliquer sur le lien qu'il contient pour activer votre compte.
-                <br><br>
-                <span class="text-sm text-slate-500 italic">Pensez à vérifier votre dossier "Spam" ou "Promotions" si vous ne le trouvez pas.</span>
-            </p>
+            <p class="text-slate-600 mb-6">Un e-mail de vérification a été envoyé à <strong>${user.email}</strong>. Veuillez cliquer sur le lien qu'il contient pour activer votre compte.</p>
             <p id="resendMessage" class="text-sm text-green-600 mb-4"></p>
             <div class="space-y-4">
                 <button id="resendVerificationBtn" class="w-full bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">Renvoyer l'e-mail</button>
@@ -1422,16 +1415,26 @@ function showVerificationView(user) {
         </div>
     `;
 
-    // ✅ AJOUT : Le minuteur intelligent qui vérifie le statut en arrière-plan
+    // Le minuteur intelligent
     verificationTimer = setInterval(async () => {
         if (auth.currentUser) {
             await auth.currentUser.reload();
+
             if (auth.currentUser.emailVerified) {
-                clearInterval(verificationTimer); // On arrête le minuteur
-                showView('menu'); // On affiche le menu principal
+                clearInterval(verificationTimer); // 1. On arrête le minuteur
+                await loadData();                 // 2. On charge les données pour vérifier si une classe est déjà choisie
+
+                // ✅ 3. LA REDIRECTION INTELLIGENTE
+                if (!userGradeLevel) {
+                    // Si aucune classe n'est définie, c'est un nouvel utilisateur.
+                    showGradeSelectionView(); 
+                } else {
+                    // Sinon, c'est un utilisateur existant.
+                    showView('menu');
+                }
             }
         }
-    }, 3000); // Vérifie toutes les 3 secondes
+    }, 3000);
 
     // ❗ CORRECTION : Le bouton "Renvoyer" appelle maintenant votre fonction Cloud pour envoyer l'email Brevo.
     authContainer.querySelector('#resendVerificationBtn').addEventListener('click', async () => {
