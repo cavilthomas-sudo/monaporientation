@@ -1406,7 +1406,7 @@ function showVerificationView(user) {
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in text-center">
             <img src="logo_surprises.PNG" alt="Logo OrIAntation" class="mx-auto h-32 w-32 mb-4">
             <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Vérifiez votre adresse e-mail</h2>
-            <p class="text-slate-600 mb-6">Un e-mail de vérification a été envoyé à <strong>${user.email}</strong>. Veuillez cliquer sur le lien qu'il contient pour activer votre compte.</p>
+            <p class="text-slate-600 mb-6">Un e-mail de vérification a été envoyé à <strong>${user.email}</strong>...</p>
             <p id="resendMessage" class="text-sm text-green-600 mb-4"></p>
             <div class="space-y-4">
                 <button id="resendVerificationBtn" class="w-full bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">Renvoyer l'e-mail</button>
@@ -1415,26 +1415,19 @@ function showVerificationView(user) {
         </div>
     `;
 
-    // Le minuteur intelligent
+    // Le minuteur intelligent, maintenant simplifié
     verificationTimer = setInterval(async () => {
         if (auth.currentUser) {
             await auth.currentUser.reload();
-
             if (auth.currentUser.emailVerified) {
-                clearInterval(verificationTimer); // 1. On arrête le minuteur
-                await loadData();                 // 2. On charge les données pour vérifier si une classe est déjà choisie
-
-                // ✅ 3. LA REDIRECTION INTELLIGENTE
-                if (!userGradeLevel) {
-                    // Si aucune classe n'est définie, c'est un nouvel utilisateur.
-                    showGradeSelectionView(); 
-                } else {
-                    // Sinon, c'est un utilisateur existant.
-                    showView('menu');
-                }
+                // ✅ LA CORRECTION EST ICI :
+                // On arrête tout et on recharge simplement la page.
+                clearInterval(verificationTimer);
+                window.location.reload(); 
             }
         }
     }, 3000);
+
 
     // ❗ CORRECTION : Le bouton "Renvoyer" appelle maintenant votre fonction Cloud pour envoyer l'email Brevo.
     authContainer.querySelector('#resendVerificationBtn').addEventListener('click', async () => {
@@ -2226,8 +2219,8 @@ function showWelcomeModal() {
 function showGradeSelectionView() {
     mainApp.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in text-center">
-            <h1 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Mettre à jour ma classe</h1>
-            <p class="text-slate-600 mb-6">Pour personnaliser ton parcours, sélectionne ta nouvelle classe :</p>
+            <h1 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Bienvenue !</h1>
+            <p class="text-slate-600 mb-6">Pour commencer et personnaliser ton parcours, sélectionne ta classe :</p>
             <div class="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-4">
                 <button data-grade="seconde" class="grade-btn bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">Seconde</button>
                 <button data-grade="premiere" class="grade-btn bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">Première</button>
@@ -2236,12 +2229,19 @@ function showGradeSelectionView() {
         </div>
     `;
 
-    // On attache les écouteurs d'événements juste après avoir créé les boutons
     mainApp.querySelectorAll('.grade-btn').forEach(button => {
         button.addEventListener('click', async (e) => {
-            userGradeLevel = e.target.dataset.grade; // Met à jour la variable de classe
-            await saveData(); // Sauvegarde le changement dans la base de données
-            showView('menu'); // Redirige vers le menu principal
+            // 1. On met à jour la variable de classe
+            userGradeLevel = e.target.dataset.grade; 
+            
+            // 2. On sauvegarde ce choix dans la base de données
+            await saveData(); 
+            
+            // 3. ✅ LA CORRECTION EST ICI : On recharge TOUTES les données de l'utilisateur
+            await loadData();
+            
+            // 4. On affiche le menu principal, qui sera maintenant complet
+            showView('menu');
         });
     });
 }
