@@ -292,7 +292,7 @@
     <script type="module">
        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 // MODIFICATION : On ajoute sendEmailVerification et applyActionCode
-       import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, deleteUser, sendEmailVerification, applyActionCode, confirmPasswordReset, generateEmailVerificationLink } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+       import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, deleteUser, sendEmailVerification, applyActionCode, confirmPasswordReset } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
        import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, query, where, getDocs, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
@@ -1587,55 +1587,47 @@ signupForm.addEventListener('submit', async (e) => {
     const consentGiven = document.getElementById('consentCheckbox').checked;
 
     if (!consentGiven) {
-        authError.textContent = "Vous devez accepter la politique de confidentialité pour créer un compte.";
+        authError.textContent = "Vous devez accepter la politique de confidentialité.";
         return;
     }
 
     try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+        // 1. On crée l'utilisateur comme avant
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
-    // Étape 1 : On génère le lien de vérification Firebase.
-    const actionCodeSettings = {
-        url: window.location.origin // URL de retour après vérification
-    };
-    const verificationLink = await generateEmailVerificationLink(auth, user.email, actionCodeSettings);
+        // 2. On sauvegarde ses informations dans Firestore
+        const userDocRef = doc(db, "users", user.uid);
+        await setDoc(userDocRef, {
+            firstName: firstName,
+            lastName: lastName,
+            schoolName: schoolName,
+            gender: gender,
+            email: email,
+            createdAt: new Date()
+        }, { merge: true });
+        
+        // 3. On appelle la Cloud Function pour qu'ELLE s'occupe de l'email de vérification
+        const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
+        await sendEmail({
+            templateId: 1, // 👈 ID de votre template Brevo de VÉRIFICATION
+            toEmail: user.email,
+            // On passe des infos supplémentaires pour personnaliser l'email
+            params: {
+                firstName: firstName 
+            }
+        });
 
-    // Étape 2 : On appelle notre fonction Cloud pour envoyer l'e-mail via Brevo.
-    const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
-    await sendEmail({
-        templateId: 1, // 👈🚨 REMPLACEZ PAR L'ID DE VOTRE TEMPLATE BREVO DE VÉRIFICATION
-        toEmail: user.email,
-        params: {
-            // "verificationLink" doit correspondre au paramètre dans votre template Brevo
-            verificationLink: verificationLink,
-            firstName: firstName // Bonus : On peut passer le prénom pour personnaliser l'email
+        // C'est tout ! onAuthStateChanged s'occupera d'afficher la page "Veuillez vérifier votre email".
+
+    } catch (error) {
+        console.error("Erreur lors de la création du compte :", error);
+        if (error.code === 'auth/email-already-in-use') {
+            authError.textContent = "Cette adresse e-mail est déjà utilisée.";
+        } else {
+            authError.textContent = "Erreur lors de la création du compte.";
         }
-    });
-
-    // Étape 3 : On sauvegarde les informations de l'utilisateur dans Firestore.
-    const userDocRef = doc(db, "users", user.uid);
-    await setDoc(userDocRef, {
-        firstName: firstName,
-        lastName: lastName,
-        schoolName: schoolName,
-        gender: gender,
-        email: email, // On stocke aussi l'email pour référence
-        createdAt: new Date()
-    }, { merge: true });
-
-    // La logique d'affichage de la vue de vérification se déclenchera automatiquement
-    // car onAuthStateChanged détectera le nouvel utilisateur non vérifié.
-
-} catch (error) {
-    console.error("Erreur lors de l'inscription ou de l'envoi de l'e-mail :", error);
-    if (error.code === 'auth/email-already-in-use') {
-        authError.textContent = "Cette adresse e-mail est déjà utilisée.";
-    } else {
-        authError.textContent = "Erreur lors de la création du compte. Vérifiez les informations.";
     }
-}
-
 });
     showLoginButton.addEventListener('click', showLoginView);
     showPrivacyPolicyButton.addEventListener('click', () => {
