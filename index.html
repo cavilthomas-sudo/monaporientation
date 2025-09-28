@@ -1575,7 +1575,6 @@ function showSignupView() {
     const showPrivacyPolicyButton = document.getElementById('showPrivacyPolicyFromSignup');
     const authError = document.getElementById('authError');
 
-    // Dans la fonction showSignupView, remplacez ce bloc
 signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const firstName = capitalizeWords(document.getElementById('firstName').value);
@@ -1586,47 +1585,40 @@ signupForm.addEventListener('submit', async (e) => {
     const password = document.getElementById('password').value;
     const consentGiven = document.getElementById('consentCheckbox').checked;
 
-    if (!consentGiven) {
-        authError.textContent = "Vous devez accepter la politique de confidentialité.";
-        return;
-    }
+    if (!consentGiven) { /* ... */ return; }
 
     try {
-        // 1. On crée l'utilisateur comme avant
+        // 1. On crée l'utilisateur
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        // 2. On sauvegarde ses informations dans Firestore
+        // 2. On sauvegarde ses infos dans Firestore
         const userDocRef = doc(db, "users", user.uid);
-        await setDoc(userDocRef, {
-            firstName: firstName,
-            lastName: lastName,
-            schoolName: schoolName,
-            gender: gender,
-            email: email,
-            createdAt: new Date()
-        }, { merge: true });
+        await setDoc(userDocRef, { /* ...vos données... */ });
         
-        // 3. On appelle la Cloud Function pour qu'ELLE s'occupe de l'email de vérification
-        const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
-        await sendEmail({
-            templateId: 1, // 👈 ID de votre template Brevo de VÉRIFICATION
-            toEmail: user.email,
-            // On passe des infos supplémentaires pour personnaliser l'email
-            params: {
-                firstName: firstName 
-            }
+        // 3. NOUVELLE FAÇON D'APPELER LA FONCTION avec fetch
+        const functionUrl = 'https://europe-west1-monapp0rientation.cloudfunctions.net/sendTransactionalEmail';
+        
+        await fetch(functionUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                data: { // Les fonctions onRequest attendent un objet 'data'
+                    templateId: 1,
+                    toEmail: user.email,
+                    params: {
+                        firstName: firstName 
+                    }
+                }
+            }),
         });
-
-        // C'est tout ! onAuthStateChanged s'occupera d'afficher la page "Veuillez vérifier votre email".
-
+        
     } catch (error) {
+        // Cette erreur est maintenant plus susceptible de venir de la création de compte elle-même
         console.error("Erreur lors de la création du compte :", error);
-        if (error.code === 'auth/email-already-in-use') {
-            authError.textContent = "Cette adresse e-mail est déjà utilisée.";
-        } else {
-            authError.textContent = "Erreur lors de la création du compte.";
-        }
+        authError.textContent = "Erreur lors de la création du compte.";
     }
 });
     showLoginButton.addEventListener('click', showLoginView);

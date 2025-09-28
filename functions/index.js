@@ -1,83 +1,116 @@
+// =================================================================
+// FICHIER functions/index.js - VERSION FINALE (V1 explicite)
+// =================================================================
+
+// L'import V1 CORRECT et EXPLICITE
 const functions = require("firebase-functions/v1");
+
+// Les autres imports nécessaires
+const admin = require("firebase-admin");
 const axios = require("axios");
+const SibApiV3Sdk = require('@getbrevo/brevo');
+const cors = require('cors')({origin: true});
 
-// On récupère la clé API stockée
-const brevoApiKey = functions.config().brevo.key;
+// Initialisation de Firebase Admin
+admin.initializeApp();
 
-exports.sendTransactionalEmail = functions.https.onCall(async (data, context) => {
-    // On vérifie que l'utilisateur est bien authentifié
-    if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'Vous devez être connecté.');
-    }
+// =================================================================
+// FONCTION N°1 : ENVOI D'EMAILS TRANSACTIONNELS (BREVO)
+// =================================================================
+exports.sendTransactionalEmail = functions
+    .region("europe-west1") // Cette ligne devrait maintenant fonctionner
+    .https.onRequest((req, res) => {
+        cors(req, res, async () => {
+            const brevoApiKey = functions.config().brevo.key;
+            if (!brevoApiKey) {
+                console.error("Clé API Brevo non configurée.");
+                return res.status(500).send({ error: "Configuration du serveur incomplète." });
+            }
 
-    const { templateId, toEmail, params } = data;
-    const brevoApiUrl = 'https://api.brevo.com/v3/smtp/email';
+            const { templateId, toEmail, params } = req.body.data;
 
-    const payload = {
-        to: [{ email: toEmail }],
-        templateId: templateId,
-        params: params
-    };
+            let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+            let apiKey = apiInstance.authentications['apiKey'];
+            apiKey.apiKey = brevoApiKey;
 
-    const headers = {
-        'api-key': brevoApiKey,
-        'Content-Type': 'application/json'
-    };
+            let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+            sendSmtpEmail.params = params || {};
+            
+            if (templateId === 1) { // Email de vérification
+                try {
+                    const actionCodeSettings = { url: 'https://oriantation.fr' };
+                    const link = await admin.auth().generateEmailVerificationLink(toEmail, actionCodeSettings);
+                    sendSmtpEmail.params.verificationLink = link;
+                } catch (error) {
+                    console.error("Erreur de génération du lien de vérification:", error);
+                    return res.status(500).send({ error: "Impossible de générer le lien de vérification." });
+                }
+            }
+            
+            sendSmtpEmail.templateId = templateId;
+            sendSmtpEmail.to = [{ email: toEmail }];
+            sendSmtpEmail.sender = { 
+                name: "OrIAntation",
+                email: "contact@oriantation.fr"
+            };
 
-    try {
-        await axios.post(brevoApiUrl, payload, { headers });
-        return { success: true };
-    } catch (error) {
-        console.error("Erreur d'envoi de l'email via Brevo:", error.response?.data);
-        throw new functions.https.HttpsError('internal', "Impossible d'envoyer l'email.");
-    }
-});
+            try {
+                await apiInstance.sendTransacEmail(sendSmtpEmail);
+                return res.status(200).send({ success: true, message: "Email envoyé." });
+            } catch (error) {
+                console.error("Erreur d'envoi Brevo:", error.response ? error.response.body : error);
+                return res.status(500).send({ error: "Erreur lors de l'envoi de l'email." });
+            }
+        });
+    });
 
-const cors = require("cors")({ origin: true });
+// =================================================================
+// FONCTION N°2 : APPEL À L'API OPENAI (CHATGPT)
+// =================================================================
+exports.generateContent = functions
+    .region("europe-west1") // On ajoute la région ici aussi par cohérence
+    .https.onRequest((req, res) => {
+        cors(req, res, async () => {
+            if (req.method !== "POST") {
+                return res.status(405).send("Method Not Allowed");
+            }
 
-// On récupère la clé secrète OpenAI que vous avez configurée
-const openaiApiKey = functions.config().openai.key; 
+            const openaiApiKey = functions.config().openai.key;
+            if (!openaiApiKey) {
+                console.error("Clé API OpenAI non configurée.");
+                return res.status(500).json({ error: "Configuration du serveur incomplète." });
+            }
 
-// L'URL de l'API OpenAI
-const openaiApiUrl = 'https://api.openai.com/v1/chat/completions';
+            // Correction : Assurez-vous que le client envoie bien les données dans un objet "data"
+            // comme nous l'avons fait pour l'appel `fetch` de l'autre fonction.
+            const { prompt } = req.body.data || req.body; 
 
-exports.generateContent = functions.https.onRequest((req, res) => {
-  cors(req, res, async () => {
-    if (req.method !== "POST") {
-      return res.status(405).send("Method Not Allowed");
-    }
+            if (!prompt) {
+                return res.status(400).json({ error: "Le prompt ne peut pas être vide." });
+            }
 
-    const { prompt } = req.body;
+            const payload = {
+                model: "gpt-4o-mini",
+                messages: [{ "role": "user", "content": prompt }]
+            };
 
-    if (!prompt) {
-      return res.status(400).json({ error: "Le prompt ne peut pas être vide." });
-    }
+            const headers = {
+                'Authorization': `Bearer ${openaiApiKey}`,
+                'Content-Type': 'application/json'
+            };
 
-    // Le format des données pour ChatGPT avec votre modèle choisi
-    const payload = {
-      model: "gpt-4o-mini",
-      messages: [{ "role": "user", "content": prompt }]
-    };
-
-    // L'authentification pour ChatGPT
-    const headers = {
-      'Authorization': `Bearer ${openaiApiKey}`,
-      'Content-Type': 'application/json'
-    };
-
-    try {
-      const response = await axios.post(openaiApiUrl, payload, { headers: headers });
-      
-      const text = response.data.choices[0].message.content;
-      
-      if (text) {
-        res.status(200).json({ result: text.trim() });
-      } else {
-        throw new Error("Réponse invalide de l'API OpenAI.");
-      }
-    } catch (error) {
-      console.error("Erreur d'appel à l'API OpenAI:", error.response?.data || error.message);
-      res.status(500).json({ error: "Une erreur est survenue lors de l'appel à l'API d'IA." });
-    }
-  });
-});
+            try {
+                const response = await axios.post('https://api.openai.com/v1/chat/completions', payload, { headers: headers });
+                const text = response.data.choices[0].message.content;
+                
+                if (text) {
+                    return res.status(200).json({ result: text.trim() });
+                } else {
+                    throw new Error("Réponse invalide de l'API OpenAI.");
+                }
+            } catch (error) {
+                console.error("Erreur d'appel à l'API OpenAI:", error.response?.data || error.message);
+                return res.status(500).json({ error: "Une erreur est survenue lors de l'appel à l'API d'IA." });
+            }
+        });
+    });
