@@ -365,38 +365,48 @@ function extractJsonFromString(str) {
 }
 
        // REMPLACEZ ce bloc par la nouvelle version
+// ✅ REMPLACEZ le premier bloc de démarrage (ligne 1484) par celui-ci
+
 (async () => {
-    const auth = getAuth();
     const params = new URLSearchParams(window.location.search);
     const mode = params.get('mode');
     const actionCode = params.get('oobCode');
+    const shareId = params.get('share_id');
+    const shareToken = params.get('token');
 
+    // Priorité 1 : Si c'est un lien de PARTAGE, on l'affiche et on arrête tout.
+    if (shareId && shareToken) {
+        authContainer.style.display = 'none';
+        mainApp.style.display = 'block';
+        document.querySelector('footer').style.display = 'none';
+        document.querySelector('#chatbot-toggle').style.display = 'none';
+        createPublicShareView(shareId, shareToken);
+        return; 
+    }
+
+    // Priorité 2 : Si c'est un lien de VÉRIFICATION D'EMAIL
     if (mode === 'verifyEmail' && actionCode) {
         try {
             await applyActionCode(auth, actionCode);
-            // Affiche un message de succès
-            document.body.innerHTML = `
-                <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
-                    <h1 style="font-size: 1.875rem; font-weight: bold; color: #1A3263;">Vérification réussie ! ✅</h1>
-                    <p style="color: #4A5568; margin-top: 1rem;">Cet onglet va se fermer automatiquement...</p>
-                </div>
-            `;
+            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;"><h1 style="font-size: 1.875rem; font-weight: bold; color: #1A3263;">Vérification réussie ! ✅</h1><p style="color: #4A5568; margin-top: 1rem;">Cet onglet va se fermer automatiquement...</p></div>`;
         } catch (error) {
-            // ✅ LA CORRECTION : Affiche un message d'erreur
-            document.body.innerHTML = `
-                <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
-                    <h1 style="font-size: 1.875rem; font-weight: bold; color: #991B1B;">Erreur</h1>
-                    <p style="color: #4A5568; margin-top: 1rem;">Le lien de vérification est invalide ou a expiré. Cet onglet va se fermer.</p>
-                </div>
-            `;
+            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;"><h1 style="font-size: 1.875rem; font-weight: bold; color: #991B1B;">Erreur</h1><p style="color: #4A5568; margin-top: 1rem;">Le lien est invalide ou a expiré. Cet onglet va se fermer.</p></div>`;
         } finally {
-            // ✅ LA CORRECTION : Ferme l'onglet DANS TOUS LES CAS (succès ou erreur)
             setTimeout(() => { window.close(); }, 3500);
         }
-    } 
-    else if (mode === 'resetPassword' && actionCode) {
-        showResetPasswordView(actionCode);
+        return; 
     }
+
+    // Priorité 3 : Si c'est un lien de RÉINITIALISATION DE MOT DE PASSE
+    if (mode === 'resetPassword' && actionCode) {
+        showResetPasswordView(actionCode);
+        return; 
+    }
+
+    // Si aucune des conditions ci-dessus n'est remplie, on lance le FLUX NORMAL de l'application
+    // (Cette fonction est définie juste après)
+    initializeNormalAppFlow();
+
 })();
 
 
@@ -1160,27 +1170,9 @@ const backAction = cameFromLogin ? window.showSignupViewFromGuide : () => window
 
       // REMPLACEZ VOTRE LOGIQUE DE DÉMARRAGE ACTUELLE PAR CELLE-CI
 
-const params = new URLSearchParams(window.location.search);
-const mode = params.get('mode');
-const actionCode = params.get('oobCode');
-const shareId = params.get('share_id');
-const shareToken = params.get('token');
-
-// --- CORRECTION MAJEURE : On vérifie le partage EN PREMIER ---
-if (shareId && shareToken) {
-    // Si c'est un lien de partage, on affiche la vue partagée et on arrête tout.
-    authContainer.style.display = 'none';
-    mainApp.style.display = 'block';
-    document.querySelector('footer').style.display = 'none';
-    document.querySelector('#chatbot-toggle').style.display = 'none';
-    createPublicShareView(shareId, shareToken);
-
-} else if (mode === 'resetPassword' && actionCode) {
-    // Sinon, si c'est un lien de réinitialisation de mot de passe, on affiche cette vue.
-    showResetPasswordView(actionCode);
-
-} else {
-    // Si ce n'est aucune des actions ci-dessus, ALORS on lance le flux normal de connexion.
+function initializeNormalAppFlow() {
+    // Cette fonction est maintenant le point d'entrée pour un démarrage normal.
+    // Elle contient toute la logique de connexion/déconnexion qui était dans l'ancien bloc.
     window.showGuideFromLogin = function() {
         cameFromLogin = true;
         document.getElementById('authContainer').style.display = 'none';
@@ -1196,12 +1188,12 @@ if (shareId && shareToken) {
         showLoginView();
     }
     window.showSignupViewFromGuide = function() {
-    cameFromLogin = false;
-    document.getElementById('mainApp').style.display = 'none';
-    document.getElementById('authContainer').style.display = 'block';
-    document.querySelector('footer').style.display = 'block';
-    showSignupView(); // Appelle la vue d'inscription
-}
+        cameFromLogin = false;
+        document.getElementById('mainApp').style.display = 'none';
+        document.getElementById('authContainer').style.display = 'block';
+        document.querySelector('footer').style.display = 'block';
+        showSignupView();
+    }
 
     onAuthStateChanged(auth, user => {
         const chatbotToggle = document.getElementById('chatbot-toggle');
