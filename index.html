@@ -309,6 +309,8 @@
         const auth = getAuth(firebaseApp);
         const db = getFirestore(firebaseApp);
         const functions = getFunctions(firebaseApp, "europe-west1"); 
+        const authContainer = document.getElementById('authContainer');
+        const mainApp = document.getElementById('mainApp');
 
         const IS_DEV_MODE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
@@ -1131,9 +1133,6 @@ function createSimpleModal(title, contentHTML) {
     return newText.replace(/\n/g, '<br>');
 };
         const { jsPDF } = window.jspdf;
-
-        const authContainer = document.getElementById('authContainer');
-        const mainApp = document.getElementById('mainApp');
         const floatingBackBtn = document.getElementById('floatingBackBtn'); // AJOUTEZ CETTE LIGNE
 
 floatingBackBtn.addEventListener('click', () => {
