@@ -371,36 +371,35 @@ function extractJsonFromString(str) {
     const mode = params.get('mode');
     const actionCode = params.get('oobCode');
 
-    // On récupère l'URL de base sans les paramètres pour nettoyer
-    const cleanUrl = window.location.origin + window.location.pathname;
-
+    // Cas où la page est ouverte depuis le lien de vérification de l'email
     if (mode === 'verifyEmail' && actionCode) {
         try {
             await applyActionCode(auth, actionCode);
-            if (auth.currentUser) {
-                await auth.currentUser.reload();
-            }
-            showInfoModal(
-                "Vérification Réussie !",
-                "Votre adresse e-mail a été validée. Vous allez être redirigé.",
-                cleanUrl, // <-- On utilise l'URL nettoyée
-                3000
-            );
+
+            // On remplace le contenu de la page par un message de succès
+            document.body.innerHTML = `
+                <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
+                    <img src="logo_surprises.PNG" alt="Logo OrIAntation" style="height: 128px; width: 128px; margin-bottom: 24px;">
+                    <h1 style="font-size: 1.875rem; font-weight: bold; color: #1A3263;">Vérification réussie ! ✅</h1>
+                    <p style="color: #4A5568; margin-top: 1rem;">
+                        Votre compte est activé. L'onglet original de l'application va se mettre à jour.
+                    </p>
+                    <p style="color: #6B7280; font-size: 0.875rem; margin-top: 0.5rem;">
+                        (Cet onglet va se fermer automatiquement)
+                    </p>
+                </div>
+            `;
+
+            // On ferme cet onglet après 3 secondes
+            setTimeout(() => { window.close(); }, 3000);
+
         } catch (error) {
-            // Si le code est déjà utilisé, on ignore l'erreur et on nettoie l'URL
-            // pour que l'utilisateur puisse continuer normalement s'il est déjà connecté.
-            if (error.code === 'auth/invalid-action-code') {
-                if (auth.currentUser) {
-                    // Si l'utilisateur est déjà connecté, on le redirige simplement
-                    // vers la page nettoyée sans montrer d'erreur.
-                    window.location.href = cleanUrl;
-                } else {
-                    // Sinon, on affiche l'erreur
-                    showInfoModal("Erreur", "Le lien de vérification est invalide ou a expiré.");
-                }
-            }
+            // En cas d'erreur (lien expiré...), on affiche un message clair
+            document.body.innerHTML = `<div style="text-align: center; padding: 40px;"><h2>Erreur</h2><p>Le lien de vérification est invalide ou a expiré. Veuillez refaire une demande.</p></div>`;
         }
-    } else if (mode === 'resetPassword' && actionCode) {
+    } 
+    // Cas où la page est ouverte depuis un lien de réinitialisation de mot de passe
+    else if (mode === 'resetPassword' && actionCode) {
         showResetPasswordView(actionCode);
     }
 })();
@@ -1095,6 +1094,8 @@ function createSimpleModal(title, contentHTML) {
         let userGradeLevel = null;
         let currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
         let currentViewName = null; // <-- AJOUTEZ CETTE LIGNE
+        let verificationTimer = null;
+
 
 
         let cameFromLogin = false;
@@ -1399,6 +1400,9 @@ function showVerificationView(user) {
     authContainer.style.display = 'block';
     mainApp.style.display = 'none';
 
+    // ✅ AJOUT : Nettoie un ancien minuteur au cas où.
+    if (verificationTimer) clearInterval(verificationTimer);
+
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in text-center">
             <img src="logo_surprises.PNG" alt="Logo OrIAntation" class="mx-auto h-32 w-32 mb-4">
@@ -1418,16 +1422,43 @@ function showVerificationView(user) {
         </div>
     `;
 
+    // ✅ AJOUT : Le minuteur intelligent qui vérifie le statut en arrière-plan
+    verificationTimer = setInterval(async () => {
+        if (auth.currentUser) {
+            await auth.currentUser.reload();
+            if (auth.currentUser.emailVerified) {
+                clearInterval(verificationTimer); // On arrête le minuteur
+                showView('menu'); // On affiche le menu principal
+            }
+        }
+    }, 3000); // Vérifie toutes les 3 secondes
+
+    // ❗ CORRECTION : Le bouton "Renvoyer" appelle maintenant votre fonction Cloud pour envoyer l'email Brevo.
     authContainer.querySelector('#resendVerificationBtn').addEventListener('click', async () => {
+        const resendMessage = authContainer.querySelector('#resendMessage');
         try {
-            await sendEmailVerification(user);
-            authContainer.querySelector('#resendMessage').textContent = "Un nouvel e-mail a été envoyé !";
+            const functionUrl = 'https://europe-west1-monapp0rientation.cloudfunctions.net/sendTransactionalEmail';
+            await fetch(functionUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    data: {
+                        templateId: 1, // ID du template de VÉRIFICATION
+                        toEmail: user.email,
+                        params: { firstName: user.displayName || ' ' } // On essaie de récupérer le prénom
+                    }
+                }),
+            });
+            resendMessage.textContent = "Un nouvel e-mail a été envoyé !";
         } catch (error) {
-            authContainer.querySelector('#resendMessage').textContent = "Erreur lors de l'envoi. Veuillez réessayer plus tard.";
+            console.error("Erreur lors du renvoi de l'email:", error);
+            resendMessage.textContent = "Erreur lors de l'envoi. Veuillez réessayer plus tard.";
         }
     });
     
     authContainer.querySelector('#logoutFromVerificationBtn').addEventListener('click', () => {
+        // ✅ AJOUT : On arrête aussi le minuteur si l'utilisateur se déconnecte manuellement.
+        if (verificationTimer) clearInterval(verificationTimer);
         signOut(auth);
     });
 }
