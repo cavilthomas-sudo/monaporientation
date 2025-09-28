@@ -1610,38 +1610,44 @@ signupForm.addEventListener('submit', async (e) => {
     if (!consentGiven) { /* ... */ return; }
 
     try {
-        // 1. On crée l'utilisateur
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
+    // 1. On crée l'utilisateur dans le système d'authentification
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
 
-        // 2. On sauvegarde ses infos dans Firestore
-        const userDocRef = doc(db, "users", user.uid);
-        await setDoc(userDocRef, { /* ...vos données... */ });
-        
-        // 3. NOUVELLE FAÇON D'APPELER LA FONCTION avec fetch
-        const functionUrl = 'https://europe-west1-monapp0rientation.cloudfunctions.net/sendTransactionalEmail';
-        
-        await fetch(functionUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                data: { // Les fonctions onRequest attendent un objet 'data'
-                    templateId: 1,
-                    toEmail: user.email,
-                    params: {
-                        firstName: firstName 
-                    }
+    // 2. ✅ LA CORRECTION EST ICI :
+    // On sauvegarde VRAIMENT les informations du formulaire dans Firestore
+    const userDocRef = doc(db, "users", user.uid);
+    await setDoc(userDocRef, {
+        firstName: firstName,
+        lastName: lastName,
+        schoolName: schoolName,
+        gender: gender,
+        email: email,
+        createdAt: new Date()
+    });
+    
+    // 3. On envoie l'email de vérification via notre fonction Cloud
+    const functionUrl = 'https://europe-west1-monapp0rientation.cloudfunctions.net/sendTransactionalEmail';
+    await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            data: {
+                templateId: 1,
+                toEmail: user.email,
+                params: {
+                    firstName: firstName 
                 }
-            }),
-        });
-        
-    } catch (error) {
-        // Cette erreur est maintenant plus susceptible de venir de la création de compte elle-même
-        console.error("Erreur lors de la création du compte :", error);
-        authError.textContent = "Erreur lors de la création du compte.";
-    }
+            }
+        }),
+    });
+    
+} catch (error) {
+    console.error("Erreur lors de la création du compte :", error);
+    authError.textContent = "Erreur lors de la création du compte. L'e-mail est peut-être déjà utilisé.";
+}
 });
     showLoginButton.addEventListener('click', showLoginView);
     showPrivacyPolicyButton.addEventListener('click', () => {
