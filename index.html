@@ -382,6 +382,8 @@ function extractJsonFromString(str) {
 
 // ▼▼▼ REMPLACE LE BLOC DE DÉMARRAGE (celui qui commence par (async...)) PAR CELUI-CI ▼▼▼
 
+// ▼▼▼ REMPLACE LE BLOC DE DÉMARRAGE PAR CETTE VERSION FINALE ▼▼▼
+
 (async () => {
     const params = new URLSearchParams(window.location.search);
     const mode = params.get('mode');
@@ -403,14 +405,19 @@ function extractJsonFromString(str) {
     if (mode === 'verifyEmail' && actionCode) {
         try {
             await applyActionCode(auth, actionCode);
-            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;"><h1 style="font-size: 1.875rem; font-weight: bold; color: #1A3263;">Vérification réussie ! ✅</h1><p style="color: #4A5568; margin-top: 1rem;">Votre compte est maintenant activé. Cet onglet va se fermer automatiquement...</p></div>`;
+            // Succès ! On affiche un message puis on redirige vers l'application.
+            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;"><h1 style="font-size: 1.875rem; font-weight: bold; color: #1A3263;">Vérification réussie ! ✅</h1><p style="color: #4A5568; margin-top: 1rem;">Votre compte est maintenant activé. Redirection en cours...</p></div>`;
+            // On attend 2.5 secondes pour que l'utilisateur lise, puis on recharge la page à sa racine.
+            setTimeout(() => {
+                window.location.href = window.location.pathname;
+            }, 2500);
         } catch (error) {
+            // Erreur ! Le lien est probablement expiré. On affiche un message et on ferme.
             console.error("Erreur de vérification:", error);
-            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;"><h1 style="font-size: 1.875rem; font-weight: bold; color: #991B1B;">Erreur</h1><p style="color: #4A5568; margin-top: 1rem;">Ce lien de vérification est invalide ou a déjà été utilisé. Veuillez vous connecter pour en recevoir un nouveau si besoin.</p></div>`;
-        } finally {
-            setTimeout(() => { window.close(); }, 4000); // On laisse un peu plus de temps pour lire
+            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;"><h1 style="font-size: 1.875rem; font-weight: bold; color: #991B1B;">Erreur</h1><p style="color: #4A5568; margin-top: 1rem;">Ce lien de vérification est invalide ou a déjà été utilisé. Cet onglet va se fermer.</p></div>`;
+            setTimeout(() => { window.close(); }, 4000);
         }
-        return; 
+        return; // On arrête l'exécution ici pour ne pas lancer le flux normal.
     }
 
     // Priorité 3 : Si c'est un lien de RÉINITIALISATION DE MOT DE PASSE
@@ -419,7 +426,7 @@ function extractJsonFromString(str) {
         return; 
     }
 
-    // Si aucune des conditions spéciales n'est remplie, on lance le FLUX NORMAL de l'application
+    // Si aucune des conditions spéciales n'est remplie, on lance le FLUX NORMAL de l'application.
     initializeNormalAppFlow();
 
 })();
