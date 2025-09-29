@@ -488,9 +488,7 @@ Tu es "OrIA", le copilote IA de l'application d'orientation OrIAntation. Tu t'ad
 - **Actionnable :** Relie toujours tes conseils à des actions concrètes que l'élève peut réaliser, de préférence en utilisant les outils de l'application OrIAntation.
 `;
 
-        // ✅ COPIEZ ET REMPLACEZ VOTRE ANCIEN BLOC allSteps PAR CELUI-CI
 
-// ▼▼▼ REMPLACE TON TABLEAU "allSteps" PAR CELUI-CI ▼▼▼
 
 const allSteps = [
     // Catégorie : Le Tableau de Bord (Accès Rapide)
@@ -571,12 +569,12 @@ const allSteps = [
 
     // Catégorie : Construire sa Candidature
     { 
-        id: 'step10', category: 'build',
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-cyan-700"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.07a2.25 2.25 0 0 1-2.25 2.25h-13.5a2.25 2.25 0 0 1-2.25-2.25v-4.07m18-4.32-7.5-5.25a2.25 2.25 0 0 0-2.013.003L2.25 9.83m18 4.32V9.83" /></svg>`, 
-        title: 'Mon Portfolio de Compétences', 
-        site: 'Valorisation', 
-        levels: ['premiere', 'terminale'] 
-    },
+    id: 'step10', category: 'build',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-cyan-700"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.07a2.25 2.25 0 0 1-2.25 2.25h-13.5a2.25 2.25 0 0 1-2.25-2.25v-4.07m18-4.32-7.5-5.25a2.25 2.25 0 0 0-2.013.003L2.25 9.83m18 4.32V9.83" /></svg>`, 
+    title: 'Mon Portfolio de Compétences', 
+    site: 'Valorisation', 
+    levels: ['seconde', 'premiere', 'terminale'] 
+},
     { 
         id: 'step6', category: 'build',
         icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-cyan-700"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>`, 
@@ -1283,12 +1281,6 @@ function initializeNormalAppFlow() {
     });
 }
 
-
-
-// Remplacez votre fonction handleOnboarding par celle-ci
-
-// Remplacez votre fonction handleOnboarding par celle-ci
-
 async function handleOnboarding(context = {}) {
     if (!context || !context.from) { return false; }
 
@@ -1323,18 +1315,29 @@ async function handleOnboarding(context = {}) {
         return true;
     }
     
-    // --- FIN DU TUTORIEL (FIN DE L'ÉTAPE 1) ---
+    // --- MISSION 3 (FIN DE L'ÉTAPE 1) ---
     const metiersExplores = [journalData.step1.metier1, journalData.step1.metier2, journalData.step1.metier3].filter(m => m && m.trim() !== '').length;
-    if (context.from === 'step1_save' && metiersExplores >= 2 && !journalData.tutorial_completed) {
+    if (context.from === 'step1_save' && metiersExplores >= 1 && !journalData.tutorial_mission_3_shown) {
+        journalData.tutorial_mission_3_shown = true;
+        journalData.tutorial_next_step = 'journal'; // La prochaine étape est le journal
+        await saveData({ skipOnboarding: true });
+        await showSurpriseModal(
+            "Troisième mission accomplie ! 🧭",
+            `<p>Excellent ! Tu as exploré tes premières pistes de métiers.</p><p class="mt-4 font-semibold">Mission finale : va dans ton "Journal de Bord" et génère ton "Fil Rouge" pour obtenir une synthèse complète de ton parcours.</p>`
+        );
+        showView('menu');
+        return true;
+    }
+
+    // --- MISSION 4 (FINALE) : GÉNÉRATION DU FIL ROUGE ---
+    if (context.from === 'fil_rouge_generated' && !journalData.tutorial_completed) {
         journalData.tutorial_completed = true;
         journalData.tutorial_next_step = ''; // On vide pour enlever la surbrillance
         await saveData({ skipOnboarding: true });
-
         await showSurpriseModal(
-            "Félicitations, Tu peux chosir ton cap maintenant! 🎉",
-            "<p>Les bsases sont posées. Continue d'explorer les différentes étapes à ton rythme. N'hesite pas à utiliser le guide d'utilisation ou la chatbot si tu veux plus d'informations pour avoir des infromations. supplémentaires. Bonne route !</p>"
+            "Félicitations, Tutoriel Terminé ! 🎉",
+            "<p>Tu as maintenant toutes les bases pour chosiir ton cap !! Continue à remplir les étapes à ton rythme. Bonne exploration !</p>"
         );
-        showView('menu');
         return true;
     }
     
@@ -1385,7 +1388,7 @@ function showLoginView() {
             <img src="logo.png" alt="Logo OrIAntation" class="mx-auto h-auto w-auto">
             <div class="p-4 bg-white text-OrIAntation-darkblue text-center mb-6">
                 <p class="text-sm text-slate-600">
-                    Tu te sens perdu ? dans le brouillard ? Noyé dans un océan d'informations ? Pas de panique, tu vas enfin pouvoir prendre les commandes de ton orientation ! Fais confiance à ton copilote IA pour te montrer des chemins de traverse que peu connaissent.
+                    Tu te sens perdu ? dans le brouillard ? Noyé dans un océan d'informations ? Pas de panique, tu vas enfin pouvoir prendre les commandes de ton orientation ! Fais confiance à ton copilote OrIA pour te montrer des chemins de traverse que peu connaissent.
                 </p>
                 <p class="font-semibold text-OrIAntation-darkblue mt-2">Choisis ton cap avec notre boussole 2.0 !!</p>
             </div>
@@ -2287,11 +2290,14 @@ function showGradeSelectionView() {
 
 // ▼▼▼ REMPLACE TA FONCTION "callOpenAI_API" PAR CELLE-CI ▼▼▼
 
-async function callOpenAI_API(prompt, useGrounding = false, isJson = false, model = 'gpt-4o') {
+async function callOpenAI_API(prompt, useGrounding = false, isJson = false, model = 'gpt-4o', usePersona = true) {
     
-    // Étape 1 : On assemble le prompt final qui inclut la personnalité de OrIA et le contexte de genre.
-    // OrIA recevra toujours ces instructions avant ta question spécifique.
-    const finalPrompt = `${PERSONA_IA}\n\n---\n\n${addGenderContextToPrompt(prompt)}`;
+    let finalPrompt = addGenderContextToPrompt(prompt);
+
+    // On ajoute le persona global SEULEMENT si usePersona est vrai
+    if (usePersona) {
+        finalPrompt = `${PERSONA_IA}\n\n---\n\n${finalPrompt}`;
+    }
 
     const functionUrl = "https://europe-west1-monapp0rientation.cloudfunctions.net/generateContent";
 
@@ -2300,10 +2306,10 @@ async function callOpenAI_API(prompt, useGrounding = false, isJson = false, mode
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                prompt: finalPrompt,      // On envoie le prompt complet et enrichi
+                prompt: finalPrompt,
                 useGrounding: useGrounding,
                 isJson: isJson,
-                model: model              // On envoie le modèle souhaité à la fonction Cloud
+                model: model
             })
         });
 
@@ -2404,6 +2410,8 @@ const showBackButtonOn = ['step0', 'step1', 'step2', 'step3', 'step4', 'step5', 
 
 // ▼▼▼ REMPLACE TOUTE TA FONCTION "createMenuView" PAR CE BLOC FINAL ET COMPLET ▼▼▼
 
+// ▼▼▼ REMPLACE TOUTE LA FONCTION "createMenuView" PAR CE BLOC FINAL ET COMPLET ▼▼▼
+
 function createMenuView() {
     const div = document.createElement('div');
     div.className = 'fade-in';
@@ -2451,7 +2459,7 @@ function createMenuView() {
                     <button class="text-sm text-cyan-700 hover:underline js-logout">Se déconnecter</button>
                 </div>
             </div>
-            <div class="w-32 h-32 bg-background-light rounded-full border flex-col items-center justify-center p-0 cursor-pointer flex-shrink-0 js-badges-container order-3 md:order-3">
+            <div class="w-32 h-32 bg-background-light rounded-full border flex flex-col items-center justify-center p-0 cursor-pointer flex-shrink-0 js-badges-container order-3 md:order-3">
                 ${badgesHTML}
             </div>
         </div>
@@ -2467,7 +2475,7 @@ function createMenuView() {
 
     const createStepCardHTML = (step) => {
         let statusSymbol = '';
-        if (!['journal', 'retroplanning', 'step12'].includes(step.id) && journalData[step.id]) {
+        if (!['journal', 'retroplanning', 'step12', 'guide'].includes(step.id) && journalData[step.id]) {
              if (isStepComplete(step.id)) {
                 statusSymbol = `<span class="ml-2 text-green-500"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd" /></svg></span>`;
             } else if (isStepStarted(step.id)) {
@@ -2479,7 +2487,7 @@ function createMenuView() {
         const highlightClass = isNextMission ? 'next-mission-highlight' : '';
         
         return `
-         <div onclick="window.showView('${step.id}')" class="step-card bg-white p-6 rounded-xl shadow-md border border-border-subtle cursor-pointer flex flex-col items-center space-y-4 text-center w-full sm:w-[calc(50%-1.5rem)] lg:w-[calc(33.333%-1rem)] ${highlightClass}">
+         <div onclick="window.showView('${step.id}')" class="step-card bg-white p-6 rounded-xl shadow-md border border-border-subtle cursor-pointer flex flex-col items-center space-y-4 text-center w-full sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1rem)] ${highlightClass}">
             <div>${step.icon}</div>
             <div>
                 <div class="flex justify-center items-center">
@@ -2497,38 +2505,56 @@ function createMenuView() {
     const buildHTML = buildSteps.map(createStepCardHTML).join('');
 
     const menuGridHTML = `
-        <div class="mt-8">
-            <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4 text-center">Tableau de Bord</h2>
-            <div class="flex flex-wrap justify-center gap-6 w-full">${dashboardHTML}</div>
+        <div class="mt-8 space-y-12">
+            <div class="bg-white p-6 rounded-2xl shadow-lg border border-border-subtle">
+                <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-6 text-center flex items-center justify-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6" /></svg>
+                    Tableau de Bord
+                </h2>
+                <div class="flex flex-wrap justify-center gap-4 w-full">${dashboardHTML}</div>
+            </div>
 
-            <hr class="my-10 border-slate-200">
-
-            <h2 class="text-2xl font-bold text-OrIAntation-darkblue mt-12 mb-4 text-center">Le Parcours d'Orientation</h2>
-            
-            <h3 class="text-xl font-semibold text-cyan-700 mt-6 mb-3 text-center">1. Explorer les Possibilités</h3>
-            <div class="flex flex-wrap justify-center gap-6 w-full">${exploreHTML}</div>
-            
-            <h3 class="text-xl font-semibold text-cyan-700 mt-6 mb-3 text-center">2. Se Connecter au Monde Réel</h3>
-            <div class="flex flex-wrap justify-center gap-6 w-full">${connectHTML}</div>
-
-            <h3 class="text-xl font-semibold text-cyan-700 mt-6 mb-3 text-center">3. Construire son Projet</h3>
-            <div class="flex flex-wrap justify-center gap-6 w-full">${buildHTML}</div>
+            <div class="bg-white p-6 rounded-2xl shadow-lg border border-border-subtle">
+                <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-8 text-center flex items-center justify-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.25c-.748-.374-1.628.17-1.628 1.006v8.69c0 .426.24.815.622 1.006l4.875 2.437a1.875 1.875 0 0 0 1.006 0Z" /></svg>
+                    Le Parcours d'Orientation
+                </h2>
+                <div class="space-y-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-cyan-700 mb-4 flex items-center gap-3">
+                            <span class="bg-cyan-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg">1</span>
+                            Explorer les Possibilités
+                        </h3>
+                        <div class="flex flex-wrap justify-center gap-4 w-full">${exploreHTML}</div>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold text-cyan-700 mb-4 flex items-center gap-3">
+                            <span class="bg-cyan-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg">2</span>
+                            Se Connecter au Monde Réel
+                        </h3>
+                        <div class="flex flex-wrap justify-center gap-4 w-full">${connectHTML}</div>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold text-cyan-700 mb-4 flex items-center gap-3">
+                            <span class="bg-cyan-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg">3</span>
+                            Construire son Projet
+                        </h3>
+                        <div class="flex flex-wrap justify-center gap-4 w-full">${buildHTML}</div>
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 
-    // --- 3. Logique pour le reste de la page (Barre de progression, Guide, Radar) ---
     const progressBarHTML = createProgressBarHTML();
     const guideCardHTML = `
     <div onclick="window.showView('guide')" class="step-card bg-white p-6 rounded-xl shadow-md border border-border-subtle cursor-pointer flex flex-col items-center space-y-2 mb-6 max-w-md mx-auto">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 text-OrIAntation-darkblue">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
-        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" /></svg>
         <div class="text-center">
             <h2 class="text-lg font-semibold text-OrIAntation-darkblue">Guide d'Utilisation</h2>
             <p class="text-sm text-slate-500">Besoin d'aide pour commencer ?</p>
         </div>
     </div>`;
-
     const radarHTML = `
         <div class="mt-12 text-center fade-in">
             <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4 flex items-center justify-center gap-2">
@@ -2549,7 +2575,6 @@ function createMenuView() {
         </div>
     `;
     
-    // --- 4. Assemblage final et ajout des EventListeners ---
     div.innerHTML = levelDisplayHTML + `<div class="max-w-xl mx-auto my-8">${progressBarHTML}</div>` + guideCardHTML + menuGridHTML + radarHTML;
     
     setTimeout(() => {
@@ -2557,11 +2582,7 @@ function createMenuView() {
         if (canvas) {
             const ctx = canvas.getContext('2d');
             const xpRemaining = Math.max(0, xpNeededForLevel - xpInCurrentLevel);
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: { datasets: [{ data: [xpInCurrentLevel, xpRemaining], backgroundColor: ['#f59e0b', '#e2e8f0'], borderColor: ['#ffffff', '#ffffff'], borderWidth: 2 }] },
-                options: { responsive: true, cutout: '80%', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
-            });
+            new Chart(ctx, { type: 'doughnut', data: { datasets: [{ data: [xpInCurrentLevel, xpRemaining], backgroundColor: ['#f59e0b', '#e2e8f0'], borderColor: ['#ffffff', '#ffffff'], borderWidth: 2 }] }, options: { responsive: true, cutout: '80%', plugins: { legend: { display: false }, tooltip: { enabled: false } } } });
         }
     }, 0);
 
@@ -2571,16 +2592,12 @@ function createMenuView() {
 
     const displayRadarResult = (type, subject, response) => {
         resultDiv.classList.remove('hidden');
-        resultDiv.className = 'mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg text-slate-700 text-left prose prose-sm max-w-none';
         resultDiv.innerHTML = '';
-        
         const textElement = document.createElement('div');
         textElement.innerHTML = marked.parse(linkify(response));
         resultDiv.appendChild(textElement);
-
         const buttonsContainer = document.createElement('div');
         buttonsContainer.className = 'flex gap-4 mt-4 pt-4 border-t';
-        
         const saveBtn = document.createElement('button');
         saveBtn.className = 'flex-1 bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700 transition';
         saveBtn.textContent = 'Enregistrer dans le journal';
@@ -2592,12 +2609,10 @@ function createMenuView() {
             saveBtn.textContent = 'Enregistré ! ✔';
             saveBtn.disabled = true;
         });
-
         const cancelBtn = document.createElement('button');
         cancelBtn.className = 'flex-1 bg-slate-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-slate-600 transition';
         cancelBtn.textContent = 'Je vais réfléchir à autre chose';
         cancelBtn.addEventListener('click', () => { resultDiv.classList.add('hidden'); });
-
         buttonsContainer.appendChild(saveBtn);
         buttonsContainer.appendChild(cancelBtn);
         resultDiv.appendChild(buttonsContainer);
@@ -2642,45 +2657,45 @@ function createMenuView() {
     });
 
     div.querySelectorAll('.js-xp-gauge').forEach(container => {
-    container.addEventListener('click', () => {
-        const title = "⭐ Qu'est-ce que le système d'XP ?";
-        const contentHTML = `<div class="space-y-4 text-slate-600"><p>Le système de Points d'Expérience (XP) transforme ton parcours d'orientation en une aventure ! Chaque action importante te rapporte des points pour matérialiser ta progression.</p><div class="p-4 bg-background-light rounded-lg border"><h4 class="font-semibold text-OrIAntation-darkblue mb-2">Comment ça marche ?</h4><p>Tes XP remplissent la jauge circulaire. Une fois pleine, tu passes au niveau supérieur et gagnes un nouveau rang, montrant que tu avances dans ta quête !</p></div><div class="p-4 bg-background-light rounded-lg border"><h4 class="font-semibold text-OrIAntation-darkblue mb-2">Comment gagner des XP ?</h4><ul class="list-disc list-inside text-sm"><li>En analysant ton profil ("Mieux se connaître").</li><li>En générant ton Rétroplanning.</li><li>En valorisant une expérience dans ton Portfolio.</li><li>En obtenant un bon score à un quiz "Fact Checking".</li><li>En utilisant le Radar à Opportunités.</li></ul></div></div>`;
-        createSimpleModal(title, contentHTML);
+        container.addEventListener('click', () => {
+            const title = "⭐ Qu'est-ce que le système d'XP ?";
+            const contentHTML = `<div class="space-y-4 text-slate-600"><p>Le système de Points d'Expérience (XP) transforme ton parcours d'orientation en une aventure ! Chaque action importante te rapporte des points pour matérialiser ta progression.</p><div class="p-4 bg-background-light rounded-lg border"><h4 class="font-semibold text-OrIAntation-darkblue mb-2">Comment ça marche ?</h4><p>Tes XP remplissent la jauge circulaire. Une fois pleine, tu passes au niveau supérieur et gagnes un nouveau rang, montrant que tu avances dans ta quête !</p></div><div class="p-4 bg-background-light rounded-lg border"><h4 class="font-semibold text-OrIAntation-darkblue mb-2">Comment gagner des XP ?</h4><ul class="list-disc list-inside text-sm"><li>En analysant ton profil ("Mieux se connaître").</li><li>En générant ton Rétroplanning.</li><li>En valorisant une expérience dans ton Portfolio.</li><li>En obtenant un bon score à un quiz "Fact Checking".</li><li>En utilisant le Radar à Opportunités.</li></ul></div></div>`;
+            createSimpleModal(title, contentHTML);
+        });
     });
-});
 
     div.querySelectorAll('.js-badges-container').forEach(container => {
-    container.addEventListener('click', () => {
-        const title = "🏆 Qu'est-ce que le système de Badges ?";
-        let contentHTML = `<div class="space-y-4 text-slate-600"><p>Les badges sont des récompenses spéciales que tu débloques en accomplissant des ensembles d'étapes clés. Ils symbolisent tes grandes réussites dans ton parcours d'orientation !</p><div class="space-y-3">`;
-        for (const key in badgesConfig) {
-            const badge = badgesConfig[key];
-            const earned = earnedBadges.includes(key);
-            contentHTML += `<div class="flex items-start gap-4 p-3 rounded-lg ${earned ? 'bg-amber-50 border border-amber-200' : 'bg-background-light border border-border-subtle'}"><span class="text-4xl ${earned ? '' : 'opacity-40'}">${badge.icon}</span><div><h4 class="font-bold ${earned ? 'text-amber-800' : 'text-OrIAntation-darkblue'}">${badge.title} ${earned ? '(Obtenu !)' : '(À débloquer)'}</h4><p class="text-sm">${badge.description}</p></div></div>`;
-        }
-        contentHTML += `</div></div>`;
+        container.addEventListener('click', () => {
+            const title = "🏆 Qu'est-ce que le système de Badges ?";
+            let contentHTML = `<div class="space-y-4 text-slate-600"><p>Les badges sont des récompenses spéciales que tu débloques en accomplissant des ensembles d'étapes clés. Ils symbolisent tes grandes réussites dans ton parcours d'orientation !</p><div class="space-y-3">`;
+            for (const key in badgesConfig) {
+                const badge = badgesConfig[key];
+                const earned = earnedBadges.includes(key);
+                contentHTML += `<div class="flex items-start gap-4 p-3 rounded-lg ${earned ? 'bg-amber-50 border border-amber-200' : 'bg-background-light border border-border-subtle'}"><span class="text-4xl ${earned ? '' : 'opacity-40'}">${badge.icon}</span><div><h4 class="font-bold ${earned ? 'text-amber-800' : 'text-OrIAntation-darkblue'}">${badge.title} ${earned ? '(Obtenu !)' : '(À débloquer)'}</h4><p class="text-sm">${badge.description}</p></div></div>`;
+            }
+            contentHTML += `</div></div>`;
+            createSimpleModal(title, contentHTML);
+        });
+    });
+
+    div.querySelector('#progress-help-btn').addEventListener('click', () => {
+        const title = "À quoi correspondent les coches ?";
+        const contentHTML = `
+            <div class="space-y-4 text-slate-600 text-left">
+                <p>Les coches à côté des étapes vous permettent de suivre votre progression en un coup d'œil.</p>
+                <div>
+                    <h4 class="font-semibold text-OrIAntation-darkblue"><span class="text-orange-400 font-bold">✔</span> Coche Orange</h4>
+                    <p class="text-sm pl-6">Signifie que vous avez <strong>commencé</strong> à explorer une étape, mais que vous ne l'avez pas encore terminée.</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-OrIAntation-darkblue"><span class="text-green-500 font-bold">✔</span> Coche Verte</h4>
+                    <p class="text-sm pl-6">Signifie que vous avez <strong>terminé</strong> l'étape en remplissant toutes les informations principales demandées.</p>
+                </div>
+                <p class="pt-4 border-t mt-4">Votre objectif est de faire passer un maximum d'étapes au vert pour construire le projet d'orientation le plus complet et le plus solide possible !</p>
+            </div>
+        `;
         createSimpleModal(title, contentHTML);
     });
-});
-
-   div.querySelector('#progress-help-btn').addEventListener('click', () => {
-    const title = "À quoi correspondent les coches ?";
-    const contentHTML = `
-        <div class="space-y-4 text-slate-600 text-left">
-            <p>Les coches à côté des étapes vous permettent de suivre votre progression en un coup d'œil.</p>
-            <div>
-                <h4 class="font-semibold text-OrIAntation-darkblue"><span class="text-orange-400 font-bold">✔</span> Coche Orange</h4>
-                <p class="text-sm pl-6">Signifie que vous avez <strong>commencé</strong> à explorer une étape, mais que vous ne l'avez pas encore terminée.</p>
-            </div>
-            <div>
-                <h4 class="font-semibold text-OrIAntation-darkblue"><span class="text-green-500 font-bold">✔</span> Coche Verte</h4>
-                <p class="text-sm pl-6">Signifie que vous avez <strong>terminé</strong> l'étape en remplissant toutes les informations principales demandées.</p>
-            </div>
-            <p class="pt-4 border-t mt-4">Votre objectif est de faire passer un maximum d'étapes au vert pour construire le projet d'orientation le plus complet et le plus solide possible !</p>
-        </div>
-    `;
-    createSimpleModal(title, contentHTML);
-});
 
     return div;
 }
@@ -3316,8 +3331,6 @@ function createStep1View() {
         return html;
     };
     
-    // ✅ ÉTAPE 1 : REMPLACEZ L'ANCIENNE FONCTION createMetierBlock PAR CELLE-CI
-
 const createMetierBlock = (index) => {
         const metier = journalData.step1[`metier${index}`] || '';
         const notes = journalData.step1[`notes${index}`] || '';
@@ -3468,28 +3481,77 @@ div.querySelectorAll('.ai-btn').forEach(button => {
         let useGrounding = false;
         let isJson = false;
         let resultToSave = ''; // Variable pour stocker la bonne version à sauvegarder
+        const profileSummary = getProfileSummary();
 
         switch (action) {
             case 'debouches':
-                prompt = `Décris en 3 points clairs les débouchés pour le métier de "${metier}".`;
-                break;
-            case 'journee':
-                prompt = `Raconte, à la première personne ('Je'), une journée type et réaliste d'un(e) '${metier}'.`;
-                break;
+    // On récupère le profil de l'élève
+  
+    prompt = `
+    Agis comme un conseiller d'orientation expert et perspicace. Ta mission est d'analyser les débouchés pour le métier de "${metier}" en les connectant au profil spécifique du lycéen que tu coaches.
+
+    **Voici le profil de l'élève :**
+    ${profileSummary}
+
+    **Instructions de Style :**
+    - Rédige une analyse structurée, factuelle et inspirante.
+    - Le ton doit être encourageant et précis.
+    - N'utilise PAS de formatage Markdown comme des # ou des *. Utilise des titres en gras (avec **) pour chaque point.
+
+    **Structure de la Réponse (4 points obligatoires) :**
+    Tu dois systématiquement faire le lien entre tes analyses et le profil de l'élève quand c'est pertinent.
+
+    1.  **Le Premier Emploi :** Décris le type de poste typique pour débuter dans cette carrière.
+    2.  **L'Évolution de Carrière :** Présente 2 ou 3 évolutions possibles, en insistant sur celles qui pourraient particulièrement correspondre au profil de l'élève (ex: une évolution vers un poste de management pour un profil 'Entreprenant').
+    3.  **Les Passerelles Possibles :** Suggère 1 ou 2 métiers connexes qui font écho à ses traits de personnalité ou à ses intérêts.
+    4.  **Vision d'Avenir & Ton Profil :** Donne une perspective sur l'avenir du métier et explique en quoi cela représente une opportunité ou un défi pour cet élève en particulier.
+    `;
+    break;
+
+     case 'journee':
+            prompt = `
+    Tu es un(e) ${metier} passionné(e) et expérimenté(e). Ta mission est de rédiger le récit d'une de tes journées de travail à la première personne ("Je") pour un lycéen curieux.
+
+    **Objectif de style :**
+    Le ton doit être immersif et inspirant. Décris non seulement ce que tu fais, mais aussi ce que tu ressens, les détails sensoriels (ce que tu vois, entends), les moments de satisfaction et les défis à relever. Le résultat doit se lire comme une page de roman.
+
+    **Objectif de contenu :**
+    Le récit doit être factuel et précis. Inclus des détails concrets :
+    - Les outils ou logiciels spécifiques que tu utilises.
+    - Le jargon du métier (expliqué simplement si nécessaire).
+    - Les interactions typiques avec tes collègues, clients ou patients.
+
+    **Structure narrative suggérée :**
+    1.  L'avant-scène : Comment la journée commence, l'état d'esprit.
+    2.  Le cœur de l'action : Les 5-6 tâches les plus importantes et concrètes.
+    3.  Un défi concret : Décris un problème que tu as résolu.
+    4.  La satisfaction du travail accompli : Comment la journée se termine, le sentiment que cela te procure.
+
+    Rédige un texte fluide, sans utiliser de listes ou de formatage Markdown (#, *).
+    `;
+    break;
+
             case 'temoignages':
-prompt = `
-Agis comme un documentaliste expert pour le métier de "${metier}".
+    
+    prompt = `
+    Agis comme un documentaliste expert et un coach d'orientation perspicace. Ta mission est de trouver 3 contenus pertinents sur le métier de "${metier}" qui résonneront personnellement avec le lycéen que tu aides.
 
-Ta mission est de trouver 3 contenus pertinents (interview vidéo, podcast, article...).
+    **Voici le profil de l'élève :**
+    ${profileSummary}
 
-**Règles de sortie (À SUIVRE IMPÉRATIVEMENT) :**
-1.  Ta réponse doit être **uniquement un objet JSON valide** contenant un tableau de 3 objets.
-2.  Chaque objet doit avoir les clés "titre", "resume", et "lien".
-3.  **RÈGLE LA PLUS IMPORTANTE :** Pour la clé "lien", si tu ne trouves PAS une URL réelle, directe et valide, tu DOIS la remplacer par une URL de recherche Google. Par exemple : "https://www.google.com/search?q=témoignage+métier+${metier}". N'invente **jamais** un nom de domaine.
-`;
-                useGrounding = true;
-                isJson = true;
-                break;
+    **Ta Mission Détaillée :**
+    Ne te contente pas de trouver des contenus génériques. Analyse le profil de l'élève et cherche des témoignages (interview vidéo, podcast, article...) qui mettent en lumière des aspects du métier de "${metier}" en lien direct avec ses traits de personnalité, ses moteurs ou ses compétences.
+    Par exemple, si l'élève est créatif, trouve un témoignage qui parle d'innovation ; s'il est méthodique, trouve un article sur la rigueur nécessaire dans ce métier.
+
+    **Règles de sortie (À SUIVRE IMPÉRATIVEMENT) :**
+    1.  Ta réponse doit être **uniquement un objet JSON valide** contenant un tableau de 3 objets.
+    2.  Chaque objet doit avoir les clés "titre", "resume", et "lien".
+    3.  **RÈGLE LA PLUS IMPORTANTE :** Pour la clé "lien", si tu ne trouves PAS une URL réelle, tu DOIS la remplacer par une URL de recherche Google personnalisée qui reflète ta recherche. Par exemple : "https://www.google.com/search?q=témoignage+${metier}+aspect+créatif". N'invente **jamais** un nom de domaine.
+    `;
+    useGrounding = true;
+    isJson = true;
+    break;
+
         }
 
         const result = await callOpenAI_API(prompt, useGrounding, isJson);
@@ -3611,34 +3673,21 @@ const result = await callOpenAI_API(prompt, false, true);
     }
     
     form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const formData = new FormData(form);
-        for (const [key, value] of formData.entries()) {
-            journalData.step1[key] = value;
-        }
-        checkBadges();
+    e.preventDefault();
+    
+    const formData = new FormData(form);
+    for (const [key, value] of formData.entries()) {
+        journalData.step1[key] = value;
+    }
+    await saveData();
+    checkBadges();
 
-        const metiersExplores = [journalData.step1.metier1, journalData.step1.metier2, journalData.step1.metier3]
-            .filter(m => m && m.trim() !== '').length;
-        
-        const shouldEndTutorial = (metiersExplores >= 1 && !journalData.tutorial_completed);
-
-        if (shouldEndTutorial) {
-            journalData.tutorial_completed = true;
-            journalData.tutorial_next_step = '';
-        }
-        
-        await saveData();
-
-        if (shouldEndTutorial) {
-            await showSurpriseModal(
-                "Félicitations, Tutoriel Terminé ! 🎉",
-                "<p>Tu as maintenant toutes les bases pour explorer ton orientation. Continue à remplir les étapes à ton rythme. Bonne exploration !</p>"
-            );
-        }
+    // On restaure l'appel au tutoriel qui déclenche la mission suivante
+    const tutorialShown = await handleOnboarding({ from: 'step1_save' });
+    if (!tutorialShown) {
         showView('menu');
-    });
+    }
+});
 
     checkComparisonState();
     checkSubmitButtonState();
@@ -7306,6 +7355,13 @@ const newShareLink = `${window.location.origin}${window.location.pathname}?share
     // ▼▼▼ REMPLACE LE PROMPT DU "FIL ROUGE" PAR CELUI-CI ▼▼▼
 
 div.querySelector('#updateFilRougeBtn').addEventListener('click', async () => {
+    if (!isStepStarted('step0')) {
+        showInfoModal(
+            "Action requise",
+            "Pour générer votre Fil Rouge, vous devez d'abord compléter l'étape 'Mieux se connaître' afin qu'OrIA ait assez d'informations sur vous pour tisser les liens."
+        );
+        return; // On arrête l'exécution de la fonction ici
+    }
     const loader = div.querySelector('#filRougeLoader');
     const contentP = div.querySelector('#filRougeContent');
     loader.style.display = 'block'; 
@@ -7333,7 +7389,10 @@ div.querySelector('#updateFilRougeBtn').addEventListener('click', async () => {
     journalData.fil_rouge = result; 
     await saveData();
 
-    // On utilise innerHTML et marked.parse() pour afficher le résultat
+    // ▼▼▼ AJOUTE CETTE LIGNE ▼▼▼
+    await handleOnboarding({ from: 'fil_rouge_generated' });
+    // ▲▲▲ FIN DE L'AJOUT ▲▲▲
+
     contentP.innerHTML = marked.parse(result);
     loader.style.display = 'none'; 
     contentP.style.display = 'block';
