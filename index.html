@@ -380,6 +380,8 @@ function extractJsonFromString(str) {
        // REMPLACEZ ce bloc par la nouvelle version
 // ✅ REMPLACEZ le premier bloc de démarrage (ligne 1484) par celui-ci
 
+// ▼▼▼ REMPLACE LE BLOC DE DÉMARRAGE (celui qui commence par (async...)) PAR CELUI-CI ▼▼▼
+
 (async () => {
     const params = new URLSearchParams(window.location.search);
     const mode = params.get('mode');
@@ -401,11 +403,12 @@ function extractJsonFromString(str) {
     if (mode === 'verifyEmail' && actionCode) {
         try {
             await applyActionCode(auth, actionCode);
-            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;"><h1 style="font-size: 1.875rem; font-weight: bold; color: #1A3263;">Vérification réussie ! ✅</h1><p style="color: #4A5568; margin-top: 1rem;">Cet onglet va se fermer automatiquement...</p></div>`;
+            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;"><h1 style="font-size: 1.875rem; font-weight: bold; color: #1A3263;">Vérification réussie ! ✅</h1><p style="color: #4A5568; margin-top: 1rem;">Votre compte est maintenant activé. Cet onglet va se fermer automatiquement...</p></div>`;
         } catch (error) {
-            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;"><h1 style="font-size: 1.875rem; font-weight: bold; color: #991B1B;">Erreur</h1><p style="color: #4A5568; margin-top: 1rem;">Le lien est invalide ou a expiré. Cet onglet va se fermer.</p></div>`;
+            console.error("Erreur de vérification:", error);
+            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;"><h1 style="font-size: 1.875rem; font-weight: bold; color: #991B1B;">Erreur</h1><p style="color: #4A5568; margin-top: 1rem;">Ce lien de vérification est invalide ou a déjà été utilisé. Veuillez vous connecter pour en recevoir un nouveau si besoin.</p></div>`;
         } finally {
-            setTimeout(() => { window.close(); }, 3500);
+            setTimeout(() => { window.close(); }, 4000); // On laisse un peu plus de temps pour lire
         }
         return; 
     }
@@ -416,8 +419,7 @@ function extractJsonFromString(str) {
         return; 
     }
 
-    // Si aucune des conditions ci-dessus n'est remplie, on lance le FLUX NORMAL de l'application
-    // (Cette fonction est définie juste après)
+    // Si aucune des conditions spéciales n'est remplie, on lance le FLUX NORMAL de l'application
     initializeNormalAppFlow();
 
 })();
