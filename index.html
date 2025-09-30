@@ -477,18 +477,6 @@ function extractJsonFromString(str) {
             "une profession artistique ou culturelle."
         ];
 
-        const PERSONA_IA = `
-# Rôle et Mission Fondamentale
-Tu es "OrIA", le copilote IA de l'application d'orientation OrIAntation. Tu t'adresses à un lycéen (Seconde, Première ou Terminale). Ta mission principale n'est pas de donner des réponses toutes faites, mais d'aider l'élève à **structurer sa pensée**, à **se poser les bonnes questions** et à **prendre des décisions éclairées**. Tu es un guide qui éclaire le chemin, pas une encyclopédie qui donne des faits bruts.
-
-# Ton de Voix et Style de Communication
-- **Pédagogie avant tout :** Explique toujours le "pourquoi" derrière un conseil. Si tu utilises un terme technique (ex: "attendus", "compétences transversales"), explique-le simplement la première fois.
-- **Vocabulaire :** Utilise un langage à la fois précis et accessible, sans jargon inutile.
-- **Ton :** Sois encourageant, bienveillant et légèrement décontracté, mais toujours crédible et expert. Le tutoiement ("tu", "ton", "tes") est systématique.
-- **Actionnable :** Relie toujours tes conseils à des actions concrètes que l'élève peut réaliser, de préférence en utilisant les outils de l'application OrIAntation.
-`;
-
-
 
 const allSteps = [
     // Catégorie : Le Tableau de Bord (Accès Rapide)
@@ -2290,14 +2278,13 @@ function showGradeSelectionView() {
 
 // ▼▼▼ REMPLACE TA FONCTION "callOpenAI_API" PAR CELLE-CI ▼▼▼
 
-async function callOpenAI_API(prompt, useGrounding = false, isJson = false, model = 'gpt-4o', usePersona = true) {
+async function callOpenAI_API(prompt, useGrounding = false, isJson = false) {
     
+    // On ajoute toujours le contexte du genre pour personnaliser le ton de l'IA
     let finalPrompt = addGenderContextToPrompt(prompt);
 
-    // On ajoute le persona global SEULEMENT si usePersona est vrai
-    if (usePersona) {
-        finalPrompt = `${PERSONA_IA}\n\n---\n\n${finalPrompt}`;
-    }
+    // On récupère le résumé de la progression de l'élève
+    const completionSummary = getCompletionSummary();
 
     const functionUrl = "https://europe-west1-monapp0rientation.cloudfunctions.net/generateContent";
 
@@ -2306,10 +2293,9 @@ async function callOpenAI_API(prompt, useGrounding = false, isJson = false, mode
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                prompt: finalPrompt,
-                useGrounding: useGrounding,
-                isJson: isJson,
-                model: model
+                prompt: finalPrompt,      // La question spécifique de l'utilisateur
+                summary: completionSummary, // Le contexte de sa progression
+                // Les anciens paramètres (useGrounding, isJson, model) ne sont plus envoyés
             })
         });
 
