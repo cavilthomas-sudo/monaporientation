@@ -69,55 +69,53 @@ exports.sendTransactionalEmail = functions
 // =================================================================
 exports.generateContent = functions
     .region("europe-west1")
+    .runWith({ timeoutSeconds: 300 })
     .https.onRequest((req, res) => {
         cors(req, res, async () => {
-            if (req.method !== "POST") {
-                return res.status(405).send("Method Not Allowed");
-            }
+            if (req.method !== "POST") { return res.status(405).send("Method Not Allowed"); }
 
             const openaiApiKey = functions.config().openai.key;
-            if (!openaiApiKey) {
-                console.error("Clé API OpenAI non configurée.");
-                return res.status(500).json({ error: "Configuration du serveur incomplète." });
-            }
+            if (!openaiApiKey) { return res.status(500).json({ error: "Configuration du serveur incomplète." }); }
 
-            // On récupère le prompt ET le résumé de progression envoyés par le client
-            const { prompt, summary } = req.body.data || req.body;
-
-            if (!prompt) {
-                return res.status(400).json({ error: "Le prompt ne peut pas être vide." });
-            }
-
-            // Le nouveau "payload" qui utilise votre prompt publié
-            const payload = {
-                prompt: {
-                    id: "pmpt_68db72c5cef88193a74aef3dfb76564802815e88f24dbdb3", // ⬅️ L'ID de votre prompt publié sur OpenAI
-                    variables: {
-                        "content": prompt,
-                        "completion_summary": summary || "La progression de l'élève n'est pas disponible."
-                    }
-                }
-            };
-
-            const headers = {
-                'Authorization': `Bearer ${openaiApiKey}`,
-                'Content-Type': 'application/json'
-            };
+            const { prompt, model, promptId, variables } = req.body;
+            const headers = { 'Authorization': `Bearer ${openaiApiKey}`, 'Content-Type': 'application/json' };
 
             try {
-                // On appelle la nouvelle URL pour les prompts publiés
-                const response = await axios.post('https://api.openai.com/v1/responses', payload, { headers: headers });
+                let response;
                 
-                // La structure de la réponse est différente pour cet endpoint
-                const text = response.data.choices[0].text.content;
+                // --- LOGIQUE CORRIGÉE ---
+
+                // VOIE EXPERT : Si un ID de prompt publié est fourni
+                if (promptId) {
+                    const payload = { prompt: { id: promptId, variables: variables || {} } };
+                    response = await axios.post('https://api.openai.com/v1/responses', payload, { headers: headers });
                 
+                // VOIE EXPRESS : L'appel direct par défaut
+                } else {
+                    // La vérification du prompt se fait UNIQUEMENT ici
+                    if (!prompt) {
+                        return res.status(400).json({ error: "Le prompt ne peut pas être vide." });
+                    }
+                    const payload = { model: model || 'gpt-4o', messages: [{ "role": "user", "content": prompt }] };
+                    response = await axios.post('https://api.openai.com/v1/chat/completions', payload, { headers: headers });
+                }
+                
+                // Le reste de la logique pour lire la réponse est inchangé et correct
+                const text = response.data?.choices?.[0]?.message?.content ||
+                             response.data?.output?.find(item => item.type === 'message')?.content?.[0]?.text;
+
                 if (text) {
                     return res.status(200).json({ result: text.trim() });
                 } else {
-                    throw new Error("Réponse invalide de l'API OpenAI (endpoint /v1/responses).");
+                    console.error("Structure de réponse OpenAI inattendue:", JSON.stringify(response.data, null, 2));
+                    throw new Error("Structure de réponse OpenAI invalide.");
                 }
             } catch (error) {
-                console.error("Erreur d'appel à l'API OpenAI:", error.response?.data || error.message);
+                if (error.response) {
+                    console.error("Erreur de l'API OpenAI (données):", JSON.stringify(error.response.data, null, 2));
+                } else {
+                    console.error("Erreur d'appel à l'API OpenAI (générale):", error.message);
+                }
                 return res.status(500).json({ error: "Une erreur est survenue lors de l'appel à l'API d'IA." });
             }
         });
