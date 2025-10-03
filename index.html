@@ -1932,6 +1932,7 @@ async function saveData(context = {}) { // Le contexte est conservé pour skipOn
                 step0: { 
                 q1: '', q2: '', q3: '', q4: '', q5: '', q6: '', q7: '', q8: '', q9: '', q10: '', 
                 q11: '', q12: '', q13: '', q14: '', q15: '', q16: '', q17: '', q18: '', q19: '', q20: '', q21: '', 
+                situation: '', // <--- AJOUTEZ CETTE LIGNE
                 analysis: '', 
                 archetype: null, 
                 test_interets: '',
@@ -3040,29 +3041,37 @@ function createStep0View() {
     ];
 
     form.innerHTML = `
-        <div id="quiz-wrapper" class="w-full max-w-lg mx-auto">
-            <div class="mb-2 flex justify-between items-center"><span id="quiz-progress-text" class="text-sm font-semibold text-cyan-700"></span><span id="quiz-part-text" class="text-sm text-slate-500"></span></div>
-            <div class="w-full bg-slate-200 rounded-full h-2.5"><div id="quiz-progress-bar" class="bg-cyan-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div></div>
-            <div id="quiz-question-container" class="mt-6 text-center"></div>
-        </div>
-        <div id="analysis-section" class="hidden text-center mt-6">
-            <h2 class="text-xl font-bold text-OrIAntation-darkblue">Questionnaire terminé !</h2>
-            <p class="text-slate-600 my-4">Bravo, tu as fait le tour. Clique maintenant sur le bouton pour obtenir ton profil personnalisé.</p>
-            <button type="button" id="analyzeProfileBtn" class="bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">✨ Analyser mon profil</button>
-        </div>
-        <div id="openaiLoader_step0" class="hidden mt-4"><div class="loader"></div></div>
-        <div id="results-wrapper" class="mt-8 space-y-8">
-            <div id="archetype-container"></div>
-            <div id="analysis-container"></div>
-            <div id="infographic-container"></div>
-            <div id="submit-container" class="text-center pt-4 hidden">
-    <div class="flex flex-col sm:flex-row gap-4">
-        <button type="button" id="retake-quiz-btn" class="w-full sm:w-1/2 bg-slate-200 text-OrIAntation-darkblue font-semibold py-3 px-6 rounded-lg hover:bg-slate-300 transition">🔄 Recommencer le test</button>
-        <button type="submit" class="w-full sm:w-1/2 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700 transition">✔️ Terminer et sauvegarder</button>
+        <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-4">Ton Point de Départ</h2>
+    <p class="text-slate-600 mb-6">Pour commencer, décris en quelques phrases où tu en es dans ta réflexion. As-tu déjà des idées, des pistes ? Ou es-tu dans le flou total ? Sois honnête, cela aidera OrIA à mieux te guider.</p>
+    <div class="mb-8">
+        <label for="situation" class="block text-md font-medium text-slate-700 mb-2">Ma situation actuelle :</label>
+        <textarea id="situation" name="situation" rows="5" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Ex: Je suis en Seconde et je commence à peine à y penser, les métiers de la santé m'attirent mais je ne sais pas si j'ai le bon profil...">${journalData.step0.situation || ''}</textarea>
     </div>
-</div>
+    <hr class="my-8 border-slate-300">
+    <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-4">Questionnaire de Personnalité</h2>
+    <div id="quiz-wrapper" class="w-full max-w-lg mx-auto">
+        <div class="mb-2 flex justify-between items-center"><span id="quiz-progress-text" class="text-sm font-semibold text-cyan-700"></span><span id="quiz-part-text" class="text-sm text-slate-500"></span></div>
+        <div class="w-full bg-slate-200 rounded-full h-2.5"><div id="quiz-progress-bar" class="bg-cyan-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div></div>
+        <div id="quiz-question-container" class="mt-6 text-center"></div>
+    </div>
+    <div id="analysis-section" class="hidden text-center mt-6">
+        <h2 class="text-xl font-bold text-OrIAntation-darkblue">Questionnaire terminé !</h2>
+        <p class="text-slate-600 my-4">Bravo, tu as fait le tour. Clique maintenant sur le bouton pour obtenir ton profil personnalisé.</p>
+        <button type="button" id="analyzeProfileBtn" class="bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">✨ Analyser mon profil</button>
+    </div>
+    <div id="openaiLoader_step0" class="hidden mt-4"><div class="loader"></div></div>
+    <div id="results-wrapper" class="mt-8 space-y-8">
+        <div id="archetype-container"></div>
+        <div id="analysis-container"></div>
+        <div id="infographic-container"></div>
+        <div id="submit-container" class="text-center pt-4 hidden">
+            <div class="flex flex-col sm:flex-row gap-4">
+                <button type="button" id="retake-quiz-btn" class="w-full sm:w-1/2 bg-slate-200 text-OrIAntation-darkblue font-semibold py-3 px-6 rounded-lg hover:bg-slate-300 transition">🔄 Recommencer le test</button>
+                <button type="submit" class="w-full sm:w-1/2 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700 transition">✔️ Terminer et sauvegarder</button>
+            </div>
         </div>
-        <hr class="my-12 border-slate-300">
+    </div>
+    <hr class="my-12 border-slate-300">
 
         <div id="pour-aller-plus-loin" class="hidden">
             <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Pour aller plus loin : Croise les regards</h2>
@@ -3168,30 +3177,35 @@ function createStep0View() {
         let profileAnalysis = '';
         let rawArchetypeResponse = '';
         const appFeaturesSummary = getAppFeaturesSummary();
+        const situationParagraphe = div.querySelector('#situation').value;
+
 
 
 const analysisPrompt = `
         Agis en tant que psychologue expérimenté(e) et coach pour l'application OrIAntation.
-        Tu viens de recevoir les réponses d'un(e) lycéen(ne) à un questionnaire de personnalité.
+            Tu viens de recevoir les réponses d'un(e) lycéen(ne) à un questionnaire de personnalité.
 
-        # Contexte de l'Application (Mode d'emploi)
-        Voici la liste des seules fonctionnalités que tu peux suggérer. N'en invente aucune autre.
-        ${appFeaturesSummary}
+            # Contexte de l'Application (Mode d'emploi)
+            Voici la liste des seules fonctionnalités que tu peux suggérer. N'en invente aucune autre.
+            ${appFeaturesSummary}
 
-        # Réponses de l'élève
-        ${answersText}
+            # Données sur l'élève (TRÈS IMPORTANT)
+            Voici d'abord son auto-évaluation de sa situation actuelle :
+            "${situationParagraphe}"
 
-        # Ta Mission
-        Rédige une analyse complète, bienveillante et structurée.
-        **Règle d'or :** À la fin de ton analyse, tu DOIS ajouter une section "Actions concrètes dans l'app OrIAntation" où tu suggères 2 actions précises et pertinentes que l'élève peut réaliser en utilisant les fonctionnalités décrites dans le contexte de l'application.
+            Voici ensuite ses réponses au questionnaire de personnalité :
+            ${answersText}
 
-        # Format de Sortie
-        La réponse doit être structurée exactement comme suit :
-        1.  **Synthèse de ton profil :** Un paragraphe de résumé global et positif.
-        2.  **Tes atouts et Pistes de Réflexion :** Analyse son mode de fonctionnement et ses forces. Suggère une piste de développement.
-        3.  **Les Environnements Faits pour toi :** Décris le type d'environnement et suggère 2-3 grands domaines/secteurs.
-        4.  **Actions concrètes dans l'app OrIAntation :** Une liste de 2 suggestions d'actions basées sur le mode d'emploi.
-    `;
+            # Ta Mission
+            Rédige une analyse complète, bienveillante et structurée. Tu dois **impérativement prendre en compte son auto-évaluation** pour personnaliser ton introduction et tes conclusions. Si l'élève a mentionné des pistes, commente-les à la lumière de son profil. S'il est perdu, rassure-le et montre-lui comment son profil peut être un point de départ solide.
+
+            # Format de Sortie
+            La réponse doit être structurée exactement comme suit :
+            1.  **Synthèse de ton profil :** Un paragraphe de résumé global et positif.
+            2.  **Tes atouts et Pistes de Réflexion :** Analyse son mode de fonctionnement et ses forces. Suggère une piste de développement.
+            3.  **Les Environnements Faits pour toi :** Décris le type d'environnement et suggère 2-3 grands domaines/secteurs.
+            4.  **Actions concrètes dans l'app OrIAntation :** Une liste de 2 suggestions d'actions basées sur le mode d'emploi.
+        `;
     
         profileAnalysis = await callOpenAI_API({
         promptText: analysisPrompt, // La mission est passée ici
@@ -3938,23 +3952,41 @@ function createStep2View() {
             resultDiv.innerHTML = '';
             
             let prompt = '';
+                        let isJson = false; // <-- ✅ CORRECTION : Déclarez la variable ici avec une valeur par défaut.
+
             if (action === 'analyse') {
                 if (!journalData.step0.analysis) { showInfoModal("Veuillez d'abord compléter l'étape 'Mieux se connaître'."); loader.style.display = 'none'; return; }
                 prompt = `Agis comme un conseiller d'orientation. Le profil d'un élève est : "${journalData.step0.analysis}". Il envisage la combinaison de spécialités : "${combo}". Fournis une analyse concise en 3 points : 1. Forces de la combinaison, 2. Lien avec son profil, 3. Piste d'exploration dans l'app.`;
-            } else if (action === 'testimonial') {
-prompt = `
-    Agis comme un documentaliste expert en orientation pour un lycéen qui explore la combinaison de spécialités suivante : "${combo}".
+ } else if (action === 'testimonial') {
+                isJson = true;
 
-    Ta mission n'est PAS d'inventer un témoignage. Tu dois réaliser deux choses :
+                // NOUVEAU : Ajout d'une règle de pertinence stricte selon la classe de l'élève
+                let strictnessInstruction = '';
+                if (userGradeLevel === 'seconde') {
+                    strictnessInstruction = `
+                        # Règle Stricte de Pertinence
+                        L'élève est en Seconde et explore une combinaison de 3 spécialités. Les résumés de tes 3 témoignages doivent **impérativement mentionner ou faire allusion aux TROIS spécialités** contenues dans : "${combo}". La pertinence est cruciale.
+                    `;
+                } else if (userGradeLevel === 'premiere') {
+                    strictnessInstruction = `
+                        # Règle Stricte de Pertinence
+                        L'élève est en Première et explore une combinaison de 2 spécialités. Les résumés de tes 3 témoignages doivent **impérativement mentionner ou faire allusion aux DEUX spécialités** contenues dans : "${combo}". La pertinence est cruciale.
+                    `;
+                }
+                prompt = `
+                    Agis comme un coach d'orientation qui compile des ressources pour un élève s'intéressant à la combinaison de spécialités : "${combo}".
+                    Ta mission est de générer 3 exemples de témoignages (vidéo, article, podcast) qui pourraient exister.
 
-    1.  **Synthétiser les points clés :** En te basant sur ta connaissance de témoignages d'étudiants réels, résume en quelques phrases les retours d'expérience courants (avantages, difficultés, conseils) pour cette combinaison de spécialités.
+                    Pour chaque témoignage :
+                    1. Invente un titre accrocheur et un court résumé.
+                    2. Pour la clé "lien", ne cherche PAS une URL réelle. Construis SYSTÉMATIQUEMENT une URL de recherche pertinente pour trouver ce type de contenu.
+                    3. **Règle impérative :** Au moins un des témoignages DOIT être une vidéo, et son lien doit pointer vers une recherche sur YouTube.
+                       Exemple de lien YouTube : "https://www.youtube.com/results?search_query=témoignage+spécialités+${encodeURIComponent(combo)}".
 
-    2.  **Orienter vers des sources réelles :** Indique à l'élève 2 ou 3 plateformes où il peut trouver des témoignages détaillés. Choisis les plus pertinentes dans cette liste : Reddit (/r/etudiants), Capitainestudy.fr, Aufutur.fr, Eddmon.fr et YouTube. Pour chaque plateforme, explique en une phrase le type de témoignage qu'il y trouvera.
-
-    Rédige une réponse fluide et utile, sans utiliser de listes à puces.
-`;
-
-}
+                    # Format de Sortie OBLIGATOIRE
+                    Ta réponse doit être **uniquement un objet JSON valide** contenant un tableau de 3 objets.
+                    Chaque objet doit avoir les clés "titre", "resume", et "lien".
+                `;}
 
             const result = await callOpenAI_API({ promptText: prompt, withPersona: true });
             loader.style.display = 'none';
@@ -6843,43 +6875,49 @@ div.addEventListener('click', async (e) => {
     // --- ÉTAPE 1 : La "Source de Vérité" - Les plannings par niveau sont inscrits en dur dans le code ---
     const retroplanningData = {
         seconde: [
-            { month: "Septembre", tasks: ["S'adapter au rythme du lycée et établir un planning de travail hebdomadaire.", "Utiliser l'étape 'Mieux se connaître' pour réaliser son auto-évaluation de début d'année."] },
-            { month: "Octobre", tasks: ["Faire un premier bilan sur ses matières fortes et celles à travailler.", "Commencer à explorer des secteurs d'activité via l'étape 'Les Fondations'."] },
-            { month: "Novembre", tasks: ["Se préparer pour le premier conseil de classe.", "Utiliser l'étape 'Le simulateur de spécialités' pour découvrir les combinaisons possibles sans pression."] },
-            { month: "Décembre", tasks: ["Analyser son premier bulletin et ajuster ses méthodes de travail.", "Profiter des vacances pour discuter de ses premières explorations avec ses proches."] },
-            { month: "Janvier", tasks: ["Début de la phase de dialogue sur l'orientation.", "Utiliser l'étape 'Rencontres sur mon Territoire' pour repérer les Journées Portes Ouvertes (JPO)."] },
-            { month: "Février", tasks: ["Participer à des JPO ou des salons d'orientation.", "Explorer les formations post-bac liées aux spécialités envisagées avec 'Le Catalogue'."] },
-            { month: "Mars", tasks: ["Préparer et formuler ses vœux provisoires de spécialités.", "Utiliser l'étape 'L'Expérience' pour préparer des questions à poser à des étudiants."] },
-            { month: "Avril", tasks: ["Confirmer ses choix et préparer les arguments pour le conseil de classe du 3ème trimestre.", "Commencer à réfléchir à des idées pour le stage d'observation de juin."] },
-            { month: "Mai", tasks: ["Valider ses vœux définitifs de spécialités.", "Utiliser l'étape 'Passer à l'action' pour organiser activement ses démarches de stage."] },
-            { month: "Juin", tasks: ["Effectuer son stage d'observation obligatoire de deux semaines.", "Utiliser l'étape 'Mon Portfolio de Compétences' pour valoriser l'expérience du stage."] },
-            { month: "Juillet", tasks: ["Faire le bilan de son année et de son stage.", "Se reposer !"] }
+            // ... (pas de changement pour la Seconde)
+            { month: "Septembre", tasks: ["Prendre ses marques au lycée, identifier ses points forts et ses difficultés.", "Utiliser l'étape 'Mieux se connaître' pour faire un premier point sur son profil."] },
+            { month: "Octobre", tasks: ["Participer aux semaines de l'orientation si organisées par le lycée.", "Explorer 2 ou 3 secteurs d'activité via l'étape 'Les Fondations'."] },
+            { month: "Novembre", tasks: ["Préparer le premier conseil de classe : faire un bilan de ses résultats.", "Commencer à manipuler 'Le simulateur de spécialités' pour voir les possibilités."] },
+            { month: "Décembre", tasks: ["Analyser son premier bulletin et définir des axes d'amélioration.", "Discuter de ses premières explorations avec ses proches et son professeur principal."] },
+            { month: "Janvier", tasks: ["Début de la phase de dialogue sur l'orientation : prendre connaissance de la 'fiche dialogue'.", "Utiliser 'Rencontres sur mon Territoire' pour repérer les Journées Portes Ouvertes (JPO) à venir."] },
+            { month: "Février", tasks: ["Participer à des JPO ou des salons pour se faire une idée concrète des formations.", "Explorer les formations post-bac liées aux spécialités envisagées avec 'Le Catalogue'."] },
+            { month: "Mars", tasks: ["Remplir la fiche de dialogue avec ses vœux provisoires de spécialités.", "Utiliser 'L'Expérience' pour préparer des questions à poser à des étudiants ou des professionnels."] },
+            { month: "Avril", tasks: ["Confirmer ses choix et préparer les arguments pour le conseil de classe du 3ème trimestre.", "Commencer activement la recherche d'un lieu pour le stage d'observation."] },
+            { month: "Mai", tasks: ["Le conseil de classe formule un avis sur les vœux de spécialités.", "Finaliser l'organisation de son stage avec l'étape 'Passer à l'action'."] },
+            { month: "Juin", tasks: ["Effectuer son stage d'observation obligatoire de deux semaines.", "Commencer la rédaction du rapport de stage et le valoriser dans 'Mon Portfolio de Compétences'."] },
+            { month: "Juillet", tasks: ["Faire le bilan de son année, de son stage et des choix validés.", "Se reposer !"] }
         ],
         premiere: [
-            { month: "Septembre", tasks: ["Consolider les bases dans ses 3 spécialités.", "Approfondir sa connaissance des métiers avec l'étape 'Les Fondations'."] },
-            { month: "Octobre", tasks: ["Préparer les premières évaluations importantes (épreuves communes).", "Utiliser 'Le Catalogue' pour lier ses spécialités à des formations post-bac précises."] },
-            { month: "Novembre", tasks: ["Travailler la méthodologie de la dissertation et du commentaire (Français).", "Utiliser l'étape 'Fact Checking' pour déconstruire les idées reçues sur certaines filières."] },
-            { month: "Décembre", tasks: ["Faire le bilan du premier trimestre et ajuster ses efforts.", "Commencer à valoriser ses projets et expériences dans 'Mon Portfolio de Compétences'."] },
-            { month: "Janvier", tasks: ["Participer activement aux JPO et salons pour affiner son projet.", "Utiliser l'étape 'L'Expérience' pour contacter des étudiants des filières qui l'intéressent."] },
-            { month: "Février", tasks: ["Choisir la spécialité qui sera abandonnée en Terminale.", "Simuler l'impact de ce choix avec 'Le simulateur de spécialités'."] },
-            { month: "Mars", tasks: ["Débuter les révisions intensives pour les épreuves de fin d'année.", "Utiliser 'Passer à l'action' pour planifier des rencontres avec des professionnels."] },
-            { month: "Avril", tasks: ["Se concentrer sur les épreuves de mathématqiues et de français.", "S'entraîner pour l'oral de français."] },
-            { month: "Mai", tasks: ["Continuer à préparer les épreuves de mathématqiues et de français", "Utiliser le 'Simulateur Vie Étudiante' pour se projeter financièrement."] },
-            { month: "Juin", tasks: ["Passer les épreuves finales (Français écrit/oral, Matématiques)."] },
+            // ... (pas de changement pour la Première)
+            { month: "Septembre", tasks: ["Consolider les méthodes de travail dans ses 3 spécialités.", "Approfondir sa connaissance de 2 métiers précis avec l'étape 'Les Fondations'."] },
+            { month: "Octobre", tasks: ["Préparer les premières évaluations comptant pour le baccalauréat.", "Utiliser 'Le Catalogue' pour lier ses spécialités à des formations post-bac précises."] },
+            { month: "Novembre", tasks: ["Travailler la méthodologie des épreuves anticipées de Français (dissertation, commentaire).", "Utiliser 'Fact Checking' pour déconstruire les idées reçues sur les filières visées."] },
+            { month: "Décembre", tasks: ["Faire le bilan du premier trimestre et identifier la spécialité la moins investie.", "Commencer à valoriser ses projets et expériences dans 'Mon Portfolio de Compétences'."] },
+            { month: "Janvier", tasks: ["Participer aux JPO et salons avec des questions ciblées.", "Remplir la fiche de dialogue pour le choix de la spécialité de Terminale."] },
+            { month: "Février", tasks: ["Décider de la spécialité qui sera abandonnée en Terminale.", "Simuler l'impact de ce choix avec 'Le simulateur de spécialités' pour confirmer."] },
+            { month: "Mars", tasks: ["Débuter les révisions intensives pour les épreuves anticipées de Français.", "Utiliser 'Passer à l'action' pour planifier des rencontres avec des professionnels."] },
+            { month: "Avril", tasks: ["S'entraîner pour l'oral de français (préparation des textes).", "Utiliser le 'Simulateur Vie Étudiante' pour se projeter financièrement dans différentes villes."] },
+            { month: "Mai", tasks: ["Finaliser les révisions du bac de Français.", "Faire le point sur l'avancement de son projet d'orientation avant la Terminale."] },
+            { month: "Juin", tasks: ["Passer les épreuves anticipées de Français (écrit et oral).", "Réfléchir aux thèmes possibles pour le Grand Oral de Terminale."] },
             { month: "Juillet", tasks: ["Faire le bilan de l'année et préparer sa rentrée en Terminale.", "Se reposer !"] }
         ],
         terminale: [
-            { month: "Septembre", tasks: ["Se familiariser avec le calendrier Parcoursup et les attendus des formations visées.", "Finaliser sa liste de vœux potentiels avec 'Le Catalogue'."] },
-            { month: "Octobre", tasks: ["Affiner mes méthodes de travail.", "Utiliser 'Mon Portfolio de Compétences' pour rassembler tous les éléments à valoriser."] },
-            { month: "Novembre", tasks: ["Commencer la rédaction des brouillons pour la rubrique 'Activités et centres d'intérêt'.", "Utiliser l'étape 'Préparer sa candidature' pour structurer ses projets de formation motivés."] },
-            { month: "Décembre", tasks: ["Profiter des vacances pour finaliser ses recherches et rédiger ses projets motivés.", "Faire le bilan du premier trimestre."] },
-            { month: "Janvier", tasks: ["S'inscrire sur Parcoursup et commencer à formuler ses vœux.", "S'entraîner à l'argumentation pour le Grand Oral."] },
-            { month: "Février", tasks: ["Poursuivre la saisie des vœux et la rédaction des projets motivés.", "Préparer les bacs blancs."] },
-            { month: "Mars", tasks: ["Date limite pour formuler ses vœux sur Parcoursup.", " préparer activement les épreuves de spécialités."] },
-            { month: "Avril", tasks: ["Finaliser et confirmer chaque vœu sur Parcoursup.", "Utiliser l'étape 'Anticiper la suite' pour préparer un plan B."] },
-            { month: "Mai", tasks: ["Débuter les révisions intensives pour la Philosophie et le Grand Oral.", "Se préparer psychologiquement à la phase d'admission."] },
-            { month: "Juin", tasks: ["Début de la phase d'admission principale de Parcoursup.", "Passer les épreuves de Philosophie, les 2 spécialités et le Grand Oral."] },
-            { month: "Juillet", tasks: ["Gérer les réponses de Parcoursup et la phase d'admission complémentaire si besoin.", "Fêter la fin du lycée !"] }
+            // --- VERSION CORRIGÉE POUR LA TERMINALE ---
+            { month: "Septembre", tasks: ["Se familiariser avec le calendrier Parcoursup de l'année.", "Finaliser sa liste de formations cibles avec 'Le Catalogue'."] },
+            { month: "Octobre", tasks: ["Participer aux salons d'orientation pour confirmer ses choix.", "Utiliser 'Mon Portfolio de Compétences' pour rassembler tous les éléments à valoriser."] },
+            { month: "Novembre", tasks: ["Commencer la rédaction des brouillons pour la rubrique 'Activités et centres d'intérêt' de Parcoursup.", "Utiliser 'Préparer sa candidature' pour structurer ses premiers projets de formation motivés."] },
+            { month: "Décembre", tasks: ["Profiter des vacances pour avancer sur la rédaction des projets motivés.", "Faire le bilan du premier trimestre et valider ses choix de spécialités pour le bac."] },
+            { month: "Janvier", tasks: ["Ouverture de la plateforme Parcoursup : s'inscrire et commencer à formuler ses vœux.", "Choisir ses deux questions pour le Grand Oral et commencer les recherches."] },
+            { month: "Février", tasks: ["Poursuivre la saisie des vœux et la rédaction des projets motivés.", "Se préparer pour les dernières évaluations comptant pour le contrôle continu."] },
+            // MODIFIÉ
+            { month: "Mars", tasks: ["Date limite pour formuler ses vœux sur Parcoursup (mi-mars).", "Commencer à organiser ses fiches de révision pour les épreuves finales."] },
+            { month: "Avril", tasks: ["Date limite pour finaliser son dossier et confirmer chaque vœu sur Parcoursup (début avril).", "Utiliser l'étape 'Anticiper la suite' pour préparer un plan B en cas de réponses négatives."] },
+            // MODIFIÉ
+            { month: "Mai", tasks: ["Intensifier les révisions finales : Philosophie, Grand Oral ET les deux épreuves de spécialité.", "Début de la phase d'admission principale de Parcoursup (fin mai) : réception des réponses."] },
+            // MODIFIÉ
+            { month: "Juin", tasks: ["Passer les épreuves finales : Philosophie, Grand Oral et les deux épreuves de spécialité.", "Gérer les réponses de Parcoursup et la phase d'admission complémentaire si besoin."] },
+            { month: "Juillet", tasks: ["Répondre définitivement à la dernière proposition d'admission et s'inscrire administrativement.", "Fêter l'obtention du baccalauréat !"] }
         ]
     };
 
@@ -8524,7 +8562,6 @@ Tu es le "Copilote", l'IA conversationnelle de l'application "OrIAntation". Ton 
 - **Emojis :** Utilise quelques emojis pour rendre tes messages funs et visuels. 👍🚀💡😉🤔
 - **Proactivité :** Propose TOUJOURS une action suivante, de préférence en suggérant une étape pertinente de l'application.
 - **Varie tes intros !**
-- **Règle ABSOLUE :** Ne salue JAMAIS l'utilisateur après le premier message. Plonge directement dans le sujet.
 
 # Contexte Essentiel
 Tu dois te baser sur TOUT ce contexte pour chaque réponse.
@@ -8544,7 +8581,8 @@ Tu dois te baser sur TOUT ce contexte pour chaque réponse.
 [HISTORIQUE_CONVERSATION]
 
 # Ta Mission et tes Règles d'Or (À SUIVRE IMPÉRATIVEMENT)
-// ... (le reste du prompt ne change pas) ...
+- **Règle de base :** N'invente JAMAIS une fonctionnalité qui n'est pas dans la liste des outils. Ton rôle est de guider l'élève à travers l'application EXISTANTE.
+- **Ton objectif final :** Amener l'élève à une action concrète dans l'une des étapes de l'application.
 
 RÈGLE N°1 - LA PLUS IMPORTANTE : PAS DE SALUTATIONS.
 Tu ne salues l'utilisateur qu'une seule fois...
