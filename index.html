@@ -314,6 +314,15 @@
             appId: "1:369432089475:web:689a194b6880001c249cb6"
         };
 
+        const approvedTeacherDomains = [
+        'ac-aix-marseille.fr','ac-amiens.fr','ac-besancon.fr','ac-bordeaux.fr','ac-clermont.fr',
+        'ac-corse.fr','ac-creteil.fr','ac-dijon.fr','ac-grenoble.fr','ac-lille.fr','ac-limoges.fr',
+        'ac-lyon.fr','ac-montpellier.fr','ac-nancy-metz.fr','ac-nantes.fr','ac-nice.fr','ac-normandie.fr',
+        'ac-caen.fr','ac-rouen.fr','ac-orleans-tours.fr','ac-paris.fr','ac-poitiers.fr','ac-reims.fr',
+        'ac-rennes.fr','ac-strasbourg.fr','ac-toulouse.fr','ac-versailles.fr','ac-guadeloupe.fr',
+        'ac-guyane.fr','ac-martinique.fr','ac-mayotte.fr','ac-reunion.fr','education.gouv.fr'
+    ];
+
         const firebaseApp = initializeApp(firebaseConfig);
         const auth = getAuth(firebaseApp);
         const db = getFirestore(firebaseApp);
@@ -331,6 +340,7 @@
     console.log('%c[DEV]', 'color: #7c3aed; font-weight: bold;', ...args);
   }
 }
+
 
 const PERSONA_IA = `
 # Rôle et Identité
@@ -1161,8 +1171,12 @@ floatingBackBtn.addEventListener('click', () => {
 const backAction = cameFromLogin ? window.showSignupViewFromGuide : () => window.showView('menu');
         backAction();
     } 
-
-        else if (currentViewName === 'privacy') {
+    // Cas 2 : On est sur la vue du journal d'un élève (en tant qu'enseignant)
+    else if (currentViewName === 'teacherStudentJournal') {
+        showView('teacherDashboard'); // On retourne au tableau de bord enseignant
+    }
+    // Cas 3 : On est sur la politique de confidentialité
+    else if (currentViewName === 'privacy') {
         // On s'assure que les bonnes sections de la page sont visibles
         document.getElementById('mainApp').style.display = 'none';
         document.getElementById('authContainer').style.display = 'block';
@@ -1176,7 +1190,7 @@ const backAction = cameFromLogin ? window.showSignupViewFromGuide : () => window
             showView('menu'); // Sinon (si on était déjà connecté), on retourne au menu
         }
     }
-    // Pour toutes les autres pages, on retourne simplement au menu (inchangé)
+    // Cas par défaut : Pour toutes les autres pages, on retourne au menu principal
     else {
         showView('menu');
     }
@@ -1214,46 +1228,68 @@ function initializeNormalAppFlow() {
         showSignupView();
     }
 
-    onAuthStateChanged(auth, user => {
-        const chatbotToggle = document.getElementById('chatbot-toggle');
-        const floatingBackBtn = document.getElementById('floatingBackBtn');
-        
-        if (user) {
-            if (user.emailVerified || IS_DEV_MODE) { 
-                if (IS_DEV_MODE) {
-                    console.log('%c⚠️ MODE DÉVELOPPEUR ACTIF : Vérification d\'email contournée.', 'color: orange; font-weight: bold;');
+
+// REMPLACEZ VOTRE FONCTION onAuthStateChanged PAR CETTE VERSION FINALE
+
+onAuthStateChanged(auth, user => {
+    const chatbotToggle = document.getElementById('chatbot-toggle');
+    const floatingBackBtn = document.getElementById('floatingBackBtn');
+    
+    if (user) {
+        if (user.emailVerified || IS_DEV_MODE) {
+            if (IS_DEV_MODE) { console.log('%c⚠️ MODE DÉVELOPPEUR ACTIF : Vérification d\'email contournée.', 'color: orange; font-weight: bold;'); }
+            
+            if (chatbotToggle) chatbotToggle.style.display = 'flex';
+            currentUserId = user.uid;
+            authContainer.style.display = 'none';
+            mainApp.style.display = 'block';
+            document.body.classList.add('logged-in');
+            
+            // On charge les données de l'utilisateur
+            loadData().then(async () => {
+                // 'loadData' est terminée, on peut maintenant prendre des décisions
+                
+                if (currentUserInfo.role === 'enseignant') {
+                    // CAS 1 : C'est un enseignant
+                    showView('teacherDashboard');
+
+                } else { 
+                    // CAS 2 : C'est un élève
+                    const userDocRef = doc(db, "users", currentUserId);
+                    const currentSchoolYear = getCurrentSchoolYear();
+                    await setDoc(userDocRef, { lastLoginSchoolYear: currentSchoolYear }, { merge: true });
+
+                    if (!userGradeLevel) {
+                        // 2a : C'est un NOUVEL élève (il n'a pas encore de classe)
+                        showGradeSelectionView();
+                    } else {
+                        // 2b : C'est un élève QUI REVIENT
+                        showMenuAndWelcomeCheck();
+                    }
                 }
-                
-                // --- UTILISATEUR CONNECTÉ ET VÉRIFIÉ (ou en mode dev) ---
-                if (chatbotToggle) chatbotToggle.style.display = 'flex';
-                currentUserId = user.uid;
-                authContainer.style.display = 'none';
-                mainApp.style.display = 'block';
-                document.body.classList.add('logged-in');
-                loadData();
-                
-            } else {
-                // --- UTILISATEUR CONNECTÉ MAIS NON VÉRIFIÉ (en production) ---
-                if (chatbotToggle) chatbotToggle.style.display = 'none';
-                if (floatingBackBtn) floatingBackBtn.style.display = 'none';
-                document.body.classList.remove('logged-in');
-                showVerificationView(user);
-            }
+            });
+            
         } else {
-            // --- UTILISATEUR DÉCONNECTÉ ---
+            // Logique pour l'e-mail non vérifié
             if (chatbotToggle) chatbotToggle.style.display = 'none';
             if (floatingBackBtn) floatingBackBtn.style.display = 'none';
-            
-            currentUserId = null;
-            userGradeLevel = null;
-            currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
-            journalData = {}; 
-            authContainer.style.display = 'block';
-            mainApp.style.display = 'none';
-            document.body.classList.remove('logged-in')
-            showLoginView();
+            document.body.classList.remove('logged-in');
+            showVerificationView(user);
         }
-    });
+    } else {
+        // Logique pour l'utilisateur déconnecté
+        if (chatbotToggle) chatbotToggle.style.display = 'none';
+        if (floatingBackBtn) floatingBackBtn.style.display = 'none';
+        currentUserId = null;
+        userGradeLevel = null;
+        currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
+        journalData = {}; 
+        authContainer.style.display = 'block';
+        mainApp.style.display = 'none';
+        document.body.classList.remove('logged-in');
+        showLoginView();
+    }
+});
 }
 
 async function handleOnboarding(context = {}) {
@@ -1549,10 +1585,8 @@ function showForgotPasswordView() {
     document.getElementById('backToLoginButton').addEventListener('click', showLoginView);
 }
 
-// 🔹 Vue d'inscription
-// 🔹 Vue d'inscription
-function showSignupView() {
 
+function showSignupView() {
     const floatingBackBtn = document.getElementById('floatingBackBtn');
     if (floatingBackBtn) {
         floatingBackBtn.style.display = 'none';
@@ -1565,28 +1599,61 @@ function showSignupView() {
             <form id="signupForm" class="mb-4">
                 <input id="firstName" type="text" placeholder="Prénom" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
                 <input id="lastName" type="text" placeholder="Nom" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
-                <input id="schoolName" type="text" placeholder="Nom du lycée" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
+                
+                <div id="student-school-container" class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-3">
+                    <label class="block text-md font-medium text-slate-700 mb-2">Comment te rattacher à ton lycée ?</label>
+                    <div class="flex gap-4 mb-2">
+                        <label class="flex items-center"><input type="radio" name="school_method" value="code" class="h-4 w-4 text-cyan-600" checked> <span class="ml-2 text-sm">Avec un code</span></label>
+                        <label class="flex items-center"><input type="radio" name="school_method" value="name" class="h-4 w-4 text-cyan-600"> <span class="ml-2 text-sm">Avec le nom</span></label>
+                    </div>
+                    <div id="school-code-field">
+                        <input id="schoolCode" type="text" placeholder="Code fourni par ton professeur" class="w-full p-3 border border-slate-300 rounded-lg">
+                    </div>
+                    <div id="school-name-field" class="hidden">
+                        <input id="schoolNameStudent" type="text" placeholder="Nom complet de ton lycée" class="w-full p-3 border border-slate-300 rounded-lg">
+                    </div>
+                </div>
+
+                <div id="teacher-school-container" class="hidden bg-slate-50 p-4 rounded-lg border border-slate-200 mb-3 space-y-3">
+                     <div>
+                        <label class="block text-md font-medium text-slate-700">Votre établissement</label>
+                        <input id="schoolNameTeacher" type="text" placeholder="Nom complet de votre établissement" class="w-full p-3 mt-1 border border-slate-300 rounded-lg">
+                    </div>
+                     <div>
+                        <label class="block text-md font-medium text-slate-700">Nom de votre classe</label>
+                        <input id="className" type="text" placeholder="Ex: Première Générale 2" class="w-full p-3 mt-1 border border-slate-300 rounded-lg">
+                    </div>
+                </div>
+
                 <select id="gender" class="w-full p-3 mb-3 border border-slate-300 rounded-lg bg-white" required>
                     <option value="" disabled selected>Je suis...</option>
                     <option value="homme">Un homme</option>
                     <option value="femme">Une femme</option>
                     <option value="autre">Autre / Préfère ne pas préciser</option>
                 </select>
+
                 <input id="email" type="email" placeholder="Adresse e-mail" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
                 <input id="password" type="password" placeholder="Mot de passe (6 caractères min.)" class="w-full p-3 mb-4 border border-slate-300 rounded-lg" required>
                 
-                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4">
-                    <p class="text-sm text-slate-700 mb-2">
-                        En créant votre compte, vous acceptez la <button type="button" id="showPrivacyPolicyFromSignup" class="font-semibold text-primary-action hover:underline">Politique de Confidentialité</button> de l'application OrIAntation.
-                        Ceci autorise la collecte et l'utilisation de vos données pour personnaliser votre parcours d'orientation.
-                    </p>
-                    <div class="flex items-start">
-                        <input type="checkbox" id="consentCheckbox" class="h-4 w-4 text-cyan-600 focus:ring-cyan-500 border-gray-300 rounded mt-1" required>
-                        <label for="consentCheckbox" class="ml-2 block text-sm text-slate-700">
-                            J'ai lu et j'accepte la politique de confidentialité.
-                        </label>
-                    </div>
+                <div class="flex items-center my-4">
+                    <input type="checkbox" id="isTeacherCheckbox" class="h-4 w-4 text-cyan-600 focus:ring-cyan-500 border-gray-300 rounded">
+                    <label for="isTeacherCheckbox" class="ml-2 block text-sm text-slate-700">
+                        Je suis un enseignant (requiert une adresse académique)
+                    </label>
                 </div>
+                
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4">
+    <p class="text-sm text-slate-700 mb-2">
+        En créant votre compte, vous acceptez la <button type="button" id="showPrivacyPolicyFromSignup" class="font-semibold text-primary-action hover:underline">Politique de Confidentialité</button> de l'application OrIAntation.
+        Ceci autorise la collecte et l'utilisation de vos données pour personnaliser votre parcours d'orientation.
+    </p>
+    <div class="flex items-start">
+        <input type="checkbox" id="consentCheckbox" class="h-4 w-4 text-cyan-600 focus:ring-cyan-500 border-gray-300 rounded mt-1" required>
+        <label for="consentCheckbox" class="ml-2 block text-sm text-slate-700">
+            J'ai lu et j'accepte la politique de confidentialité.
+        </label>
+    </div>
+</div>
                 
                 <button type="submit" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700">Créer mon compte</button>
             </form>
@@ -1600,11 +1667,9 @@ function showSignupView() {
     if (Object.keys(signupFormData).length > 0) {
         document.getElementById('firstName').value = signupFormData.firstName || '';
         document.getElementById('lastName').value = signupFormData.lastName || '';
-        document.getElementById('schoolName').value = signupFormData.schoolName || '';
+        document.getElementById('schoolNameStudent').value = signupFormData.schoolName || '';
         document.getElementById('gender').value = signupFormData.gender || '';
         document.getElementById('email').value = signupFormData.email || '';
-        
-        // On vide l'objet pour ne pas restaurer les données la prochaine fois
         signupFormData = {}; 
     }
 
@@ -1612,76 +1677,143 @@ function showSignupView() {
     const showLoginButton = document.getElementById('showLoginButton');
     const showPrivacyPolicyButton = document.getElementById('showPrivacyPolicyFromSignup');
     const authError = document.getElementById('authError');
+    const isTeacherCheckbox = document.getElementById('isTeacherCheckbox');
 
-signupForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const firstName = capitalizeWords(document.getElementById('firstName').value);
-    const lastName = capitalizeWords(document.getElementById('lastName').value);
-    const schoolName = capitalizeWords(document.getElementById('schoolName').value);
-    const gender = document.getElementById('gender').value;
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const consentGiven = document.getElementById('consentCheckbox').checked;
-
-    if (!consentGiven) { /* ... */ return; }
-
-    try {
-    // 1. On crée l'utilisateur dans le système d'authentification
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-
-    // 2. ✅ LA CORRECTION EST ICI :
-    // On sauvegarde VRAIMENT les informations du formulaire dans Firestore
-    const userDocRef = doc(db, "users", user.uid);
-    await setDoc(userDocRef, {
-        firstName: firstName,
-        lastName: lastName,
-        schoolName: schoolName,
-        gender: gender,
-        email: email,
-        createdAt: new Date()
+    // Logique pour afficher/cacher les champs élèves vs enseignants
+    const studentSchoolContainer = document.getElementById('student-school-container');
+    const teacherSchoolContainer = document.getElementById('teacher-school-container');
+    isTeacherCheckbox.addEventListener('change', (e) => {
+        const isTeacher = e.target.checked;
+        studentSchoolContainer.classList.toggle('hidden', isTeacher);
+        teacherSchoolContainer.classList.toggle('hidden', !isTeacher);
     });
     
-    // 3. On envoie l'email de vérification via notre fonction Cloud
+    // Logique pour les boutons radio élèves
+    const schoolCodeField = document.getElementById('school-code-field');
+    const schoolNameField = document.getElementById('school-name-field');
+    document.getElementsByName('school_method').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.value === 'code') {
+                schoolCodeField.classList.remove('hidden');
+                schoolNameField.classList.add('hidden');
+            } else {
+                schoolCodeField.classList.add('hidden');
+                schoolNameField.classList.remove('hidden');
+            }
+        });
+    });
+
+    signupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        authError.textContent = '';
+
+        const isTeacher = isTeacherCheckbox.checked;
+        const email = document.getElementById('email').value;
+
+        if (isTeacher) {
+            const domain = email.split('@')[1];
+            if (!approvedTeacherDomains.includes(domain)) {
+                authError.textContent = "Inscription enseignant : veuillez utiliser une adresse e-mail académique valide.";
+                return;
+            }
+        }
+
+        const firstName = capitalizeWords(document.getElementById('firstName').value);
+        const lastName = capitalizeWords(document.getElementById('lastName').value);
+        const gender = document.getElementById('gender').value;
+        const password = document.getElementById('password').value;
+        const userRole = isTeacher ? 'enseignant' : 'eleve';
+        
+        let schoolId, schoolName, classId = null;
+        let className = '';
+
+        try {
+            if (isTeacher) {
+                schoolName = capitalizeWords(document.getElementById('schoolNameTeacher').value.trim());
+                className = document.getElementById('className').value.trim();
+                if (!schoolName || !className) {
+                    throw new Error("Le nom de l'établissement et de la classe sont requis pour les enseignants.");
+                }
+                schoolId = schoolName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+            } else {
+                const schoolMethod = document.querySelector('input[name="school_method"]:checked').value;
+                if (schoolMethod === 'code') {
+                    const schoolCode = document.getElementById('schoolCode').value;
+                    if (!schoolCode) throw new Error("Le code d'établissement est requis.");
+                    const getSchool = httpsCallable(functions, 'getSchoolFromCode');
+                    const schoolResult = await getSchool({ code: schoolCode });
+                    schoolId = schoolResult.data.schoolId;
+                    schoolName = schoolResult.data.schoolName;
+                    classId = schoolResult.data.classId;
+                } else {
+                    const schoolNameInput = document.getElementById('schoolNameStudent').value;
+                    if (!schoolNameInput) throw new Error("Le nom du lycée est requis.");
+                    schoolName = capitalizeWords(schoolNameInput.trim());
+                    schoolId = schoolName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+                }
+            }
+
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            const userDocData = {
+                firstName, lastName, schoolId, schoolName, gender, email,
+                role: userRole,
+                createdAt: new Date()
+            };
+            if (classId) {
+                userDocData.classId = classId;
+            }
+
+            const userDocRef = doc(db, "users", user.uid);
+            await setDoc(userDocRef, userDocData);
+
+            if (isTeacher) {
+                const setupClass = httpsCallable(functions, 'setupTeacherClass');
+                await setupClass({ schoolName: schoolName, className: className });
+            }
+
+            const templateIdToSend = isTeacher ? 2 : 1; // <--- REMPLACEZ 2 par l'ID de votre nouveau template enseignant
+
+    // On envoie l'e-mail de vérification avec le bon template
     const functionUrl = 'https://europe-west1-monapp0rientation.cloudfunctions.net/sendTransactionalEmail';
     await fetch(functionUrl, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             data: {
-                templateId: 1,
+                templateId: templateIdToSend, // On utilise notre variable
                 toEmail: user.email,
-                params: {
-                    firstName: firstName 
-                }
+                params: { firstName: firstName }
             }
         }),
     });
-    
-} catch (error) {
-    console.error("Erreur lors de la création du compte :", error);
-    authError.textContent = "Erreur lors de la création du compte. L'e-mail est peut-être déjà utilisé.";
-}
-});
+            
+        } catch (error) {
+            console.error("Erreur lors de la création du compte :", error);
+            authError.textContent = error.message || "Une erreur est survenue lors de la création du compte.";
+        }
+    });
+
     showLoginButton.addEventListener('click', showLoginView);
     showPrivacyPolicyButton.addEventListener('click', () => {
-signupFormData = {
-        firstName: document.getElementById('firstName')?.value || '',
-        lastName: document.getElementById('lastName')?.value || '',
-        schoolName: document.getElementById('schoolName')?.value || '',
-        gender: document.getElementById('gender')?.value || '',
-        email: document.getElementById('email')?.value || ''
-        // On ne sauvegarde volontairement pas le mot de passe
-};
-    cameFromAuth = true;
-    authReturnView = 'signup';
-    document.getElementById('authContainer').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'block';
-    showView('privacy');
-});
+        const schoolName = isTeacherCheckbox.checked 
+            ? document.getElementById('schoolNameTeacher')?.value 
+            : document.getElementById('schoolNameStudent')?.value;
 
+        signupFormData = {
+            firstName: document.getElementById('firstName')?.value || '',
+            lastName: document.getElementById('lastName')?.value || '',
+            schoolName: schoolName || '',
+            gender: document.getElementById('gender')?.value || '',
+            email: document.getElementById('email')?.value || ''
+        };
+        cameFromAuth = true;
+        authReturnView = 'signup';
+        document.getElementById('authContainer').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        showView('privacy');
+    });
 }
 
 // 🔹 Rendre la fonction showView accessible globalement
@@ -1995,6 +2127,7 @@ async function saveData(context = {}) { // Le contexte est conservé pour skipOn
             async function loadData() {
             if (!currentUserId) return;
             const userDocRef = doc(db, "users", currentUserId);
+            await setDoc(userDocRef, { lastActivity: new Date() }, { merge: true });
             const docSnap = await getDoc(userDocRef);
             let data = docSnap.exists() ? docSnap.data() : {};
             
@@ -2003,7 +2136,9 @@ async function saveData(context = {}) { // Le contexte est conservé pour skipOn
                 firstName: data.firstName || '',
                 lastName: data.lastName || '',
                 schoolName: data.schoolName || '',
-                gender: data.gender || 'autre' // <-- AJOUTEZ CETTE LIGNE (avec une valeur par défaut)
+                gender: data.gender || 'autre',// <-- AJOUTEZ CETTE LIGNE (avec une valeur par défaut)
+                role: data.role || 'eleve' // ✅ AJOUT : On charge le rôle (par défaut "eleve")
+
 
             };
 
@@ -2036,31 +2171,6 @@ async function saveData(context = {}) { // Le contexte est conservé pour skipOn
     
     checkBadges();
 
-    const currentSchoolYear = getCurrentSchoolYear();
-    const isNewUserFlow = !userGradeLevel; // Condition simplifiée pour un nouvel utilisateur
-
-    if (isNewUserFlow) {
-        // Si c'est un nouvel utilisateur, on affiche la vue de sélection...
-        showGradeSelectionView();
-
-        // ...ET on attache la logique directement ici.
-        document.querySelectorAll('.grade-btn').forEach(button => {
-            button.addEventListener('click', async (e) => {
-                userGradeLevel = e.target.dataset.grade;
-                // On met à jour l'année scolaire pour ne plus être considéré comme "nouveau"
-                await setDoc(userDocRef, { lastLoginSchoolYear: currentSchoolYear }, { merge: true });
-                // On sauvegarde le choix de la classe
-                await saveData();
-                // ET SEULEMENT ENSUITE, on appelle la fonction qui affiche le menu ET la fenêtre de bienvenue
-                showMenuAndWelcomeCheck();
-            });
-        });
-    } else {
-        // Pour un utilisateur qui revient, le comportement est déjà correct
-        showMenuAndWelcomeCheck();
-        // On met quand même à jour sa date de dernière connexion
-        await setDoc(userDocRef, { lastLoginSchoolYear: currentSchoolYear }, { merge: true });
-    }
 }
 
 
@@ -2347,7 +2457,7 @@ function addGenderContextToPrompt(prompt) {
     return `${genderInstruction}\n\n---\n\n${prompt}`;
 }
        
-async function showView(viewName) {  
+async function showView(viewName, data = null) { // MODIFICATION ICI
     currentViewName = viewName; // <-- AJOUTEZ CETTE LIGNE
     authContainer.style.display = 'none';
     mainApp.style.display = 'block';
@@ -2401,6 +2511,8 @@ const showBackButtonOn = ['step0', 'step1', 'step2', 'step3', 'step4', 'step5', 
         case 'guide': newView = createGuideView(); break;
         case 'retroplanning': newView = createRetroplanningView(); break;
         case 'journal': newView = await createJournalView(); break;
+        case 'teacherDashboard': newView = createTeacherDashboardView(); break; // ⬅️ NOUVEAU
+        case 'teacherStudentJournal': newView = createTeacherStudentJournalView(data); break;
         case 'privacy': newView = createPrivacyPolicyView(); break;
         default: newView = createHomeView();
     }
@@ -2434,6 +2546,17 @@ function createMenuView() {
     } else {
         badgesHTML = `<div class="w-full h-full bg-cover bg-center bg-no-repeat rounded-full" style="background-image: url('logo_badges.png');"></div>`;
     }
+
+let teacherButtonHTML = '';
+if (currentUserInfo.role === 'enseignant') {
+    teacherButtonHTML = `
+        <div class="text-center mb-4">
+            <button onclick="showView('teacherDashboard')" class="bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 transition">
+                Accéder à mon Tableau de Bord Enseignant
+            </button>
+        </div>
+    `;
+}
 
     const levelDisplayHTML = `
     <div class="mb-10 bg-white p-6 rounded-2xl shadow-lg border border-border-subtle">
@@ -2571,7 +2694,7 @@ function createMenuView() {
         </div>
     `;
     
-    div.innerHTML = levelDisplayHTML + `<div class="max-w-xl mx-auto my-8">${progressBarHTML}</div>` + guideCardHTML + menuGridHTML + radarHTML;
+    div.innerHTML = teacherButtonHTML + levelDisplayHTML + `<div class="max-w-xl mx-auto my-8">${progressBarHTML}</div>` + guideCardHTML + menuGridHTML + radarHTML;
     
     setTimeout(() => {
         const canvas = div.querySelector('#xp-chart');
@@ -2796,6 +2919,577 @@ const sujet = result.split('\n')[0].replace(/\*\*/g, '').replace('La Piste Sugg�
     });
 
     return div;
+}
+
+function createTeacherDashboardView() {
+    const div = document.createElement('div');
+    div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-border-subtle';
+    
+    // On utilise currentUserInfo.firstName pour personnaliser le titre
+    div.innerHTML = `
+        <img src="logo.png" alt="Logo OrIAntation" class="mx-auto h-60 w-auto mb-4">
+        <h1 class="text-2xl font-bold text-OrIAntation-darkblue mb-1 text-center">Tableau de Bord de ${currentUserInfo.firstName} ${currentUserInfo.lastName}</h1>
+<p class="text-center text-slate-500 mb-4">${currentUserInfo.gender === 'femme' ? 'Enseignante' : 'Enseignant'} au ${currentUserInfo.schoolName}</p>        
+<div class="text-center mb-6">
+    <button onclick="signOut(auth)" class="text-sm text-slate-500 hover:text-red-600 hover:underline transition">Se déconnecter</button>
+</div>
+        
+        <div id="stats-container" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div class="bg-sky-50 p-4 rounded-lg text-center border border-sky-200">
+                <p class="text-sm text-sky-700 font-semibold">Élèves dans la classe</p>
+                <p id="stats-total-students" class="text-2xl font-bold text-sky-900">-</p>
+            </div>
+            <div class="bg-green-50 p-4 rounded-lg text-center border border-green-200">
+                <p class="text-sm text-green-700 font-semibold">Progression moyenne</p>
+                <p id="stats-avg-progress" class="text-2xl font-bold text-green-900">- %</p>
+            </div>
+            <div class="bg-orange-50 p-4 rounded-lg text-center border border-orange-200">
+                <p class="text-sm text-orange-700 font-semibold">Élèves à suivre</p>
+                <p id="stats-at-risk" class="text-2xl font-bold text-orange-900">-</p>
+            </div>
+        </div>
+
+        <div id="invite-code-container" class="mb-8"></div>
+
+        <div class="text-center mb-6">
+            <button id="show-analytics-btn" class="bg-teal-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-600 transition">
+                📊 Voir les statistiques détaillées de la classe
+            </button>
+        </div>
+        <div id="analytics-container" class="hidden my-8 p-6 bg-gray-50 rounded-lg border"></div>
+        
+        <div class="flex flex-col sm:flex-row gap-4 mb-4">
+            <input type="text" id="teacher-search-input" placeholder="Rechercher un élève..." class="w-full sm:flex-1 p-2 border rounded-lg">
+            <select id="teacher-sort-filter" class="w-full sm:w-auto p-2 border rounded-lg bg-white">
+                <option value="name_asc">Trier par nom (A-Z)</option>
+                <option value="progress_desc">Trier par progression (décroissant)</option>
+                <option value="progress_asc">Trier par progression (croissant)</option>
+                <option value="activity_desc">Trier par dernière activité</option>
+            </select>
+        </div>
+    
+        <div id="dashboard-content">
+            <div class="loader"></div>
+            <p class="text-center text-slate-500 mt-2">Chargement des données de la classe...</p>
+        </div>
+    `;
+
+    // Le reste de la logique JavaScript de la fonction reste inchangé
+    
+    const formatDate = (isoString) => {
+        if (!isoString) return 'Jamais';
+        const date = new Date(isoString);
+        const now = new Date();
+        const diffDays = Math.round((now - date) / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) return "Aujourd'hui";
+        if (diffDays === 1) return 'Hier';
+        if (diffDays <= 7) return `Il y a ${diffDays} jours`;
+        return `Le ${date.toLocaleDateString('fr-FR')}`;
+    };
+
+    let allStudents = [];
+
+    const renderTable = (studentsToRender) => {
+        const contentDiv = div.querySelector('#dashboard-content');
+        if (studentsToRender.length === 0 && allStudents.length > 0) {
+            contentDiv.innerHTML = '<p class="text-center text-slate-500 p-4">Aucun élève ne correspond à votre recherche.</p>';
+            return;
+        }
+
+        const statusIndicators = {
+            at_risk: { color: 'bg-orange-500', title: 'Élève à suivre (inactif ou bloqué)' },
+            active: { color: 'bg-green-500', title: 'Élève actif' },
+            excellent: { color: 'bg-blue-500', title: 'Progression excellente' }
+        };
+
+        let tableHTML = `
+            <div class="overflow-x-auto border rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Élève</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dernière activité</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progression</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        ${studentsToRender.map(student => {
+                            const indicator = statusIndicators[student.status] || { color: 'bg-gray-300', title: 'Statut inconnu' };
+                            return `
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <span class="w-3 h-3 rounded-full ${indicator.color}" title="${indicator.title}"></span>
+                                            <span class="ml-3 font-medium text-gray-900">${student.firstName} ${student.lastName}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(student.lastActivity)}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-cyan-600 h-2.5 rounded-full" style="width: ${student.progress}%"></div></div>
+                                            <span class="ml-3 text-sm font-medium text-gray-700">${student.progress}%</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <button data-student-id="${student.id}" class="view-journal-btn text-cyan-600 hover:text-cyan-900">Voir le journal</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+        contentDiv.innerHTML = tableHTML;
+    };
+
+    const getSchoolData = httpsCallable(functions, 'getSchoolDashboardData');
+    getSchoolData().then(result => {
+        allStudents = result.data.students;
+        const inviteCode = result.data.inviteCode;
+        
+        if (allStudents.length === 0) {
+            div.querySelector('#dashboard-content').innerHTML = '<p class="text-center text-slate-500">Aucun élève n\'est encore rattaché à votre classe.</p>';
+            div.querySelector('#stats-container').style.display = 'none';
+        } else {
+            const totalStudents = allStudents.length;
+            const atRiskStudents = allStudents.filter(s => s.status === 'at_risk').length;
+            const totalProgress = allStudents.reduce((sum, s) => sum + s.progress, 0);
+            const avgProgress = totalStudents > 0 ? Math.round(totalProgress / totalStudents) : 0;
+
+            div.querySelector('#stats-total-students').textContent = totalStudents;
+            div.querySelector('#stats-avg-progress').textContent = `${avgProgress} %`;
+            div.querySelector('#stats-at-risk').textContent = atRiskStudents;
+            
+            allStudents.sort((a, b) => a.lastName.localeCompare(b.lastName));
+            renderTable(allStudents);
+        }
+
+        if (inviteCode) {
+            div.querySelector('#invite-code-container').innerHTML = `
+                <div class="p-4 bg-teal-50 border-l-4 border-teal-500 rounded-r-lg">
+                    <h3 class="font-bold text-teal-800">Code d'invitation de la classe</h3>
+                    <p class="text-sm text-slate-700 mt-1">Partagez ce code avec vos élèves pour qu'ils rejoignent cette classe :</p>
+                    <div class="mt-2 p-2 rounded border border-dashed bg-white text-center">
+                        <p class="text-2xl font-bold text-teal-700 tracking-widest">${inviteCode}</p>
+                    </div>
+                </div>`;
+        }
+
+    }).catch(error => {
+        console.error("Erreur du tableau de bord:", error);
+        div.querySelector('#dashboard-content').innerHTML = `<p class="text-center text-red-500">Une erreur est survenue lors du chargement des données.</p>`;
+    });
+
+    const applyFilters = () => {
+        const searchTerm = div.querySelector('#teacher-search-input').value.toLowerCase();
+        const sortOption = div.querySelector('#teacher-sort-filter').value;
+        
+        let filteredStudents = allStudents.filter(student => 
+            `${student.firstName} ${student.lastName}`.toLowerCase().includes(searchTerm)
+        );
+
+        switch (sortOption) {
+            case 'progress_desc':
+                filteredStudents.sort((a, b) => b.progress - a.progress);
+                break;
+            case 'progress_asc':
+                filteredStudents.sort((a, b) => a.progress - b.progress);
+                break;
+            case 'activity_desc':
+                filteredStudents.sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity));
+                break;
+            default:
+                filteredStudents.sort((a, b) => a.lastName.localeCompare(b.lastName));
+                break;
+        }
+        renderTable(filteredStudents);
+    };
+
+    div.addEventListener('input', (e) => {
+        if (e.target.id === 'teacher-search-input') {
+            applyFilters();
+        }
+    });
+
+    div.addEventListener('change', (e) => {
+        if (e.target.id === 'teacher-sort-filter') {
+            applyFilters();
+        }
+    });
+    
+    const showAnalyticsBtn = div.querySelector('#show-analytics-btn');
+    const analyticsContainer = div.querySelector('#analytics-container');
+    let charts = {};
+
+    showAnalyticsBtn.addEventListener('click', async () => {
+        const isHidden = analyticsContainer.classList.contains('hidden');
+        analyticsContainer.classList.toggle('hidden');
+
+        if (!isHidden && analyticsContainer.innerHTML.trim() === '') {
+            analyticsContainer.innerHTML = '<div class="loader"></div>';
+
+            try {
+                const getAnalytics = httpsCallable(functions, 'getSchoolAnalytics');
+                const result = await getAnalytics();
+                const analytics = result.data.analytics;
+
+                if (Object.keys(analytics).length === 0) {
+                    analyticsContainer.innerHTML = '<p class="text-center text-slate-500">Pas assez de données pour générer des statistiques.</p>';
+                    return;
+                }
+
+                analyticsContainer.innerHTML = `
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div>
+                            <h3 class="font-bold text-lg text-center mb-4">📊 Répartition de la Progression</h3>
+                            <div class="max-w-xs mx-auto"><canvas id="progress-chart"></canvas></div>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg text-center mb-4">🧭 Secteurs les Plus Populaires</h3>
+                            <canvas id="sector-chart"></canvas>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg text-center mb-4">🎯 Métiers les Plus Explorés</h3>
+                            <ul id="top-metiers-list" class="space-y-2"></ul>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg text-center mb-4">🎓 Niveaux de Formation Visés</h3>
+                            <div class="max-w-xs mx-auto"><canvas id="formation-level-chart"></canvas></div>
+                        </div>
+                    </div>
+                `;
+
+                if (analytics.progressDistribution) {
+                    const progressCtx = document.getElementById('progress-chart').getContext('2d');
+                    charts.progress = new Chart(progressCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: Object.keys(analytics.progressDistribution),
+                            datasets: [{
+                                data: Object.values(analytics.progressDistribution),
+                                backgroundColor: ['#FBBF24', '#34D399', '#3B82F6'],
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: true }
+                    });
+                }
+
+                if (analytics.sectorCounts && Object.keys(analytics.sectorCounts).length > 0) {
+                    const sectorCtx = document.getElementById('sector-chart').getContext('2d');
+                    charts.sector = new Chart(sectorCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: Object.keys(analytics.sectorCounts),
+                            datasets: [{
+                                label: 'Nombre d\'explorations',
+                                data: Object.values(analytics.sectorCounts),
+                                backgroundColor: 'rgba(8, 145, 178, 0.6)',
+                                borderColor: 'rgba(8, 145, 178, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: { indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+                    });
+                }
+
+                if (analytics.topMetiers && analytics.topMetiers.length > 0) {
+                    const metiersList = document.getElementById('top-metiers-list');
+                    metiersList.innerHTML = analytics.topMetiers.map(metier => 
+                        `<li class="flex justify-between items-center bg-gray-100 p-2 rounded">
+                            <span class="text-sm font-medium text-gray-800">${metier.nom}</span>
+                            <span class="text-sm font-bold bg-cyan-200 text-cyan-800 px-2 py-0.5 rounded-full">${metier.count}</span>
+                        </li>`
+                    ).join('');
+                } else {
+                    document.getElementById('top-metiers-list').innerHTML = '<p class="text-center text-sm text-slate-500">Aucun métier exploré pour le moment.</p>';
+                }
+
+                if (analytics.formationLevelCounts) {
+                    const formationCtx = document.getElementById('formation-level-chart').getContext('2d');
+                    charts.formation = new Chart(formationCtx, {
+                        type: 'pie',
+                        data: {
+                            labels: Object.keys(analytics.formationLevelCounts),
+                            datasets: [{
+                                data: Object.values(analytics.formationLevelCounts),
+                                backgroundColor: ['#06b6d4', '#f97316', '#10b981', '#6366f1'],
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: true }
+                    });
+                }
+
+            } catch (error) {
+                console.error("Erreur lors de la récupération des statistiques:", error);
+                analyticsContainer.innerHTML = `<p class="text-center text-red-500">Impossible de charger les statistiques.</p>`;
+            }
+        }
+    });
+
+    div.addEventListener('click', async (e) => {
+        const viewJournalButton = e.target.closest('.view-journal-btn');
+        if (viewJournalButton) {
+            const studentId = viewJournalButton.dataset.studentId;
+            mainApp.innerHTML = '<div class="loader"></div>';
+            
+            try {
+                const getStudentJournal = httpsCallable(functions, 'getStudentJournal');
+                const studentResult = await getStudentJournal({ studentId: studentId });
+                const studentData = studentResult.data;
+
+                const userInfo = {
+                    firstName: studentData.firstName,
+                    schoolName: studentData.schoolName,
+                    gradeLevel: studentData.gradeLevel
+                };
+
+                currentViewName = 'teacherStudentJournal';
+                const pageElement = renderJournalPageView(userInfo, studentData.journal);
+                
+                mainApp.innerHTML = '';
+                mainApp.appendChild(pageElement);
+                document.getElementById('floatingBackBtn').style.display = 'flex';
+
+            } catch (error) {
+                console.error("Erreur lors de la récupération du journal:", error);
+                createSimpleModal("Erreur", "<p>Impossible de charger le journal de cet élève.</p>");
+                showView('teacherDashboard');
+            }
+        }
+    });
+    
+    return div;
+}
+
+// Dans index.html, AJOUTEZ CETTE NOUVELLE FONCTION
+
+function createTeacherStudentJournalView(studentData) {
+    if (!studentData) {
+        const div = document.createElement('div');
+        div.innerHTML = `<p class="text-red-500">Erreur : Les données de l'élève n'ont pas pu être chargées.</p>`;
+        return div;
+    }
+
+    const pageContainer = document.createElement('div');
+    pageContainer.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-border-subtle';
+
+    // === ASTUCE IMPORTANTE ===
+    // Pour réutiliser les fonctions comme createProgressBarHTML, on doit temporairement
+    // remplacer les variables globales par celles de l'élève.
+    const originalJournalData = journalData;
+    const originalGradeLevel = userGradeLevel;
+
+    journalData = studentData.journal;
+    userGradeLevel = studentData.journal.gradeLevel || 'N/A';
+    // =========================
+
+    let finalHTML = `
+        <h1 class="text-2xl font-bold text-cyan-700 mb-2 text-center">Journal de Bord de ${studentData.firstName}</h1>
+        <p class="text-slate-500 mb-8 text-center">Élève en ${userGradeLevel}.</p>
+        ${createProgressBarHTML()}
+    `;
+
+    if (journalData.earned_badges && journalData.earned_badges.length > 0) {
+        finalHTML += createBadgesDisplay('journal_public');
+    }
+
+    finalHTML += createOrientationMapView(journalData, 'public');
+
+    if (journalData.fil_rouge) {
+        finalHTML += `<div class="mb-8 p-6 bg-cyan-50 border-l-4 border-cyan-500 rounded-r-lg">
+                        <h2 class="text-xl font-bold text-cyan-800 mb-4">✨ Son Fil Rouge</h2>
+                        <div class="prose prose-sm max-w-none">${marked.parse(journalData.fil_rouge)}</div>
+                      </div>`;
+    }
+
+    pageContainer.innerHTML = finalHTML;
+
+    // === On restaure les variables globales originales ===
+    journalData = originalJournalData;
+    userGradeLevel = originalGradeLevel;
+
+
+    
+    return pageContainer;
+}
+
+// REMPLACEZ VOTRE FONCTION 'renderJournalPageView' PAR CETTE VERSION COMPLÈTE
+
+function renderJournalPageView(userInfo, journalDataToDisplay) {
+    const pageContainer = document.createElement('div');
+    pageContainer.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-border-subtle';
+
+    // === On utilise temporairement les données de l'élève pour les fonctions globales ===
+    const originalJournalData = journalData;
+    const originalGradeLevel = userGradeLevel;
+    journalData = journalDataToDisplay;
+    userGradeLevel = userInfo.gradeLevel;
+    // =================================================================================
+
+    let finalHTML = `
+        <h1 class="text-2xl font-bold text-cyan-700 mb-2 text-center">Journal de Bord de ${userInfo.firstName}</h1>
+        <p class="text-slate-500 mb-8 text-center">Élève en ${userGradeLevel} à ${userInfo.schoolName}.</p>
+        ${createProgressBarHTML()}
+    `;
+
+    if (journalData.earned_badges && journalData.earned_badges.length > 0) {
+        finalHTML += createBadgesDisplay('journal_public');
+    }
+    finalHTML += createOrientationMapView(journalData, 'public');
+    if (journalData.fil_rouge) {
+        finalHTML += `<div class="mb-8 p-6 bg-cyan-50 border-l-4 border-cyan-500 rounded-r-lg"><h2 class="text-xl font-bold text-cyan-800 mb-4">✨ Son Fil Rouge</h2><div class="prose prose-sm max-w-none">${marked.parse(journalData.fil_rouge)}</div></div>`;
+    }
+    pageContainer.innerHTML = finalHTML;
+
+    // --- Conteneur pour les sections détaillées ---
+    const journalContentDiv = document.createElement('div');
+    journalContentDiv.className = 'mt-8 space-y-4';
+
+    if (journalData.step0 && journalData.step0.analysis) {
+        journalContentDiv.appendChild(createProfileInfographic(journalData.step0, 'public'));
+    }
+
+    const stepTitles = {
+        retroplanning_saves: 'Ses Conseils de Rétroplanning Sauvegardés',
+        step10: 'Son Portfolio de Compétences',
+        step1: 'Ses Fondations (Métiers)',
+        step2: 'Ses simulations de spécialités',
+        step3: 'Son Catalogue (Formations)',
+        step4: 'Sa préparation d\'entretiens',
+        step5: 'Son Actu',
+        step6: 'Ses préparations de candidatures',
+        step7: 'Ses Scores (Fact Checking)',
+        step8: 'Ses passages à l\'action',
+        step9: 'Son anticipation de la suite',
+        step11: 'Ses rencontres sur le territoire',
+        step12: 'Ses simulations de vie étudiante',
+        radar_history: 'Son Radar à Opportunités',
+        chatbot_saves: 'Ses Discussions avec le Coach',
+    };
+    
+    // Helper pour convertir un tableau Markdown en HTML
+    const markdownTableToHtml = (markdown) => {
+        if (!markdown) return '';
+        const lines = markdown.trim().split('\n').filter(line => line.trim().startsWith('|'));
+        if (lines.length < 2) return '';
+        let html = '<div class="comparison-table-wrapper"><table>';
+        const headerCells = lines[0].split('|').slice(1, -1).map(cell => `<th>${cell.trim()}</th>`).join('');
+        html += `<thead><tr>${headerCells}</tr></thead><tbody>`;
+        lines.slice(2).forEach(line => {
+            const rowCells = line.split('|').slice(1, -1).map(cell => `<td>${linkify(cell.trim())}</td>`).join('');
+            html += `<tr>${rowCells}</tr>`;
+        });
+        html += `</tbody></table></div>`;
+        return html;
+    };
+
+    for (const stepKey in stepTitles) {
+        const stepData = journalDataToDisplay[stepKey];
+        let sectionContentHTML = '';
+        let hasContentInSection = false;
+
+        // On vérifie si la section contient des données à afficher
+        if (stepData && ( (Array.isArray(stepData) && stepData.length > 0) || (typeof stepData === 'object' && Object.keys(stepData).length > 0 && (!Array.isArray(stepData) || stepData.length > 0) ) )) {
+            hasContentInSection = true;
+            
+            // Logique de rendu spécifique à chaque section
+            if (stepKey === 'step1' && Array.isArray(stepData.metiers) && stepData.metiers.length > 0) {
+                 sectionContentHTML = '<div class="space-y-3">' + stepData.metiers.map(metier => {
+                    let analysesHTML = '';
+                    if (metier.analyses) {
+                        analysesHTML = Object.entries(metier.analyses).map(([key, value]) => {
+                           if (!value) return '';
+                           return `<div class="mt-2"><h5 class="font-medium text-sm text-OrIAntation-darkblue">${capitalizeWords(key)}</h5><div class="prose prose-sm max-w-none">${marked.parse(linkify(value))}</div></div>`;
+                        }).join('');
+                    }
+                    return `<details class="bg-background-light rounded-lg border"><summary class="p-3 font-semibold">${metier.nom}</summary><div class="p-3 border-t"><p><b>Notes:</b> ${metier.notes || 'Aucune'}</p>${analysesHTML}</div></details>`;
+                }).join('') + '</div>';
+            } else if (stepKey === 'step3' && stepData.formations?.length > 0) {
+                 sectionContentHTML = '<div class="space-y-3">' + stepData.formations.map(f => {
+                    let content = `<p><b>Attendus:</b> ${f.attendus || 'N/A'}</p><p><b>Mots-clés:</b> ${f.mots_cles || 'N/A'}</p>`;
+                    if (f.analyses?.compatibilite) content += `<div class="mt-2"><h5 class="font-medium text-sm">Rapport de compatibilité</h5><div class="prose prose-sm max-w-none">${marked.parse(f.analyses.compatibilite)}</div></div>`;
+                    return `<details class="bg-background-light rounded-lg border"><summary class="p-3 font-semibold">${f.nom}</summary><div class="p-3 border-t">${content}</div></details>`;
+                }).join('') + '</div>';
+            } else if (stepKey === 'step10') {
+                 let content = '';
+                 if (stepData.experiences?.length > 0) content += `<h4>Expériences</h4>` + stepData.experiences.map(e => `<div class="p-2 my-1 bg-white border rounded">${e.analysis}</div>`).join('');
+                 if (stepData.soft_skills_profile) content += `<h4 class="mt-4">Profil de compétences</h4><div class="prose prose-sm max-w-none">${marked.parse(stepData.soft_skills_profile)}</div>`;
+                 if (stepData.skills_synthesis) content += `<h4 class="mt-4">Synthèse</h4><div class="prose prose-sm max-w-none">${marked.parse(stepData.skills_synthesis)}</div>`;
+                 sectionContentHTML = content;
+            } else if (Array.isArray(stepData)) {
+                // Rendu générique pour les autres sections qui sont des listes
+                sectionContentHTML = '<div class="space-y-3">' + stepData.map(item => {
+                    const title = item.sujet || item.question || item.theme || `Entrée du ${new Date(item.date).toLocaleDateString('fr-FR')}`;
+                    const content = item.reponse || item.conseils || item.suggestions || '';
+                    let formattedContent = '';
+                    if (typeof content === 'object') { // Pour les conseils du rétroplanning
+                        formattedContent = Object.entries(content).map(([key, value]) => `<p><b>${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:</b> ${value}</p>`).join('');
+                    } else {
+                        formattedContent = `<div class="prose prose-sm max-w-none">${marked.parse(linkify(content))}</div>`;
+                    }
+                    return `<details class="bg-background-light rounded-lg border"><summary class="p-3 font-semibold">${title}</summary><div class="p-3 border-t">${formattedContent}</div></details>`;
+                }).join('') + '</div>';
+            }
+        }
+        
+        if (hasContentInSection) {
+            const sectionContainer = document.createElement('div');
+            sectionContainer.className = 'border border-border-subtle rounded-lg overflow-hidden';
+            sectionContainer.innerHTML = `
+                <div class="journal-section-header flex justify-between items-center bg-background-light p-4 cursor-pointer hover:bg-slate-100 transition">
+                    <h3 class="text-lg font-bold text-cyan-700">${stepTitles[stepKey]}</h3>
+                    <span class="transform transition-transform duration-200 text-cyan-700">▼</span>
+                </div>
+                <div class="journal-section-content p-4 border-t border-border-subtle hidden">${sectionContentHTML}</div>`;
+            journalContentDiv.appendChild(sectionContainer);
+        }
+    }
+    
+    pageContainer.appendChild(journalContentDiv);
+    
+    // On ajoute le bouton "Préparer une discussion"
+    const discussionSection = document.createElement('div');
+    discussionSection.innerHTML = `
+        <div class="mt-8 border-t pt-6 text-center">
+            <button id="publicShareBtn" class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">🤝 Préparer une discussion</button>
+        </div>
+        <div id="publicOpenAIShareLoader" class="hidden"></div>
+        <div id="publicOpenAIShareResult" class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg text-slate-700"></div>`;
+    pageContainer.appendChild(discussionSection);
+
+    // Ajout de toute la logique des clics
+    pageContainer.addEventListener('click', async (e) => {
+        const header = e.target.closest('.journal-section-header');
+        const shareBtn = e.target.closest('#publicShareBtn');
+
+        if (header) {
+            const content = header.nextElementSibling;
+            const icon = header.querySelector('span');
+            content.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
+        } else if (shareBtn) {
+            shareBtn.disabled = true;
+            const loader = pageContainer.querySelector('#publicOpenAIShareLoader');
+            const resultDiv = pageContainer.querySelector('#publicOpenAIShareResult');
+            try {
+                const prompt = `Agis comme un coach d'orientation et un analyste de données expert. Ta mission est d'analyser le journal de bord d'un élève pour fournir des points de dialogue intelligents et ciblés à un parent ou un enseignant. Voici le journal de bord complet : ${JSON.stringify(journalDataToDisplay)}. Analyse ce journal et génère 3 à 4 points de dialogue pertinents, chacun avec un titre, une question ouverte et une suggestion d'action concrète.`;
+                const result = await callOpenAI_API({
+                    promptText: prompt,
+                    loaderElement: loader,
+                    customLoaderHTML: `<div class="loader"></div><p class="text-slate-500 font-semibold mt-2">Analyse du parcours en cours...</p>`
+                });
+                resultDiv.innerHTML = marked.parse(result);
+            } catch (error) {
+                resultDiv.innerHTML = '<p class="text-red-500">Une erreur est survenue.</p>';
+            } finally {
+                shareBtn.disabled = false;
+            }
+        }
+    });
+
+    return pageContainer;
 }
         
 function createHomeView() {
@@ -7737,6 +8431,8 @@ div.querySelector('#updateFilRougeBtn').addEventListener('click', async () => {
     return div;
 }
 
+// REMPLACEZ la fonction createPublicShareView par cette version simplifiée
+
 async function createPublicShareView(userId, token) {
     const mainApp = document.getElementById('mainApp');
     mainApp.innerHTML = `<div class="loader"></div>`;
@@ -7745,581 +8441,25 @@ async function createPublicShareView(userId, token) {
         const userDocRef = doc(db, "users", userId);
         const docSnap = await getDoc(userDocRef);
 
-        if (!docSnap.exists()) {
-            throw new Error("Utilisateur non trouvé.");
-        }
-
+        if (!docSnap.exists()) throw new Error("Utilisateur non trouvé.");
+        
         const data = docSnap.data();
         if (!data.journal || data.journal.share_token !== token) {
             throw new Error("Lien de partage invalide ou désactivé.");
         }
 
-        const pageContainer = document.createElement('div');
-        pageContainer.className = 'bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-border-subtle';
-
-        const publicJournalData = data.journal;
         const userInfo = {
             firstName: data.firstName || 'L\'élève',
-            lastName: data.lastName || '',
             schoolName: data.schoolName || 'son lycée',
             gradeLevel: data.gradeLevel || 'sa classe'
         };
 
-       const tempJournalData = journalData;
-        const tempGradeLevel = userGradeLevel; // On sauvegarde la classe de l'utilisateur actuel
-
-        journalData = publicJournalData;
-        userGradeLevel = userInfo.gradeLevel; // On utilise temporairement la classe de l'élève partagé
+        // On appelle la nouvelle fonction de rendu universelle
+        const pageElement = renderJournalPageView(userInfo, data.journal);
         
-        const progressBarHTML = createProgressBarHTML(); // Maintenant, cette fonction a les bonnes infos
-        
-
-        let finalHTML = `
-            <h1 class="text-2xl font-bold text-cyan-700 mb-2">Journal de Bord de ${userInfo.firstName}</h1>
-            <p class="text-slate-500 mb-8 text-center">Élève en ${userInfo.gradeLevel} à ${userInfo.schoolName}.</p>
-            ${progressBarHTML}`;
-
-        if (publicJournalData.earned_badges && publicJournalData.earned_badges.length > 0) {
-            const tempJournalData = journalData;
-            journalData = publicJournalData;
-            finalHTML += createBadgesDisplay('journal_public');
-            journalData = tempJournalData;
-        }
-
-        finalHTML += createOrientationMapView(publicJournalData, 'public');
-
-        if (publicJournalData.fil_rouge) {
-            finalHTML += `<div class="mb-8 p-6 bg-cyan-50 border-l-4 border-cyan-500 rounded-r-lg"><h2 class="text-xl font-bold text-cyan-800 mb-4">✨ Son Fil Rouge</h2><p class="text-slate-700 whitespace-pre-wrap">${publicJournalData.fil_rouge}</p></div>`;
-        }
-        
-        pageContainer.innerHTML = finalHTML;
-
-        const journalContentDiv = document.createElement('div');
-        journalContentDiv.id = 'journalContent';
-        journalContentDiv.className = 'mt-8 space-y-4';
-        
-        if (publicJournalData.step0 && publicJournalData.step0.analysis) {
-            const infographicElement = createProfileInfographic(publicJournalData.step0, 'public');
-            journalContentDiv.appendChild(infographicElement);
-        }
-
-        // --- BOUCLE COMPLÈTE ET CORRIGÉE ---
-        const stepTitles = {
-    retroplanning_saves: 'Mes Conseils de Rétroplanning Sauvegardés', // ⬅️ NOUVEAU
-    step10: 'Mon Portfolio de Compétences',
-    step2: 'Mes simulations de spécialités',
-    step1: 'Mes Fondations',
-    step3: 'Mon Catalogue',
-    step8: 'Mes passages à l\'action',
-    radar_history: 'Mon Radar à Opportunités',
-    chatbot_saves: 'Mes Discussions avec le Coach',
-    step4: "L'expérience", // <--- LIGNE À AJOUTER
-    step11: 'Mes rencontres sur le territoire',
-    step6: 'Mes préparations de candidatures',
-    step9: 'Mon anticipation de la suite',
-    step12: 'Mes simulations de vie étudiante',
-    step5: 'Mon Actu',
-    step7: 'Mes Scores (Fact Checking)',
-};
-        
-        for (const stepKey in stepTitles) {
-            const stepData = publicJournalData[stepKey];
-            let sectionHTML = '';
-            let hasContentInSection = false;
-
-            if (stepKey === 'retroplanning_saves') {
-            if (Array.isArray(stepData) && stepData.length > 0) {
-                hasContentInSection = true;
-                sectionHTML += '<div class="space-y-3">';
-                // On inverse le tableau pour afficher les plus récents en premier
-                [...stepData].reverse().forEach((item, index) => {
-                    let conseilsContent = '<div class="prose prose-sm max-w-none">';
-                    for (const [key, value] of Object.entries(item.conseils)) {
-                        const title = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                        conseilsContent += `<h4 class="font-bold text-OrIAntation-darkblue mt-3 mb-1">${title}</h4><p class="text-slate-600 whitespace-pre-wrap">${value}</p>`;
-                    }
-                    conseilsContent += '</div>';
-
-                    sectionHTML += `
-                        <details class="bg-background-light rounded-lg border border-border-subtle">
-                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Conseils générés le ${new Date(item.date).toLocaleDateString('fr-FR')}</summary>
-                            <div class="p-3 border-t border-border-subtle">${conseilsContent}</div>
-                        </details>
-                    `;
-                });
-                sectionHTML += '</div>';
-            }
-        } 
-
-         if (stepKey === 'chatbot_saves') {
-            if (Array.isArray(stepData) && stepData.length > 0) {
-                hasContentInSection = true;
-                sectionHTML += '<div class="space-y-3">';
-                stepData.forEach(item => {
-                    sectionHTML += `
-                        <details class="bg-background-light rounded-lg border border-border-subtle">
-                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Question : "${item.question}"</summary>
-                            <div class="p-3 border-t border-border-subtle">
-                                <p class="whitespace-pre-wrap text-slate-600">${linkify(item.reponse)}</p>
-                            </div>
-                        </details>
-                    `;
-                });
-                sectionHTML += '</div>';
-            }
-        } 
-            if (stepKey === 'radar_history') {
-                if (stepData && Array.isArray(stepData) && stepData.length > 0) {
-                    hasContentInSection = true;
-                    sectionHTML += '<div class="space-y-3">';
-                    stepData.forEach(item => { 
-                    sectionHTML += `<details class="bg-background-light rounded-lg border border-border-subtle"><summary class="p-3 font-semibold text-slate-700 cursor-pointer">${item.type} : ${item.sujet}</summary><div class="p-3 border-t border-border-subtle"><p class="whitespace-pre-wrap text-slate-600">${item.reponse}</p></div></details>`; });
-                    sectionHTML += '</div>';
-                }
-            } else if (['step1', 'step3', 'step4', 'step5', 'step6', 'step9'].includes(stepKey)) {
-                let entries = [];
-                if(stepData) {
-// REMPLACEZ VOTRE ANCIEN BLOC "if (stepKey === 'step1')" PAR CELUI-CI
-
-if (stepKey === 'step1') {
-    if (stepData && Array.isArray(stepData.metiers) && stepData.metiers.length > 0) {
-        hasContentInSection = true;
-        sectionHTML += '<div class="space-y-3">';
-        stepData.metiers.forEach(metier => {
-            let contentHTML = `<div class="mb-2"><p class="font-semibold text-slate-700">Notes :</p><p class="whitespace-pre-wrap text-slate-600">${metier.notes || "Aucune note."}</p></div>`;
-            
-            let analysesHTML = '';
-            if (metier.analyses) {
-                if(metier.analyses.debouches) {
-                    analysesHTML += `<div class="mb-3"><h5 class="font-medium text-OrIAntation-darkblue">Débouchés</h5><p class="text-sm whitespace-pre-wrap">${metier.analyses.debouches}</p></div>`;
-                }
-                if(metier.analyses.journee) {
-                    analysesHTML += `<div class="mb-3"><h5 class="font-medium text-OrIAntation-darkblue">Journée Type</h5><p class="text-sm whitespace-pre-wrap">${metier.analyses.journee}</p></div>`;
-                }
-                if(metier.analyses.temoignages) {
-                     try {
-                        const testimonials = JSON.parse(metier.analyses.temoignages);
-                        if (Array.isArray(testimonials)) {
-                            let temoignagesContent = '<div class="space-y-2">';
-                            testimonials.forEach(item => {
-                                 temoignagesContent += `
-                                    <div class="p-2 bg-white rounded border">
-                                        <a href="${item.lien}" target="_blank" class="font-semibold text-primary-action hover:underline text-sm">${item.titre}</a>
-                                        <p class="text-xs mt-1">${item.resume}</p>
-                                    </div>`;
-                            });
-                            temoignagesContent += '</div>';
-                            analysesHTML += `<div class="mb-2"><h5 class="font-medium text-OrIAntation-darkblue">Témoignages</h5>${temoignagesContent}</div>`;
-                        }
-                     } catch(e) { /* En cas d'erreur de parsing, on n'affiche rien pour cette partie */ }
-                }
-            }
-
-            if(analysesHTML) {
-                 contentHTML += `
-                    <details class="mt-3 bg-white rounded-md border">
-                        <summary class="p-2 text-sm font-medium cursor-pointer text-cyan-700 hover:bg-slate-50">Voir les analyses de OrIA</summary>
-                        <div class="p-3 border-t">${analysesHTML}</div>
-                    </details>`;
-            }
-
-            sectionHTML += `
-                <details class="bg-background-light rounded-lg border border-border-subtle">
-                    <summary class="p-3 font-semibold text-slate-700 cursor-pointer">${metier.nom}</summary>
-                    <div class="p-3 border-t border-border-subtle">${contentHTML}</div>
-                </details>`;
-        });
-        sectionHTML += '</div>';
-    }
-}
-// NOUVEAU BLOC POUR L'ÉTAPE 3
-if (stepKey === 'step3') {
-    if (stepData && Array.isArray(stepData.formations) && stepData.formations.length > 0) {
-        hasContentInSection = true;
-        sectionHTML += '<div class="space-y-3">';
-        stepData.formations.forEach(formation => {
-            let contentHTML = '';
-            if (formation.attendus) contentHTML += `<div class="mb-2"><p class="font-semibold">Attendus :</p><p class="whitespace-pre-wrap text-sm">${formation.attendus}</p></div>`;
-            if (formation.mots_cles) contentHTML += `<div class="mb-2"><p class="font-semibold">Mots-clés :</p><p class="whitespace-pre-wrap text-sm">${formation.mots_cles}</p></div>`;
-            
-            if (formation.analyses) {
-                if(formation.analyses.compatibilite) contentHTML += `<div class="mb-2"><p class="font-semibold">Rapport de compatibilité :</p><p class="whitespace-pre-wrap text-sm">${formation.analyses.compatibilite}</p></div>`;
-                if(formation.analyses.analyse_mots_cles) contentHTML += `<div class="mb-2"><p class="font-semibold">Analyse des mots-clés :</p><p class="whitespace-pre-wrap text-sm">${formation.analyses.analyse_mots_cles}</p></div>`;
-            }
-
-            sectionHTML += `
-                <details class="bg-background-light rounded-lg border border-border-subtle">
-                    <summary class="p-3 font-semibold text-slate-700 cursor-pointer">${formation.nom}</summary>
-                    <div class="p-3 border-t border-border-subtle">${contentHTML}</div>
-                </details>`;
-        });
-        sectionHTML += '</div>';
-    }
-    // On ajoute aussi l'affichage du comparateur s'il existe
-    if (stepData && stepData.comparison && stepData.comparison.trim() !== '') {
-        hasContentInSection = true;
-        try {
-            const data = JSON.parse(stepData.comparison);
-            sectionHTML += `<h4 class="font-bold text-OrIAntation-darkblue mt-4 mb-2">Tableau Comparatif</h4><div class="comparison-table-wrapper">${markdownTableToHtml(data.tableau)}</div><p class="text-sm italic mt-2">${data.remarques}</p>`;
-        } catch(e) { /* ignore error */ }
-    }
-}                
-
-else if (stepKey === 'step4' && Array.isArray(stepData?.themes) && stepData.themes.length > 0) {
-        hasSubEntries = true;
-        hasContentInSection = true;
-        sectionContentHTML = '<div class="space-y-3">' + stepData.themes.map((item, index) => {
-            let contentHTML = `
-                <div class="mb-3">
-                    <p class="font-semibold text-slate-800">Ma question :</p>
-                    <p class="text-sm whitespace-pre-wrap">${item.question}</p>
-                </div>
-                <div>
-                    <p class="font-semibold text-slate-800">Suggestions de l'IA :</p>
-                    <div class="text-sm whitespace-pre-wrap prose prose-sm max-w-none">${marked.parse(item.suggestions || '')}</div>
-                </div>
-            `;
-            return `
-                <details class="bg-background-light rounded-lg border border-border-subtle">
-                    <summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center">
-                        <span>${item.theme}</span>
-                        <button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step4" data-entry-index="${index}">🗑️</button>
-                    </summary>
-                    <div class="p-3 border-t border-border-subtle">${contentHTML}</div>
-                </details>`;
-        }).join('') + '</div>';
-    }
-
-else if (stepKey === 'step5' && stepData && Array.isArray(stepData.articles) && stepData.articles.length > 0) {
-    hasContentInSection = true;
-    sectionHTML += '<div class="space-y-3">';
-    stepData.articles.forEach(article => {
-        let contentHTML = `<div class="mb-2"><p class="font-semibold">Ce que j'ai appris :</p><p class="whitespace-pre-wrap text-sm">${article.notes || 'Non renseigné.'}</p></div>`;
-        if (article.analysis) {
-            contentHTML += `<div class="mb-2"><p class="font-semibold">Analyse de OrIA :</p><p class="whitespace-pre-wrap text-sm">${article.analysis}</p></div>`;
-        }
-        sectionHTML += `
-            <details class="bg-background-light rounded-lg border border-border-subtle">
-                <summary class="p-3 font-semibold text-slate-700 cursor-pointer">${article.title}</summary>
-                <div class="p-3 border-t border-border-subtle">${contentHTML}</div>
-            </details>`;
-    });
-    sectionHTML += '</div>';
-}
-                    if (stepKey === 'step6') { for (let i = 1; i <= 2; i++) if (stepData[`lettre${i}`]?.formation) entries.push({ title: stepData[`lettre${i}`].formation, content: { 'Motivations': stepData[`lettre${i}`].motivations, 'Structure proposée': stepData[`lettre${i}`].structure } }); }
-                    if (stepKey === 'step9') {
-                        if (stepData.formation_reve) entries.push({ title: 'Simulation : Mon Plan B', content: { 'Formation "rêvée"': stepData.formation_reve, 'Historique de la conversation': (stepData.planb_chat_history || []).map(msg => `<strong>${msg.role === 'user' ? 'L\'élève' : 'Coach'} :</strong> ${msg.text}`).join('<br>') } });
-                        if (stepData.reussite_type) entries.push({ title: 'Coach de Réussite', content: { 'Formation': stepData.reussite_type, 'Conseils': stepData.reussite_conseils } });
-                    }
-                }
-                const validEntries = entries.filter(e => e.title && e.title.trim() !== '');
-                if (validEntries.length > 0) {
-                    hasContentInSection = true;
-                    sectionHTML += '<div class="space-y-3">';
-                    validEntries.forEach(entry => {
-                        let contentHTML = '';
-if (typeof entry.content === 'string') {
-            contentHTML = entry.content;
-        } 
-        // Sinon, on applique la logique normale pour toutes les autres étapes
-        else {
-            for (const [label, value] of Object.entries(entry.content)) {
-                if (value && value.toString().trim() !== '') {
-                    contentHTML += `<div class="mb-2"><p class="font-semibold text-slate-700">${label} :</p><div class="whitespace-pre-wrap text-slate-600">${value}</div></div>`;
-                }
-            }
-        }                        if (contentHTML) { sectionHTML += `<details class="bg-background-light rounded-lg border border-border-subtle"><summary class="p-3 font-semibold text-slate-700 cursor-pointer">${entry.title}</summary><div class="p-3 border-t border-border-subtle">${contentHTML}</div></details>`; }
-                    });
-                    sectionHTML += '</div>';
-                }
-
-                } else if (stepKey === 'step8') { // --- NOUVEAU BLOC POUR L'ÉTAPE 8 ---
-            if (stepData) {
-                sectionHTML += '<div class="space-y-3">';
-                let hasSubContent = false;
-
-                // 1. Sous-menu pour la liste des contacts
-                if (stepData.contacts && Array.isArray(stepData.contacts) && stepData.contacts.length > 0) {
-                    hasSubContent = true;
-                    let contactsContent = '<ul class="list-disc list-inside text-slate-600">';
-                    stepData.contacts.forEach(contact => {
-                        contactsContent += `<li>${contact.nom} ${contact.search_link ? `<a href="${contact.search_link}" target="_blank" class="text-primary-action hover:underline text-xs">(voir sur Google ↗)</a>` : ''}</li>`;
-                    });
-                    contactsContent += '</ul>';
-                    sectionHTML += `
-                        <details class="bg-background-light rounded-lg border border-border-subtle">
-                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Ma Liste de Contacts</summary>
-                            <div class="p-3 border-t border-border-subtle">${contactsContent}</div>
-                        </details>`;
-                }
-
-                // 2. Sous-menu pour la stratégie de contact
-                if (stepData.pro_strategie && stepData.pro_strategie.trim() !== '') {
-                    hasSubContent = true;
-                    sectionHTML += `
-                        <details class="bg-background-light rounded-lg border border-border-subtle">
-                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Ma Préparation de Prise de Contact</summary>
-                            <div class="p-3 border-t border-border-subtle"><p class="whitespace-pre-wrap text-slate-600">${stepData.pro_strategie}</p></div>
-                        </details>`;
-                }
-
-                sectionHTML += '</div>';
-                if (hasSubContent) {
-                    hasContentInSection = true;
-                }
-            }
-
-            
-            
-            } else if (stepKey === 'step10') {
-                sectionHTML += '<div class="space-y-3">';
-                let hasSubContent = false;
-
-                // 1. Sous-menu pour les Expériences Significatives
-                if (stepData.experiences && Array.isArray(stepData.experiences) && stepData.experiences.length > 0) {
-                    hasSubContent = true;
-                    let experiencesContent = '<div class="space-y-2">';
-                    stepData.experiences.forEach((exp, index) => {
-                        experiencesContent += `<div class="p-3 bg-white rounded-lg"><p class="font-medium text-OrIAntation-darkblue">Expérience #${index + 1}</p><p class="whitespace-pre-wrap text-slate-600">${exp.analysis}</p></div>`;
-                    });
-                    experiencesContent += '</div>';
-                    sectionHTML += `
-                        <details class="bg-background-light rounded-lg border border-border-subtle">
-                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Mes Expériences Significatives</summary>
-                            <div class="p-3 border-t border-border-subtle">${experiencesContent}</div>
-                        </details>`;
-                }
-
-                // 2. Sous-menu pour le Profil de Compétences
-                if (stepData.soft_skills_profile) {
-                    hasSubContent = true;
-                    sectionHTML += `
-                        <details class="bg-background-light rounded-lg border border-border-subtle">
-                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Mon Profil de Compétences Transversales</summary>
-                            <div class="p-3 border-t border-border-subtle"><p class="whitespace-pre-wrap text-slate-600">${stepData.soft_skills_profile}</p></div>
-                        </details>`;
-                }
-
-                // 3. Sous-menu pour le Connecteur de Compétences
-                if (stepData.skills_synthesis) {
-                    hasSubContent = true;
-                    sectionHTML += `
-                        <details class="bg-background-light rounded-lg border border-border-subtle">
-                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Synthèse du Connecteur de Compétences</summary>
-                            <div class="p-3 border-t border-border-subtle"><p class="whitespace-pre-wrap text-slate-600">${stepData.skills_synthesis}</p></div>
-                        </details>`;
-                }
-
-                sectionHTML += '</div>';
-                if (hasSubContent) {
-                    hasContentInSection = true;
-                }
-                
-
-            } // NOUVEAU BLOC
-else if (stepKey === 'step2' && stepData && Array.isArray(stepData.combinations) && stepData.combinations.length > 0) {
-    hasContentInSection = true;
-    sectionHTML = renderStep2InJournal(stepData);
-} 
-
-else if (stepKey === 'step11') {
-                if (stepData) {
-                    let subContentHTML = '<div class="space-y-3">';
-                    let hasSubContent = false;
-
-                // Rubrique 1 : "Les structures pour t'accompagner"
-                if (stepData.structures && Array.isArray(stepData.structures) && stepData.structures.length > 0) {
-                    hasSubContent = true;
-                    let structuresContent = '<ul class="list-disc list-inside text-slate-600">';
-                    stepData.structures.forEach(struct => {
-                        const searchQuery = encodeURIComponent(`${struct.nom}, ${struct.adresse}`);
-                        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${searchQuery}`;
-                        structuresContent += `<li>${struct.nom} - ${struct.adresse} <a href="${mapsUrl}" target="_blank" class="text-primary-action hover:underline text-xs">(voir sur Google Maps ↗)</a></li>`;
-                    });
-                    structuresContent += '</ul>';
-
-                    subContentHTML += `
-                        <details class="bg-background-light rounded-lg border border-border-subtle">
-                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Les structures pour t'accompagner</summary>
-                            <div class="p-3 border-t border-border-subtle">${structuresContent}</div>
-                        </details>`;
-                }
-
-                // Rubrique 2 : "Préparation des visites"
-                let preparationContent = '';
-                if (stepData.jpo_questions && stepData.jpo_questions.trim() !== '') {
-                    preparationContent += `<div class="mb-2"><p class="font-semibold text-slate-700">Préparation JPO pour ${stepData.jpo_ecole || 'une école'}:</p><p class="whitespace-pre-wrap text-slate-600">${stepData.jpo_questions}</p></div>`;
-                }
-                if (stepData.salon_preparation && stepData.salon_preparation.trim() !== '') {
-                    preparationContent += `<div><p class="font-semibold text-slate-700">Préparation pour le salon ${stepData.salon_nom || ''}:</p><p class="whitespace-pre-wrap text-slate-600">${stepData.salon_preparation}</p></div>`;
-                }
-
-                if (preparationContent !== '') {
-                    hasSubContent = true;
-                    subContentHTML += `
-                        <details class="bg-background-light rounded-lg border border-border-subtle">
-                            <summary class="p-3 font-semibold text-slate-700 cursor-pointer">Ma préparation des JPO et Salons</summary>
-                            <div class="p-3 border-t border-border-subtle">${preparationContent}</div>
-                        </details>`;
-                }
-
-                subContentHTML += '</div>';
-                if (hasSubContent) {
-                    hasContentInSection = true;
-                    sectionHTML = subContentHTML;
-                }
-            }
-    
-            } else {
-                if (stepData) {
-                    const config = Object.values(stepsConfig).find(c => c.stepKey === stepKey);
-                    if (config && config.fields) { config.fields.forEach(field => { const value = stepData[field.id]; if (value && typeof value === 'string' && value.trim() !== '') { hasContentInSection = true; sectionHTML += `<div class="mb-3"><p class="font-semibold text-slate-700">${field.label}</p><p class="whitespace-pre-wrap text-slate-600 bg-background-light p-2 rounded">${value}</p></div>`; } }); }
-                }
-            }
-            
-            if (hasContentInSection || stepKey === 'radar_history') {
-                let finalSectionHTML = sectionHTML;
-                if (stepKey === 'radar_history' && !hasContentInSection) { finalSectionHTML = '<p class="text-slate-500 italic p-2">L\'élève n\'a pas encore enregistré de résultat du Radar.</p>'; }
-                const sectionContainer = document.createElement('div');
-                sectionContainer.id = `journal-section-${stepKey}`; // Ajout de l'ID
-                sectionContainer.className = 'border border-border-subtle rounded-lg overflow-hidden';
-                sectionContainer.innerHTML = `
-                    <div class="journal-section-header flex justify-between items-center bg-background-light p-4 cursor-pointer hover:bg-slate-100 transition">
-                        <h3 class="text-lg font-bold text-cyan-700">${stepTitles[stepKey]}</h3>
-                        <span class="transform transition-transform duration-200 text-cyan-700">▼</span>
-                    </div>
-                    <div class="journal-section-content p-4 border-t border-border-subtle hidden">${finalSectionHTML}</div>`;
-                journalContentDiv.appendChild(sectionContainer);
-            }
-        }
-        
-        pageContainer.appendChild(journalContentDiv);
-
-        const discussionSection = document.createElement('div');
-        discussionSection.innerHTML = `
-            <div class="mt-8 border-t pt-6 text-center">
-                <button id="publicShareBtn" class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">🤝 Préparer une discussion</button>
-            </div>
-            <div id="publicOpenAIShareLoader" class="hidden"><div class="loader"></div></div>
-            <div id="publicOpenAIShareResult" class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg text-slate-700 whitespace-pre-wrap"></div>`;
-        pageContainer.appendChild(discussionSection);
-
         mainApp.innerHTML = '';
-        mainApp.appendChild(pageContainer);
+        mainApp.appendChild(pageElement);
 
-            pageContainer.addEventListener('click', async (e) => {
-            const card = e.target.closest('.map-card-clickable');
-            const header = e.target.closest('.journal-section-header');
-            const shareBtn = e.target.closest('#publicShareBtn');
-
-            // Cas 1 : Clic sur un encart de la carte
-            if (card) {
-                e.preventDefault();
-                const targetId = card.dataset.target;
-                const targetElement = pageContainer.querySelector(`#${targetId}`);
-                if (targetElement) {
-                    if (targetId.startsWith('journal-section-')) {
-                        const content = targetElement.querySelector('.journal-section-content');
-                        const icon = targetElement.querySelector('.journal-section-header span');
-                        if (content && content.classList.contains('hidden')) {
-                            content.classList.remove('hidden');
-                            if (icon) icon.classList.add('rotate-180');
-                        }
-                    }
-                    targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            } 
-            // Cas 2 : Clic sur un titre de section pour l'ouvrir ou le fermer
-            else if (header) {
-                const content = header.nextElementSibling;
-                const icon = header.querySelector('span');
-                if (content) content.classList.toggle('hidden');
-                if (icon) icon.classList.toggle('rotate-180');
-            }
-            // Cas 3 : Clic sur le bouton "Préparer une discussion"
-            // ▼▼▼ REMPLACEZ CE BLOC DANS pageContainer.addEventListener ▼▼▼
-
-// Cas 3 : Clic sur le bouton "Préparer une discussion"
-else if (shareBtn) {
-    // On désactive le bouton et la page pour éviter les clics multiples
-    shareBtn.disabled = true;
-    pageContainer.style.pointerEvents = 'none';
-
-    const loader = pageContainer.querySelector('#publicOpenAIShareLoader');
-    const resultDiv = pageContainer.querySelector('#publicOpenAIShareResult');
-    loader.style.display = 'block';
-    resultDiv.innerHTML = ''; // On utilise innerHTML pour être cohérent
-
-    try {
-        const prompt = `
-            Agis comme un coach d'orientation... 
-            ... (votre prompt complet et détaillé reste ici) ...
-        `;
-        const result = await callOpenAI_API({
-            promptText: prompt,
-            promptId: "pmpt_68dc33a589bc8197a0229d72a4e3df100510635f4c084c2c",
-            isExpertCall: true,
-            loaderElement: loader,
-            customLoaderHTML: `
-                <div class="loader"></div>
-                <p class="text-slate-500 font-semibold mt-2">Analyse en cours...</p>
-                <p class="text-sm text-slate-400 mt-1">
-                    OrIA synthétise le parcours de l'élève pour vous préparer des points de discussion pertinents.
-                    <br>Cette opération peut prendre un instant.
-                </p>
-            `
-        });
-        resultDiv.innerHTML = marked.parse(result); // On formate la réponse
-    } catch (error) {
-        resultDiv.innerHTML = '<p class="text-red-500">Une erreur est survenue durant l\'analyse.</p>';
-        console.error("Erreur de l'IA (discussion publique):", error);
-    } finally {
-        // Cette partie s'exécute TOUJOURS, que l'analyse réussisse ou échoue
-        loader.style.display = 'none';
-        shareBtn.disabled = false;
-        pageContainer.style.pointerEvents = 'auto'; // On réactive les clics sur la page
-    }
-    
-const prompt = `
-Agis comme un coach d'orientation et un analyste de données expert. Ta mission est d'analyser le journal de bord d'un élève pour fournir des points de dialogue intelligents et ciblés à un parent ou un enseignant.
-
-Voici le journal de bord complet :
-${JSON.stringify(publicJournalData)}
-
-**Analyse Stratégique (Ta réflexion interne) :**
-Avant de répondre, cherche les schémas suivants dans le journal :
-1.  **Convergences :** Trouve un point où le profil de l'élève (étape 'Mieux se connaître') et ses explorations (métiers, formations) s'alignent parfaitement.
-2.  **Divergences ou Points de tension :** Identifie une contradiction intéressante. Par exemple, un trait de personnalité qui ne correspond pas aux métiers explorés, ou des notes qui expriment une hésitation.
-3.  **Progrès et Prochaine Étape :** Repère une étape bien avancée et identifie la prochaine mission logique dans le parcours de l'application.
-4.  **Point Aveugle ou Piste Inexplorée :** Trouve un talent ou un intérêt mentionné dans son profil mais qui n'a été exploré dans aucune des étapes pratiques.
-
-**Réponse (Ce que tu dois générer) :**
-En te basant **uniquement** sur les schémas que tu as identifiés, génère **3 à 4 points de dialogue** (pas plus). Chaque point doit être extrêmement pertinent et basé sur des faits précis du journal.
-
-Pour chaque point, fournis :
-1.  **Titre du Point de Dialogue :** (Ex: "Explorer le côté créatif", "Alignement avec le secteur de la santé")
-2.  **Question ouverte :** Une question bienveillante qui ouvre la discussion sur ce point précis.
-3.  **Suggestion d'action concrète :** Une action simple que l'élève peut réaliser, souvent en utilisant un outil de l'application.
-`;
-const result = await callOpenAI_API({
-    promptText: prompt,
-    promptId: "pmpt_68dc33a589bc8197a0229d72a4e3df100510635f4c084c2c",
-    isExpertCall: true,
-    loaderElement: loader,
-    customLoaderHTML: `
-        <div class="loader"></div>
-        <p class="text-slate-500 font-semibold mt-2">Vous êtes au coeur du réacteur!</p>
-        <p class="text-sm text-slate-400 mt-1">
-            OrIA analyse et synthétise le parcours de l'élève pour vous préparer des points de discussion pertinents.
-            <br>Cette opération peut prendre jusqu'à 3 minutes tout au plus. 
-        </p>
-    `
-});
-                loader.style.display = 'none';
-                resultDiv.textContent = result;
-            }
-        });
-        
     } catch (error) {
         mainApp.innerHTML = `<div class="text-center p-8 bg-white rounded-lg shadow-md"><h2 class="text-xl font-bold text-red-600">Erreur</h2><p class="text-slate-600 mt-2">${error.message}</p></div>`;
     }
@@ -8928,6 +9068,10 @@ navigator.serviceWorker.addEventListener('controllerchange', () => {
     window.location.reload();
     refreshing = true;
 });
+
+window.signOut = signOut;
+window.auth = auth;
+
     </script>
     
 </body>
