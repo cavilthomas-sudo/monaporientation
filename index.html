@@ -326,7 +326,7 @@
         const firebaseApp = initializeApp(firebaseConfig);
         const auth = getAuth(firebaseApp);
         const db = getFirestore(firebaseApp);
-        const functions = getFunctions(firebaseApp, "europe-west1"); 
+        const functions = getFunctions(firebaseApp, "europe-west3"); 
         const authContainer = document.getElementById('authContainer');
         const mainApp = document.getElementById('mainApp');
 
@@ -1184,10 +1184,16 @@ const backAction = cameFromLogin ? window.showSignupViewFromGuide : () => window
         
         // Si on vient de la page d'inscription (drapeau `cameFromAuth`)
         if (cameFromAuth) {
-            cameFromAuth = false; // On réinitialise le drapeau
-            showSignupView();   // On retourne à la page d'inscription
+            cameFromAuth = false;
+            showSignupView();
         } else {
-            showView('menu'); // Sinon (si on était déjà connecté), on retourne au menu
+            // NOUVELLE LOGIQUE ICI
+            // On vérifie le rôle de l'utilisateur connecté
+            if (currentUserInfo.role === 'enseignant') {
+                showView('teacherDashboard'); // Si c'est un prof, on retourne à son tableau de bord
+            } else {
+                showView('menu'); // Sinon (si c'est un élève), on retourne au menu
+            }
         }
     }
     // Cas par défaut : Pour toutes les autres pages, on retourne au menu principal
@@ -1384,7 +1390,11 @@ showInfoModal("Erreur", "Une erreur est survenue lors de la suppression. Veuille
             
         // 🔹 Fonction utilitaire
 function capitalizeWords(str) {
-    return str.replace(/\b\w/g, c => c.toUpperCase());
+    if (!str) return ''; // Sécurité pour éviter une erreur si le champ est vide
+    // 1. On met d'abord tout en minuscules (ex: "lycÉE" -> "lycée")
+    let lowercasedStr = str.toLowerCase();
+    // 2. Ensuite, on met la première lettre de chaque mot en majuscule (ex: "lycée" -> "Lycée")
+    return lowercasedStr.replace(/\b\w/g, c => c.toUpperCase());
 }
 
 function showLoginView() {
@@ -1480,7 +1490,7 @@ function showVerificationView(user) {
     authContainer.querySelector('#resendVerificationBtn').addEventListener('click', async () => {
         const resendMessage = authContainer.querySelector('#resendMessage');
         try {
-            const functionUrl = 'https://europe-west1-monapp0rientation.cloudfunctions.net/sendTransactionalEmail';
+            const functionUrl = 'https://europe-west3-monapp0rientation.cloudfunctions.net/sendTransactionalEmail';
             await fetch(functionUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1566,20 +1576,37 @@ function showForgotPasswordView() {
     forgotPasswordForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('email').value;
+        const submitButton = forgotPasswordForm.querySelector('button[type="submit"]');
+        
+        // Amélioration : on désactive le bouton et on informe l'utilisateur
+        submitButton.disabled = true;
+        authMessage.textContent = "Envoi en cours...";
+        authMessage.classList.remove('text-red-500');
+        authMessage.classList.add('text-green-600');
+
         try {
-    const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
-    await sendEmail({
-        templateId: 1, // 👈 REMPLACEZ PAR L'ID DE VOTRE TEMPLATE BREVO
-        toEmail: email,
-        params: {
-            // Vous pouvez passer des paramètres à votre template, comme le nom de l'utilisateur
+            // On utilise fetch pour la cohérence avec le reste du code
+            const functionUrl = 'https://europe-west3-monapp0rientation.cloudfunctions.net/sendTransactionalEmail'; // Assurez-vous que la région est la bonne
+            await fetch(functionUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    data: {
+                        templateId: 4, 
+                        toEmail: email,
+                        params: {}
+                    }
+                }),
+            });
+            authMessage.textContent = "Si un compte est associé à cette adresse, un e-mail de réinitialisation vient d'être envoyé.";
+        } catch (error) {
+            console.error("Erreur lors de l'appel de la fonction d'envoi :", error);
+            authMessage.textContent = "Une erreur est survenue. Veuillez réessayer.";
+            authMessage.classList.add('text-red-500');
+        } finally {
+            // On réactive le bouton à la fin
+            submitButton.disabled = false;
         }
-    });
-    authMessage.textContent = "Si un compte existe, un e-mail de réinitialisation vient d'être envoyé.";
-} catch (error) {
-    console.error("Erreur lors de l'appel de la fonction d'envoi :", error);
-    authMessage.textContent = "Une erreur est survenue. Veuillez réessayer.";
-}
     });
 
     document.getElementById('backToLoginButton').addEventListener('click', showLoginView);
@@ -1611,6 +1638,7 @@ function showSignupView() {
                     </div>
                     <div id="school-name-field" class="hidden">
                         <input id="schoolNameStudent" type="text" placeholder="Nom complet de ton lycée" class="w-full p-3 border border-slate-300 rounded-lg">
+                        <input id="schoolCityStudent" type="text" placeholder="Ville de ton lycée (Ex: Orléans)" class="w-full p-3 mt-2 border border-slate-300 rounded-lg">
                     </div>
                 </div>
 
@@ -1619,6 +1647,10 @@ function showSignupView() {
                         <label class="block text-md font-medium text-slate-700">Votre établissement</label>
                         <input id="schoolNameTeacher" type="text" placeholder="Nom complet de votre établissement" class="w-full p-3 mt-1 border border-slate-300 rounded-lg">
                     </div>
+                    <div>
+    <label class="block text-md font-medium text-slate-700">Ville de l'établissement</label>
+    <input id="schoolCityTeacher" type="text" placeholder="Ex: Orléans" class="w-full p-3 mt-1 border border-slate-300 rounded-lg">
+</div>
                      <div>
                         <label class="block text-md font-medium text-slate-700">Nom de votre classe</label>
                         <input id="className" type="text" placeholder="Ex: Première Générale 2" class="w-full p-3 mt-1 border border-slate-300 rounded-lg">
@@ -1734,24 +1766,48 @@ function showSignupView() {
                 if (!schoolName || !className) {
                     throw new Error("Le nom de l'établissement et de la classe sont requis pour les enseignants.");
                 }
+                
                 schoolId = schoolName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-            } else {
-                const schoolMethod = document.querySelector('input[name="school_method"]:checked').value;
-                if (schoolMethod === 'code') {
-                    const schoolCode = document.getElementById('schoolCode').value;
-                    if (!schoolCode) throw new Error("Le code d'établissement est requis.");
-                    const getSchool = httpsCallable(functions, 'getSchoolFromCode');
-                    const schoolResult = await getSchool({ code: schoolCode });
-                    schoolId = schoolResult.data.schoolId;
-                    schoolName = schoolResult.data.schoolName;
-                    classId = schoolResult.data.classId;
-                } else {
-                    const schoolNameInput = document.getElementById('schoolNameStudent').value;
-                    if (!schoolNameInput) throw new Error("Le nom du lycée est requis.");
-                    schoolName = capitalizeWords(schoolNameInput.trim());
-                    schoolId = schoolName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-                }
-            }
+           } else { // La logique pour l'inscription d'un élève
+    const schoolMethod = document.querySelector('input[name="school_method"]:checked').value;
+
+    if (schoolMethod === 'code') {
+        // --- CETTE PARTIE RESTE INCHANGÉE ---
+        // Quand un élève utilise un code, la fonction `getSchoolFromCode` se charge déjà de
+        // récupérer le bon schoolId (qui inclura la ville, une fois vos données migrées).
+        const schoolCode = document.getElementById('schoolCode').value;
+        if (!schoolCode) throw new Error("Le code d'établissement est requis.");
+
+        const getSchool = httpsCallable(functions, 'getSchoolFromCode');
+        const schoolResult = await getSchool({ code: schoolCode });
+        schoolId = schoolResult.data.schoolId;
+        schoolName = schoolResult.data.schoolName;
+        classId = schoolResult.data.classId;
+
+    } else { // Cas où l'élève entre le nom manuellement
+        // ▼▼▼ DÉBUT DES MODIFICATIONS ▼▼▼
+
+        // 1. On récupère les DEUX champs : le nom et la VILLE
+        const schoolNameInput = document.getElementById('schoolNameStudent').value;
+        const schoolCityInput = document.getElementById('schoolCityStudent').value; // NOUVEAU
+
+        // On vérifie que les deux champs sont bien remplis
+        if (!schoolNameInput || !schoolCityInput) { 
+            throw new Error("Le nom ET la ville du lycée sont requis.");
+        }
+
+        // 2. On formate le nom du lycée et de la ville
+        schoolName = capitalizeWords(schoolNameInput.trim());
+        const schoolCity = capitalizeWords(schoolCityInput.trim()); // NOUVEAU
+
+        // 3. On crée l'identifiant unique en combinant le nom et la ville
+        const normalizedSchoolName = schoolName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+        const normalizedCity = schoolCity.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+        schoolId = `${normalizedSchoolName}-${normalizedCity}`; // NOUVELLE LOGIQUE DE CRÉATION DE L'ID
+
+        // ▲▲▲ FIN DES MODIFICATIONS ▲▲▲
+    }
+}
 
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
@@ -1759,7 +1815,9 @@ function showSignupView() {
             const userDocData = {
                 firstName, lastName, schoolId, schoolName, gender, email,
                 role: userRole,
-                createdAt: new Date()
+                createdAt: new Date(),
+                lastActivity: new Date() // ✅ AJOUTEZ CETTE LIGNE
+        
             };
             if (classId) {
                 userDocData.classId = classId;
@@ -1769,14 +1827,14 @@ function showSignupView() {
             await setDoc(userDocRef, userDocData);
 
             if (isTeacher) {
-                const setupClass = httpsCallable(functions, 'setupTeacherClass');
-                await setupClass({ schoolName: schoolName, className: className });
+                const schoolCity = document.getElementById('schoolCityTeacher').value.trim();
+                await setupClass({ schoolName: schoolName, className: className, schoolCity: schoolCity });
             }
 
             const templateIdToSend = isTeacher ? 2 : 1; // <--- REMPLACEZ 2 par l'ID de votre nouveau template enseignant
 
     // On envoie l'e-mail de vérification avec le bon template
-    const functionUrl = 'https://europe-west1-monapp0rientation.cloudfunctions.net/sendTransactionalEmail';
+    const functionUrl = 'https://europe-west3-monapp0rientation.cloudfunctions.net/sendTransactionalEmail';
     await fetch(functionUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1832,30 +1890,23 @@ window.deleteUserAccount = deleteUserAccount;
 }
 
 
-
-
-// Remplacez votre fonction saveData par celle-ci
-
 async function saveData(context = {}) { // Le contexte est conservé pour skipOnboarding
     if (!currentUserId) return;
     const userDocRef = doc(db, "users", currentUserId);
 
+    // On ne sauvegarde que ce qui est susceptible de changer durant une session
     const dataToSave = {
-        firstName: currentUserInfo.firstName,
-        lastName: currentUserInfo.lastName,
-        schoolName: currentUserInfo.schoolName,
         gradeLevel: userGradeLevel,
-        gender: currentUserInfo.gender,
-        journal: journalData
+        journal: journalData,
+        lastActivity: new Date() // <-- LA CORRECTION CLÉ : on met à jour la date ici aussi
     };
     
     try {
+        // Le { merge: true } garantit qu'on ne touche pas aux autres champs (prénom, nom, etc.)
         await setDoc(userDocRef, dataToSave, { merge: true });
     } catch (error) {
         console.error("Error saving document: ", error);
     }
-    
-    // Note : Il n'y a plus aucun appel à handlePostSaveTutorial ou de valeur de retour.
 }
 
         async function triggerSurpriseMoment() {
@@ -2127,7 +2178,6 @@ async function saveData(context = {}) { // Le contexte est conservé pour skipOn
             async function loadData() {
             if (!currentUserId) return;
             const userDocRef = doc(db, "users", currentUserId);
-            await setDoc(userDocRef, { lastActivity: new Date() }, { merge: true });
             const docSnap = await getDoc(userDocRef);
             let data = docSnap.exists() ? docSnap.data() : {};
             
@@ -2198,6 +2248,27 @@ const formations = (journalData.step3?.formations || []).map(f => f.nom).filter(
         return "L'élève n'a pas encore rempli suffisamment son profil. Base-toi sur le bon sens et l'idée qu'il propose.";
     }
     return summary;
+}
+
+function formatDateAgo(date) {
+    if (!date) return "Jamais";
+    const now = new Date();
+    // On s'assure que 'date' est bien un objet Date
+    const activityDate = (typeof date.toDate === 'function') ? date.toDate() : new Date(date);
+    const seconds = Math.floor((now - activityDate) / 1000);
+    
+    let interval = seconds / 86400; // secondes en jours
+    if (interval > 7) return activityDate.toLocaleDateString('fr-FR');
+    if (interval > 1.5) return `il y a ${Math.floor(interval)} jours`;
+    if (interval > 0.8) return "hier";
+    
+    interval = seconds / 3600; // secondes en heures
+    if (interval > 1) return `il y a ${Math.floor(interval)} heures`;
+    
+    interval = seconds / 60; // secondes en minutes
+    if (interval > 1) return `il y a ${Math.floor(interval)} minutes`;
+    
+    return "à l'instant";
 }
         function getCompletionSummary() {
     let completed = [];
@@ -2374,17 +2445,13 @@ function showGradeSelectionView() {
     `;
 
     mainApp.querySelectorAll('.grade-btn').forEach(button => {
-        button.addEventListener('click', async (e) => {
-            // 1. On met à jour la variable de classe
-            userGradeLevel = e.target.dataset.grade; 
-            // 2. On sauvegarde ce choix dans la base de données
-            await saveData(); 
-            // 3. ✅ LA CORRECTION : On recharge TOUTES les données de l'utilisateur
-            await loadData();
-            // 4. On affiche le menu principal, qui sera maintenant complet
-            showView('menu');
-        });
+    button.addEventListener('click', async (e) => {
+        userGradeLevel = e.target.dataset.grade; 
+        await saveData(); 
+        await loadData();
+        showMenuAndWelcomeCheck(); // <-- APPEL CORRIGÉ
     });
+});
 }
 
 
@@ -2394,7 +2461,7 @@ async function callOpenAI_API({ promptText, model = 'gpt-4o', isJson = false, wi
     finalPrompt = addGenderContextToPrompt(finalPrompt);
     if (isJson) { finalPrompt += "\n\n# Format de Sortie OBLIGATOIRE\nTa réponse doit être uniquement un objet JSON valide..."; }
 
-    const functionUrl = "https://europe-west1-monapp0rientation.cloudfunctions.net/generateContent";
+    const functionUrl = "https://europe-west3-monapp0rientation.cloudfunctions.net/generateContent";
     
     // ✅ CORRECTION : Le message ne s'affiche que si 'isExpertCall' est vrai
     if (loaderElement) {
@@ -3004,43 +3071,54 @@ function createTeacherDashboardView() {
         };
 
         let tableHTML = `
-            <div class="overflow-x-auto border rounded-lg">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+    <div class="overflow-x-auto border rounded-lg">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Élève</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dernière activité</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progression</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+${studentsToRender.map(student => {
+                    const statusIndicators = {
+                        at_risk: { color: 'bg-orange-500', title: 'Élève à suivre (inactif ou bloqué)' },
+                        active: { color: 'bg-green-500', title: 'Élève actif' },
+                        excellent: { color: 'bg-blue-500', title: 'Progression excellente' }
+                    };
+                    const indicator = statusIndicators[student.status] || { color: 'bg-gray-300', title: 'Statut inconnu' };
+                    
+                    return `
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Élève</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dernière activité</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progression</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="w-3 h-3 rounded-full ${indicator.color}" title="${indicator.title}"></span>
+                                    <span class="ml-3 font-medium text-gray-900">${student.firstName} ${student.lastName}</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${formatDateAgo(student.lastActivity)}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                        <div class="bg-cyan-600 h-2.5 rounded-full" style="width: ${student.progress}%"></div>
+                                    </div>
+                                    <span class="ml-3 text-sm font-medium text-gray-700">${student.progress}%</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button data-student-id="${student.id}" class="view-journal-btn text-cyan-600 hover:text-cyan-900">Voir le journal</button>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        ${studentsToRender.map(student => {
-                            const indicator = statusIndicators[student.status] || { color: 'bg-gray-300', title: 'Statut inconnu' };
-                            return `
-                                <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="flex items-center">
-                                            <span class="w-3 h-3 rounded-full ${indicator.color}" title="${indicator.title}"></span>
-                                            <span class="ml-3 font-medium text-gray-900">${student.firstName} ${student.lastName}</span>
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(student.lastActivity)}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="flex items-center">
-                                            <div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-cyan-600 h-2.5 rounded-full" style="width: ${student.progress}%"></div></div>
-                                            <span class="ml-3 text-sm font-medium text-gray-700">${student.progress}%</span>
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button data-student-id="${student.id}" class="view-journal-btn text-cyan-600 hover:text-cyan-900">Voir le journal</button>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            </div>`;
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    </div>
+`;
         contentDiv.innerHTML = tableHTML;
     };
 
@@ -3123,15 +3201,21 @@ function createTeacherDashboardView() {
     const analyticsContainer = div.querySelector('#analytics-container');
     let charts = {};
 
-    showAnalyticsBtn.addEventListener('click', async () => {
-        const isHidden = analyticsContainer.classList.contains('hidden');
+showAnalyticsBtn.addEventListener('click', async () => {
+        // 1. On affiche ou on cache le conteneur, tout simplement.
         analyticsContainer.classList.toggle('hidden');
 
-        if (!isHidden && analyticsContainer.innerHTML.trim() === '') {
+        // 2. On vérifie l'état ACTUEL du conteneur APRES le clic.
+        const isNowVisible = !analyticsContainer.classList.contains('hidden');
+        const isEmpty = analyticsContainer.innerHTML.trim() === '';
+
+        // 3. Si le conteneur est maintenant visible ET qu'il est vide, ALORS on charge les données.
+        if (isNowVisible && isEmpty) {
             analyticsContainer.innerHTML = '<div class="loader"></div>';
 
             try {
                 const getAnalytics = httpsCallable(functions, 'getSchoolAnalytics');
+                // ... (le reste de votre logique de chargement reste EXACTEMENT le même)
                 const result = await getAnalytics();
                 const analytics = result.data.analytics;
 
@@ -3228,6 +3312,7 @@ function createTeacherDashboardView() {
         }
     });
 
+    // ... dans createTeacherDashboardView
     div.addEventListener('click', async (e) => {
         const viewJournalButton = e.target.closest('.view-journal-btn');
         if (viewJournalButton) {
@@ -3241,12 +3326,15 @@ function createTeacherDashboardView() {
 
                 const userInfo = {
                     firstName: studentData.firstName,
+                    lastName: '', // Le nom de famille n'est pas nécessaire pour la vue prof
                     schoolName: studentData.schoolName,
                     gradeLevel: studentData.gradeLevel
                 };
 
-                currentViewName = 'teacherStudentJournal';
-                const pageElement = renderJournalPageView(userInfo, studentData.journal);
+                currentViewName = 'teacherStudentJournal'; // ✅ AJOUTEZ CETTE LIGNE ICI
+
+                // On appelle la nouvelle fonction unifiée avec le contexte "teacher"
+                const pageElement = await createUnifiedJournalView(userInfo, studentData.journal, 'teacher');
                 
                 mainApp.innerHTML = '';
                 mainApp.appendChild(pageElement);
@@ -3259,6 +3347,7 @@ function createTeacherDashboardView() {
             }
         }
     });
+// ...
     
     return div;
 }
@@ -3473,20 +3562,56 @@ function renderJournalPageView(userInfo, journalDataToDisplay) {
             shareBtn.disabled = true;
             const loader = pageContainer.querySelector('#publicOpenAIShareLoader');
             const resultDiv = pageContainer.querySelector('#publicOpenAIShareResult');
-            try {
-                const prompt = `Agis comme un coach d'orientation et un analyste de données expert. Ta mission est d'analyser le journal de bord d'un élève pour fournir des points de dialogue intelligents et ciblés à un parent ou un enseignant. Voici le journal de bord complet : ${JSON.stringify(journalDataToDisplay)}. Analyse ce journal et génère 3 à 4 points de dialogue pertinents, chacun avec un titre, une question ouverte et une suggestion d'action concrète.`;
-                const result = await callOpenAI_API({
-                    promptText: prompt,
-                    loaderElement: loader,
-                    customLoaderHTML: `<div class="loader"></div><p class="text-slate-500 font-semibold mt-2">Analyse du parcours en cours...</p>`
-                });
-                resultDiv.innerHTML = marked.parse(result);
-            } catch (error) {
-                resultDiv.innerHTML = '<p class="text-red-500">Une erreur est survenue.</p>';
-            } finally {
-                shareBtn.disabled = false;
-            }
-        }
+            const profileSummary = getProfileSummary();
+    const completionSummary = getCompletionSummary();
+    
+    // On restaure les données originales après usage
+    journalData = originalJournalData;
+
+    try {
+        // NOUVEAU PROMPT AMÉLIORÉ
+        const prompt = `
+            Agis comme un conseiller pédagogique et un coach d'orientation qui prépare un entretien.
+            Tu analyses le parcours d'un élève pour fournir des points de discussion constructifs à un parent ou un enseignant.
+
+            # Données sur l'élève
+            - Résumé de son profil de personnalité : ${profileSummary}
+            - Résumé de sa progression dans l'application : ${completionSummary}
+
+            # Ta Mission
+            En te basant STRICTEMENT sur les données fournies, génère 4 points de discussion clés. Chaque point doit aider à lancer une conversation bienveillante et constructive.
+
+            # Format de Sortie OBLIGATOIRE
+            Ta réponse doit utiliser des titres en gras (**Titre**), mais ne doit contenir AUCUNE liste à puces (* ou -). Chaque point doit être un paragraphe fluide.
+
+            **Point de discussion 1 : Mettre en lumière une force clé**
+            (Identifie une force évidente dans son profil et formule une question ouverte pour l'inviter à en parler. Ex: "J'ai remarqué que...")
+
+            **Point de discussion 2 : Explorer une zone de blocage ou d'hésitation**
+            (Repère une étape peu remplie ou une contradiction dans son parcours et formule une question pour l'aider à verbaliser ses difficultés. Ex: "J'ai vu que tu avais beaucoup exploré les métiers, mais moins les formations. Qu'est-ce qui te semble le plus difficile dans cette étape ?")
+
+            **Point de discussion 3 : Suggérer une prochaine étape concrète**
+            (Propose une action simple et logique à entreprendre dans l'application pour faire avancer son projet. Ex: "Pour aller plus loin, que dirais-tu d'utiliser le comparateur de métiers pour y voir plus clair ?")
+        `;
+
+        // NOUVEL APPEL API UTILISANT LA VOIE EXPERT
+        const result = await callOpenAI_API({
+            promptText: prompt,
+            promptId: "pmpt_68dc33a589bc8197a0229d72a4e3df100510635f4c084c2c", // ID du prompt Expert
+            isExpertCall: true,
+            loaderElement: loader,
+            customLoaderHTML: `<div class="loader"></div><p class="text-slate-500 font-semibold mt-2">Analyse du parcours en cours...</p>`
+        });
+        
+        resultDiv.innerHTML = marked.parse(result);
+
+    } catch (error) {
+        resultDiv.innerHTML = '<p class="text-red-500">Une erreur est survenue.</p>';
+        console.error("Erreur lors de la génération des points de discussion :", error);
+    } finally {
+        shareBtn.disabled = false;
+    }
+}
     });
 
     return pageContainer;
@@ -3562,19 +3687,6 @@ function createHomeView() {
         }
         
 
-
-
-// REMPLACEZ VOTRE FONCTION createProfileInfographic EXISTANTE PAR CELLE-CI :
-// ▼▼▼ REMPLACE TOUTE LA FONCTION "createProfileInfographic" PAR CELLE-CI ▼▼▼
-
-// ▼▼▼ REMPLACE TOUTE LA FONCTION "createProfileInfographic" PAR CELLE-CI ▼▼▼
-
-// ▼▼▼ REMPLACE TOUTE LA FONCTION "createProfileInfographic" PAR CELLE-CI ▼▼▼
-
-// ▼▼▼ REMPLACE TOUTE LA FONCTION "createProfileInfographic" PAR CELLE-CI ▼▼▼
-
-// ▼▼▼ REMPLACE TOUTE LA FONCTION "createProfileInfographic" PAR CETTE VERSION FINALE ▼▼▼
-
 function createProfileInfographic(step0Data, context = 'user') {
     if (!step0Data || !step0Data.analysis) {
         return document.createElement('div');
@@ -3629,7 +3741,7 @@ function createProfileInfographic(step0Data, context = 'user') {
         const riasecMapping = { q1:{sens:'S',securite:'C',creativite:'A',autonomie:'E'}, q2:{defi:'I',maitrise:'I',collaboration:'S'}, q3:{diriger:'E',creer:'A',comprendre:'I'}, q4:{variete:'E',stabilite:'C'}, q5:{influence:'E',expertise:'I'}, q6:{passion:'A',ambition:'E'}, q7:{transmettre:'S',organiser:'C',inventer:'A'}, q8:{ouverture:'A',tradition:'C'}, q9:{consciencieux:'C',flexible:'E'}, q11:{agreable:'S',assertif:'E'}, q13:{detail:'C',synthese:'I'}, q14:{curieux:'I',pratique:'R'}, q15:{realiste:'R',investigatif:'I'}, q16:{artistique:'A',social:'S'}, q17:{entreprenant:'E',conventionnel:'C'}, q18:{social:'S',entreprenant:'E'}, q19:{artistique:'A',conventionnel:'C'}, q20:{realiste:'R',artistique:'A'}, q21:{social:'S',investigatif:'I',realiste:'R'}, q22:{realiste:'R',social:'S'}, q23:{investigatif:'I',entreprenant:'E'}, q24:{artistique:'A',conventionnel:'C'}, q25:{social:'S',investigatif:'I'}, q26:{entreprenant:'E',realiste:'R'}, q27:{conventionnel:'C',artistique:'A'}, q28:{investigatif:'I',realiste:'R'}, q29:{social:'S',entreprenant:'E'}, q30:{artistique:'A',conventionnel:'C',realiste:'R'} };
 
         for (const [questionId, mapping] of Object.entries(riasecMapping)) {
-            const answer = journalData.step0[questionId]; 
+             const answer = step0Data[questionId];
             if (answer && mapping[answer]) {
                 const type = mapping[answer];
                 riasecScores[type]++;
@@ -7887,547 +7999,410 @@ return callOpenAI_API({
 }
 
 async function createJournalView() {
+    // Cette fonction appelle simplement la nouvelle fonction unifiée avec les données de l'élève connecté
+    return createUnifiedJournalView(currentUserInfo, journalData, 'student');
+}
 
+
+// =================================================================================
+// FONCTION UNIFIÉE FINALE ET COMPLÈTE POUR L'AFFICHAGE DU JOURNAL
+// =================================================================================
+async function createUnifiedJournalView(userInfo, journalDataToDisplay, context) {
     // 1. Création du conteneur principal de la page
     const div = document.createElement('div');
     div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-border-subtle';
 
-    const allStepsForLevel = allSteps.filter(step => step.levels.includes(userGradeLevel));
-    const completedStepsCount = allStepsForLevel.filter(step => !['journal', 'retroplanning', 'step12'].includes(step.id) && isStepComplete(step.id)).length;
-    const totalTrackableSteps = allStepsForLevel.filter(step => !['journal', 'retroplanning', 'step12'].includes(step.id)).length;
-    const progressPercentageSteps = totalTrackableSteps > 0 ? (completedStepsCount / totalTrackableSteps) * 100 : 0;
+    // ---- On utilise temporairement les données passées en paramètres ----
+    const originalJournalData = journalData;
+    const originalUserGradeLevel = userGradeLevel;
+    journalData = journalDataToDisplay;
+    userGradeLevel = userInfo.gradeLevel;
 
+    // ---- Construction de l'HTML ----
     const progressBarHTML = createProgressBarHTML();
-
     const headerEl = document.createElement('div');
     headerEl.innerHTML = `
-    <div class="text-center mb-6">
-<h1 class="text-2xl font-bold flex justify-center items-center gap-2 md:whitespace-nowrap text-OrIAntation-darkblue">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.75V16.5L12 14.25 7.5 16.5V3.75m9 0H18A2.25 2.25 0 0 1 20.25 6v12A2.25 2.25 0 0 1 18 20.25H6A2.25 2.25 0 0 1 3.75 18V6A2.25 2.25 0 0 1 6 3.75h1.5m9 0h-9" />
-    </svg>
-    <span>Mon Journal de Bord</span>
-</h1>        <p class="text-slate-500">Pour ${currentUserInfo.firstName} ${currentUserInfo.lastName}, élève de ${userGradeLevel}.</p>
-    </div>
-`;
-
-    // -- Panneau de Partage --
-    const shareToken = journalData.share_token || null;
-    const shareLink = shareToken ? `${window.location.origin}${window.location.pathname}?share_id=${currentUserId}&token=${shareToken}` : '';
-    const sharePanelEl = document.createElement('div');
-    sharePanelEl.innerHTML = `
-        <div class="bg-background-light p-4 rounded-lg border border-border-subtle mb-8">
-<h2 class="text-xl font-bold text-OrIAntation-darkblue mb-2 flex items-center justify-center">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-2">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
-    </svg>
-    <span>Espace Partage</span>
-</h2>            <p class="text-slate-600 text-sm mb-4">Partage une version "lecture seule" de ton journal avec tes parents ou ton professeur principal pour faciliter la discussion.</p>
-            <div id="share-link-container" class="${shareToken ? '' : 'hidden'}">
-    <label class="font-semibold text-slate-700">Ton lien de partage unique :</label>
-    <div class="flex items-center gap-2 mt-1 bg-slate-100 border border-slate-200 rounded-lg p-2 pl-4">
-        <span class="text-sm text-slate-600 truncate flex-1">${shareLink}</span>
-        <button id="copy-share-link" class="bg-cyan-600 text-white font-semibold py-1 px-3 rounded-md hover:bg-cyan-700 text-sm flex-shrink-0">Copier</button>
-    </div>
-</div>
-            <div class="mt-4 text-center">
-                <button id="toggle-share-btn" class="text-sm font-semibold ${shareToken ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}">
-                    ${shareToken ? '❌ Désactiver le partage' : '✅ Activer le partage'}
-                </button>
-            </div>
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold flex justify-center items-center gap-2 md:whitespace-nowrap text-OrIAntation-darkblue">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.75V16.5L12 14.25 7.5 16.5V3.75m9 0H18A2.25 2.25 0 0 1 20.25 6v12A2.25 2.25 0 0 1 18 20.25H6A2.25 2.25 0 0 1 3.75 18V6A2.25 2.25 0 0 1 6 3.75h1.5m9 0h-9" /></svg>
+                <span>Journal de Bord</span>
+            </h1>
+            <p class="text-slate-500">Pour ${userInfo.firstName} ${context === 'student' ? (userInfo.lastName || '') : ''}, élève de ${userInfo.gradeLevel}.</p>
         </div>
-`;
+    `;
+    div.appendChild(headerEl);
+    div.innerHTML += progressBarHTML;
 
-    // -- Fil Rouge --
+    if (context === 'student') {
+        const shareToken = journalDataToDisplay.share_token || null;
+        const shareLink = shareToken ? `${window.location.origin}${window.location.pathname}?share_id=${currentUserId}&token=${shareToken}` : '';
+        const sharePanelEl = document.createElement('div');
+        sharePanelEl.innerHTML = `
+            <div class="bg-background-light p-4 rounded-lg border border-border-subtle my-8">
+                <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-2 flex items-center justify-center gap-2">🤝 Espace Partage</h2>
+                <p class="text-slate-600 text-sm mb-4">Partage une version "lecture seule" de ton journal avec tes parents ou ton professeur principal pour faciliter la discussion.</p>
+                <div id="share-link-container" class="${shareToken ? '' : 'hidden'}">
+                    <label class="font-semibold text-slate-700">Ton lien de partage unique :</label>
+                    <div class="flex items-center gap-2 mt-1 bg-slate-100 border rounded-lg p-2 pl-4"><span class="text-sm truncate flex-1">${shareLink}</span><button id="copy-share-link" class="bg-cyan-600 text-white font-semibold py-1 px-3 rounded-md text-sm">Copier</button></div>
+                </div>
+                <div class="mt-4 text-center"><button id="toggle-share-btn" class="text-sm font-semibold ${shareToken ? 'text-red-600' : 'text-green-600'}">${shareToken ? '❌ Désactiver le partage' : '✅ Activer le partage'}</button></div>
+            </div>`;
+        div.appendChild(sharePanelEl);
+    }
+    
+    const earnedBadges = journalDataToDisplay.earned_badges || [];
+    if (earnedBadges.length > 0) {
+        div.innerHTML += createBadgesDisplay(context === 'student' ? 'journal' : 'journal_public');
+    }
+div.innerHTML += `<div class="mt-8">${createOrientationMapView(journalDataToDisplay, context === 'student' ? 'user' : 'public')}</div>`;
+
     const filRougeEl = document.createElement('div');
     filRougeEl.innerHTML = `
         <div id="filRougeContainer" class="mb-8 p-6 bg-cyan-50 border-l-4 border-cyan-500 rounded-r-lg">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-cyan-800">✨ Mon Fil Rouge</h2>
-                <button id="updateFilRougeBtn" class="bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition text-sm">Mettre à jour</button>
+                <h2 class="text-xl font-bold text-cyan-800">✨ ${context === 'student' ? 'Mon' : 'Son'} Fil Rouge</h2>
+                ${context === 'student' ? '<button id="updateFilRougeBtn" class="bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition text-sm">Mettre à jour</button>' : ''}
             </div>
             <div id="filRougeLoader" class="hidden"><div class="loader"></div></div>
-<div id="filRougeContent" class="text-slate-700 whitespace-pre-wrap prose prose-sm max-w-none">${journalData.fil_rouge ? marked.parse(journalData.fil_rouge) : "Cliquez sur 'Mettre à jour'..."}</div>
+            <div id="filRougeContent" class="text-slate-700 whitespace-pre-wrap prose prose-sm max-w-none">${journalDataToDisplay.fil_rouge ? marked.parse(journalDataToDisplay.fil_rouge) : (context === 'student' ? "Cliquez sur 'Mettre à jour'..." : "Le Fil Rouge n'a pas encore été généré.")}</div>
         </div>
     `;
-
-    // 3. Assemblage de la page dans le bon ordre
-    div.appendChild(headerEl);
-    div.innerHTML += progressBarHTML;
-    div.appendChild(sharePanelEl);
-
-    const earnedBadges = journalData.earned_badges || [];
-    if (earnedBadges.length > 0) {
-        const badgesWrapper = document.createElement('div');
-        badgesWrapper.innerHTML = createBadgesDisplay('journal');
-        div.appendChild(badgesWrapper);
-    }
-
-    const mapWrapper = document.createElement('div');
-    mapWrapper.innerHTML = createOrientationMapView(journalData, 'user');
-    div.appendChild(mapWrapper);
-
     div.appendChild(filRougeEl);
 
-    // 4. Remplissage du contenu détaillé (infographie + étapes)
     const journalContentDiv = document.createElement('div');
     journalContentDiv.id = 'journalContent';
-    journalContentDiv.className = 'mt-8 space-y-4'; // Ajout de space-y-4 pour espacer les blocs
+    journalContentDiv.className = 'mt-8 space-y-4';
     
     let hasAnyContent = false;
 
-    // L'infographie reste toujours visible
-    if (journalData.step0 && journalData.step0.analysis) {
-        const infographicElement = createProfileInfographic(journalData.step0);
+    if (journalDataToDisplay.step0 && journalDataToDisplay.step0.analysis) {
+        const infographicElement = createProfileInfographic(journalDataToDisplay.step0);
         journalContentDiv.appendChild(infographicElement);
         hasAnyContent = true;
     }
 
-    // On prépare les titres de toutes les sections, y compris le portfolio
-    const stepTitles = {
-    retroplanning_saves: 'Mes Conseils de Rétroplanning Sauvegardés', // ⬅️ NOUVEAU
-    step10: 'Mon Portfolio de Compétences',
-    step2: 'Mes simulations de spécialités',
-    step1: 'Mes Fondations',
-    step3: 'Mon Catalogue',
-    step8: 'Mes passages à l\'action',
-    radar_history: 'Mon Radar à Opportunités',
-    chatbot_saves: 'Mes Discussions avec le Coach',
-    step4: 'L\'expérience',
-    step11: 'Mes rencontres sur le territoire',
-    step6: 'Mes préparations de candidatures',
-    step9: 'Mon anticipation de la suite',
-    step12: 'Mes simulations de vie étudiante',
-    step5: 'Mon Actu',
-    step7: 'Mes Scores (Fact Checking)',
-};
+    const stepTitles = { retroplanning_saves: 'Mes Conseils de Rétroplanning Sauvegardés', step10: 'Mon Portfolio de Compétences', step2: 'Mes simulations de spécialités', step1: 'Mes Fondations', step3: 'Mon Catalogue', step8: 'Mes passages à l\'action', radar_history: 'Mon Radar à Opportunités', chatbot_saves: 'Mes Discussions avec le Coach', step4: 'L\'expérience', step11: 'Mes rencontres sur le territoire', step6: 'Mes préparations de candidatures', step9: 'Mon anticipation de la suite', step12: 'Mes simulations de vie étudiante', step5: 'Mon Actu', step7: 'Mes Scores (Fact Checking)' };
+    
+    for (const stepKey in stepTitles) {
+        const stepData = journalDataToDisplay[stepKey];
+        if (!isStepStarted(stepKey)) continue;
 
-    // MODIFICATION : Nouvelle boucle pour créer les blocs pliables
-    // ▼▼▼ REMPLACEZ L'INTÉGRALITÉ DE VOTRE BOUCLE for(...) PAR CE BLOC FINAL ET COMPLET ▼▼▼
+        let sectionContentHTML = '';
+        let hasSubEntries = false;
+        let hasContentInSection = false;
 
-// =================== REMPLACEZ VOTRE BOUCLE FOR PAR CECI ===================
-
-for (const stepKey in stepTitles) {
-    const stepData = journalData[stepKey];
-    if (!isStepStarted(stepKey)) continue;
-
-    let sectionContentHTML = '';
-    let hasSubEntries = false;
-    let hasContentInSection = false;
-
-    if (stepKey === 'retroplanning_saves' && Array.isArray(stepData) && stepData.length > 0) {
-        hasSubEntries = true; hasContentInSection = true;
-        sectionContentHTML = '<div class="space-y-3">' + [...stepData].reverse().map((item, index) => {
-            const originalIndex = stepData.length - 1 - index;
-            const conseilsContent = '<div class="prose prose-sm max-w-none">' + Object.entries(item.conseils).map(([key, value]) => {
-                const title = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                return `<h4 class="font-bold text-OrIAntation-darkblue mt-3 mb-1">${title}</h4><p class="text-slate-600 whitespace-pre-wrap">${value}</p>`;
+        if (stepKey === 'retroplanning_saves' && Array.isArray(stepData) && stepData.length > 0) {
+            hasSubEntries = true; hasContentInSection = true;
+            sectionContentHTML = '<div class="space-y-3">' + [...stepData].reverse().map((item, index) => {
+                const originalIndex = stepData.length - 1 - index;
+                const conseilsContent = '<div class="prose prose-sm max-w-none">' + Object.entries(item.conseils).map(([key, value]) => `<h4 class="font-bold text-OrIAntation-darkblue mt-3 mb-1">${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</h4><p class="text-slate-600 whitespace-pre-wrap">${value}</p>`).join('') + '</div>';
+                const deleteButtonHTML = context === 'student' ? `<button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="retroplanning_saves" data-entry-index="${originalIndex}">🗑️</button>` : '';
+                return `<details class="bg-background-light rounded-lg border border-border-subtle"><summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center"><span>Conseils générés le ${new Date(item.date).toLocaleDateString('fr-FR')}</span>${deleteButtonHTML}</summary><div class="p-3 border-t border-border-subtle">${conseilsContent}</div></details>`;
             }).join('') + '</div>';
-            return `<details class="bg-background-light rounded-lg border border-border-subtle">
-                        <summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center">
-                            <span>Conseils générés le ${new Date(item.date).toLocaleDateString('fr-FR')}</span>
-                            <button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="retroplanning_saves" data-entry-index="${originalIndex}">🗑️</button>
-                        </summary>
-                        <div class="p-3 border-t border-border-subtle">${conseilsContent}</div>
-                    </details>`;
-        }).join('') + '</div>';
-    }
-    else if (stepKey === 'chatbot_saves' && Array.isArray(stepData) && stepData.length > 0) {
-        hasSubEntries = true; hasContentInSection = true;
-        sectionContentHTML = '<div class="space-y-3">' + stepData.map((item, index) => `
-            <details class="bg-background-light rounded-lg border border-border-subtle">
-                <summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center">
-                    <span>Question : "${item.question}"</span>
-                    <button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="chatbot_saves" data-entry-index="${index}">🗑️</button>
-                </summary>
-                <div class="p-3 border-t border-border-subtle"><p class="whitespace-pre-wrap text-slate-600">${linkify(item.reponse)}</p></div>
-            </details>`).join('') + '</div>';
-    }
-    else if (stepKey === 'radar_history' && Array.isArray(stepData) && stepData.length > 0) {
-        hasSubEntries = true; hasContentInSection = true;
-        sectionContentHTML = '<div class="space-y-3">' + stepData.map((item, index) => `
-            <details class="bg-background-light rounded-lg border border-border-subtle">
-                <summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center">
-                    <span>${item.type} : ${item.sujet}</span>
-                    <button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="radar_history" data-entry-index="${index}">🗑️</button>
-                </summary>
-            <div class="p-3 border-t prose prose-sm max-w-none">${marked.parse(linkify(item.reponse))}</div>
-            </details>`).join('') + '</div>';
-    }
-    else if (stepKey === 'step1' && Array.isArray(stepData?.metiers) && stepData.metiers.length > 0) {
-        hasSubEntries = true;
-        hasContentInSection = true;
-        sectionContentHTML = '<div class="space-y-3">' + stepData.metiers.map((metier, index) => {
-            let contentHTML = `<div class="mb-2"><p class="font-semibold text-slate-700">Notes :</p><p class="whitespace-pre-wrap text-slate-600">${metier.notes || "Aucune note."}</p></div>`;
-            let analysesHTML = '';
-
-            if (metier.analyses && Object.keys(metier.analyses).length > 0) {
-                analysesHTML = Object.entries(metier.analyses).map(([key, value]) => {
-                    if (!value) return '';
-                    if (key === 'temoignages') {
-                        try {
-                            const testimonials = JSON.parse(value);
-                            if (!Array.isArray(testimonials)) return '';
-                            const temoignagesContent = testimonials.map(item => `<div class="p-2 bg-white rounded border mt-1"><a href="${item.lien}" target="_blank" class="font-semibold text-primary-action hover:underline text-sm">${item.titre}</a><p class="text-xs mt-1">${item.resume}</p></div>`).join('');
-                            return `<div class="mb-3"><h5 class="font-medium text-OrIAntation-darkblue">Témoignages</h5><div class="space-y-2">${temoignagesContent}</div></div>`;
-                        } catch (e) { return ''; }
+        }
+        else if (stepKey === 'chatbot_saves' && Array.isArray(stepData) && stepData.length > 0) {
+            hasSubEntries = true; hasContentInSection = true;
+            sectionContentHTML = '<div class="space-y-3">' + stepData.map((item, index) => {
+                 const deleteButtonHTML = context === 'student' ? `<button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="chatbot_saves" data-entry-index="${index}">🗑️</button>` : '';
+                 return `<details class="bg-background-light rounded-lg border border-border-subtle"><summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center"><span>Question : "${item.question}"</span>${deleteButtonHTML}</summary><div class="p-3 border-t border-border-subtle"><p class="whitespace-pre-wrap text-slate-600">${linkify(item.reponse)}</p></div></details>`}).join('') + '</div>';
+        }
+        else if (stepKey === 'radar_history' && Array.isArray(stepData) && stepData.length > 0) {
+            hasSubEntries = true; hasContentInSection = true;
+            sectionContentHTML = '<div class="space-y-3">' + stepData.map((item, index) => {
+                const deleteButtonHTML = context === 'student' ? `<button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="radar_history" data-entry-index="${index}">🗑️</button>` : '';
+                return `<details class="bg-background-light rounded-lg border border-border-subtle"><summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center"><span>${item.type} : ${item.sujet}</span>${deleteButtonHTML}</summary><div class="p-3 border-t prose prose-sm max-w-none">${marked.parse(linkify(item.reponse))}</div></details>`}).join('') + '</div>';
+        }
+        else if (stepKey === 'step1' && Array.isArray(stepData?.metiers) && stepData.metiers.length > 0) {
+            hasSubEntries = true; hasContentInSection = true;
+            sectionContentHTML = '<div class="space-y-3">' + stepData.metiers.map((metier, index) => {
+                let contentHTML = `<div class="mb-2"><p class="font-semibold text-slate-700">Notes :</p><p class="whitespace-pre-wrap text-slate-600">${metier.notes || "Aucune note."}</p></div>`;
+                let analysesHTML = '';
+                if (metier.analyses && Object.keys(metier.analyses).length > 0) {
+                    analysesHTML = Object.entries(metier.analyses).map(([key, value]) => {
+                        if (!value) return '';
+                        if (key === 'temoignages') {
+                            try {
+                                const testimonials = JSON.parse(value);
+                                if (!Array.isArray(testimonials)) return '';
+                                const temoignagesContent = testimonials.map(item => `<div class="p-2 bg-white rounded border mt-1"><a href="${item.lien}" target="_blank" class="font-semibold text-primary-action hover:underline text-sm">${item.titre}</a><p class="text-xs mt-1">${item.resume}</p></div>`).join('');
+                                return `<div class="mb-3"><h5 class="font-medium text-OrIAntation-darkblue">Témoignages</h5><div class="space-y-2">${temoignagesContent}</div></div>`;
+                            } catch (e) { return ''; }
+                        }
+                        return `<div class="mb-3"><h5 class="font-medium text-OrIAntation-darkblue">${capitalizeWords(key)}</h5><div class="prose prose-sm max-w-none">${marked.parse(linkify(value))}</div></div>`;
+                    }).join('');
+                    if (analysesHTML.trim()) {
+                        contentHTML += `<details class="mt-3 bg-white rounded-md border"><summary class="p-2 text-sm font-medium cursor-pointer text-cyan-700 hover:bg-slate-50">Voir les analyses de OrIA</summary><div class="p-3 border-t">${analysesHTML}</div></details>`;
                     }
-                    return `<div class="mb-3"><h5 class="font-medium text-OrIAntation-darkblue">${capitalizeWords(key)}</h5><div class="prose prose-sm max-w-none">${marked.parse(linkify(value))}</div></div>`;
-                }).join('');
-
-                if (analysesHTML.trim()) {
-                    contentHTML += `<details class="mt-3 bg-white rounded-md border"><summary class="p-2 text-sm font-medium cursor-pointer text-cyan-700 hover:bg-slate-50">Voir les analyses de OrIA</summary><div class="p-3 border-t">${analysesHTML}</div></details>`;
                 }
-            }
-            return `<details class="bg-background-light rounded-lg border border-border-subtle"><summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center"><span>${metier.nom}</span><button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step1" data-entry-index="${index}">🗑️</button></summary><div class="p-3 border-t">${contentHTML}</div></details>`;
-        }).join('') + '</div>';
-    }
-    else if (stepKey === 'step2' && Array.isArray(stepData?.combinations) && stepData.combinations.length > 0) {
-        hasSubEntries = true; hasContentInSection = true;
-        sectionContentHTML = '<div class="space-y-3">' + stepData.combinations.map((combo, index) => `<details class="bg-background-light rounded-lg border"><summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center"><span>${combo.name}</span><button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step2" data-entry-index="${index}">🗑️</button></summary><div class="p-3 border-t">${renderStep2InJournal({combinations: [combo]})}</div></details>`).join('') + '</div>';
-    }
-    else if (stepKey === 'step3' && (Array.isArray(stepData?.formations) && stepData.formations.length > 0 || stepData?.comparison)) {
-        hasContentInSection = true;
-        if (Array.isArray(stepData.formations) && stepData.formations.length > 0) {
-            hasSubEntries = true;
-            sectionContentHTML += '<div class="space-y-3">' + stepData.formations.map((formation, index) => {
-                let contentHTML = '';
-                if (formation.attendus) contentHTML += `<div class="mb-2"><p class="font-semibold">Attendus :</p><p class="whitespace-pre-wrap text-sm">${formation.attendus}</p></div>`;
-                if (formation.mots_cles) contentHTML += `<div class="mb-2"><p class="font-semibold">Mots-clés :</p><p class="whitespace-pre-wrap text-sm">${formation.mots_cles}</p></div>`;
-                if (formation.analyses) {
-                    if(formation.analyses.compatibilite) contentHTML += `<div class="mb-2"><p class="font-semibold">Rapport de compatibilité :</p><div class="prose prose-sm max-w-none">${marked.parse(formation.analyses.compatibilite)}</div></div>`;
-                    if(formation.analyses.analyse_mots_cles) contentHTML += `<div class="mb-2"><p class="font-semibold">Analyse des mots-clés :</p><div class="prose prose-sm max-w-none">${marked.parse(formation.analyses.analyse_mots_cles)}</div></div>`;
-                }
-                return `<details class="bg-background-light rounded-lg border"><summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center"><span>${formation.nom}</span><button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step3" data-entry-index="${index}">🗑️</button></summary><div class="p-3 border-t">${contentHTML}</div></details>`;
+                const deleteButtonHTML = context === 'student' ? `<button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step1" data-entry-index="${index}">🗑️</button>` : '';
+                return `<details class="bg-background-light rounded-lg border border-border-subtle"><summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center"><span>${metier.nom}</span>${deleteButtonHTML}</summary><div class="p-3 border-t">${contentHTML}</div></details>`;
             }).join('') + '</div>';
         }
-        if (stepData.comparison) {
-             try {
-                const data = JSON.parse(stepData.comparison);
-                sectionContentHTML += `<h4 class="font-bold text-OrIAntation-darkblue mt-4 mb-2">Tableau Comparatif</h4><div class="comparison-table-wrapper">${markdownTableToHtml(data.tableau)}</div><p class="text-sm italic mt-2">${data.remarques}</p>`;
-            } catch(e) { /* ignore error */ }
+        else if (stepKey === 'step2' && Array.isArray(stepData?.combinations) && stepData.combinations.length > 0) {
+            hasSubEntries = true; hasContentInSection = true;
+            sectionContentHTML = '<div class="space-y-3">' + stepData.combinations.map((combo, index) => {
+                const deleteButtonHTML = context === 'student' ? `<button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step2" data-entry-index="${index}">🗑️</button>` : '';
+                return `<details class="bg-background-light rounded-lg border"><summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center"><span>${combo.name}</span>${deleteButtonHTML}</summary><div class="p-3 border-t">${renderStep2InJournal({combinations: [combo]})}</div></details>`;
+            }).join('') + '</div>';
         }
-    }
-    else if (stepKey === 'step4' && Array.isArray(stepData?.themes) && stepData.themes.length > 0) {
-        hasSubEntries = true;
-        hasContentInSection = true;
-        sectionContentHTML = '<div class="space-y-3">' + stepData.themes.map((item, index) => {
-            let contentHTML = `
-                <div class="mb-3">
-                    <p class="font-semibold text-slate-800">Ma question :</p>
-                    <p class="text-sm whitespace-pre-wrap">${item.question}</p>
-                </div>
-                <div>
-                    <p class="font-semibold text-slate-800">Suggestions de l'IA :</p>
-                    <div class="text-sm whitespace-pre-wrap prose prose-sm max-w-none">${marked.parse(item.suggestions || '')}</div>
-                </div>
-            `;
-            return `
-                <details class="bg-background-light rounded-lg border border-border-subtle">
-                    <summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center">
-                        <span>${item.theme}</span>
-                        <button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step4" data-entry-index="${index}">🗑️</button>
-                    </summary>
-                    <div class="p-3 border-t border-border-subtle">${contentHTML}</div>
-                </details>`;
-        }).join('') + '</div>';
-    }
-    else if (stepKey === 'step5' && Array.isArray(stepData?.articles) && stepData.articles.length > 0) {
-        hasSubEntries = true; hasContentInSection = true;
-        sectionContentHTML = '<div class="space-y-3">' + stepData.articles.map((article, index) => {
-            let contentHTML = `<div class="mb-2"><p class="font-semibold">Ce que j'ai appris :</p><p class="whitespace-pre-wrap text-sm">${article.notes || 'Non renseigné.'}</p></div>`;
-            if (article.analysis) {
-                contentHTML += `<div class="mb-2"><p class="font-semibold">Analyse de OrIA :</p><div class="prose prose-sm max-w-none">${marked.parse(article.analysis)}</div></div>`;
-            }
-            return `<details class="bg-background-light rounded-lg border"><summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center"><span>${article.title}</span><button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step5" data-entry-index="${index}">🗑️</button></summary><div class="p-3 border-t">${contentHTML}</div></details>`;
-        }).join('') + '</div>';
-    }
-
-    else if (stepKey === 'step6' && Array.isArray(stepData?.projets) && stepData.projets.length > 0) {
-    hasSubEntries = true;
-    hasContentInSection = true;
-    sectionContentHTML = '<div class="space-y-3">' + stepData.projets.map((projet, index) => {
-        let contentHTML = `
-            <div class="mb-2"><p class="font-semibold">Motivations :</p><p class="whitespace-pre-wrap text-sm">${projet.motivations || ''}</p></div>
-            <div class="mb-2"><p class="font-semibold">Structure proposée :</p><p class="whitespace-pre-wrap text-sm">${projet.structure || ''}</p></div>
-            ${projet.optimisation ? `<div class="mb-2"><p class="font-semibold">Conseils d'optimisation :</p><div class="prose prose-sm max-w-none">${marked.parse(projet.optimisation)}</div></div>` : ''}
-        `;
-        return `
-            <details class="bg-background-light rounded-lg border border-border-subtle">
-                <summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center">
-                    <span>${projet.formation}</span>
-                    <button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step6" data-entry-index="${index}">🗑️</button>
-                </summary>
-                <div class="p-3 border-t">${contentHTML}</div>
-            </details>`;
-    }).join('') + '</div>';
-}
-    else {
-        const staticContent = [];
-        if (stepKey === 'step10') {
-            if (Array.isArray(stepData.experiences) && stepData.experiences.length > 0) {
-                const experiencesContent = stepData.experiences.map((exp, index) =>
-                    `<div class="p-3 bg-white rounded-lg border mt-2">
-                        <p class="font-medium text-OrIAntation-darkblue">Expérience #${index + 1}</p>
-                        <div class="prose prose-sm max-w-none text-slate-600">${marked.parse(exp.analysis)}</div>
-                    </div>`
-                ).join('');
-                staticContent.push(`<h4>Mes Expériences Significatives</h4><div class="space-y-2">${experiencesContent}</div>`);
-            }
-            if (stepData.soft_skills_profile) {
-                staticContent.push(`<h4>Profil de compétences</h4><div class="prose prose-sm max-w-none">${marked.parse(stepData.soft_skills_profile)}</div>`);
-            }
-            if (stepData.skills_synthesis) {
-                staticContent.push(`<h4>Synthèse du Connecteur</h4><div class="prose prose-sm max-w-none">${marked.parse(stepData.skills_synthesis)}</div>`);
-            }
-        } else if (stepKey === 'step8') {
-            if(stepData.contacts?.length > 0) staticContent.push(`<h4>Liste de contacts</h4><ul>${stepData.contacts.map(c => `<li>${c.nom}</li>`).join('')}</ul>`);
-            if(stepData.pro_strategie) staticContent.push(`<h4>Stratégie de contact</h4><p>${stepData.pro_strategie}</p>`);
-        } else if (stepKey === 'step7' && stepData.scores) {
-            staticContent.push(Object.entries(stepData.scores).map(([domain, history]) => `<h4>${domain}</h4><ul>${history.map(e => `<li>${e.date}: ${e.score}/${e.total}</li>`).join('')}</ul>`).join(''));
-        } else if (stepKey === 'step6' || stepKey === 'step9' || stepKey === 'step11' || stepKey === 'step12') {
-             const config = Object.values(stepsConfig).find(c => c.stepKey === stepKey);
-             if (config && config.fields) {
-                config.fields.forEach(field => {
-                    const value = stepData[field.id];
-                    if (value) staticContent.push(`<p><strong>${field.label}:</strong><br>${value}</p>`);
-                });
-             }
-        }
-        if (staticContent.length > 0) {
+        else if (stepKey === 'step3' && (Array.isArray(stepData?.formations) && stepData.formations.length > 0 || stepData?.comparison)) {
             hasContentInSection = true;
-            sectionContentHTML = `<div class="prose prose-sm max-w-none text-slate-600 space-y-4">${staticContent.join('')}</div>`;
+            if (Array.isArray(stepData.formations) && stepData.formations.length > 0) {
+                hasSubEntries = true;
+                sectionContentHTML += '<div class="space-y-3">' + stepData.formations.map((formation, index) => {
+                    let contentHTML = '';
+                    if (formation.attendus) contentHTML += `<div class="mb-2"><p class="font-semibold">Attendus :</p><p class="whitespace-pre-wrap text-sm">${formation.attendus}</p></div>`;
+                    if (formation.mots_cles) contentHTML += `<div class="mb-2"><p class="font-semibold">Mots-clés :</p><p class="whitespace-pre-wrap text-sm">${formation.mots_cles}</p></div>`;
+                    if (formation.analyses) {
+                        if(formation.analyses.compatibilite) contentHTML += `<div class="mb-2"><p class="font-semibold">Rapport de compatibilité :</p><div class="prose prose-sm max-w-none">${marked.parse(formation.analyses.compatibilite)}</div></div>`;
+                        if(formation.analyses.analyse_mots_cles) contentHTML += `<div class="mb-2"><p class="font-semibold">Analyse des mots-clés :</p><div class="prose prose-sm max-w-none">${marked.parse(formation.analyses.analyse_mots_cles)}</div></div>`;
+                    }
+                    const deleteButtonHTML = context === 'student' ? `<button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step3" data-entry-index="${index}">🗑️</button>` : '';
+                    return `<details class="bg-background-light rounded-lg border"><summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center"><span>${formation.nom}</span>${deleteButtonHTML}</summary><div class="p-3 border-t">${contentHTML}</div></details>`;
+                }).join('') + '</div>';
+            }
+            if (stepData.comparison) {
+                try {
+                    const data = JSON.parse(stepData.comparison);
+                    sectionContentHTML += `<h4 class="font-bold text-OrIAntation-darkblue mt-4 mb-2">Tableau Comparatif</h4><div class="comparison-table-wrapper">${markdownTableToHtml(data.tableau)}</div><p class="text-sm italic mt-2">${data.remarques}</p>`;
+                } catch(e) { /* ignore error */ }
+            }
+        }
+        else if (stepKey === 'step4' && Array.isArray(stepData?.themes) && stepData.themes.length > 0) {
+            hasSubEntries = true; hasContentInSection = true;
+            sectionContentHTML = '<div class="space-y-3">' + stepData.themes.map((item, index) => {
+                let contentHTML = `<div class="mb-3"><p class="font-semibold text-slate-800">Ma question :</p><p class="text-sm whitespace-pre-wrap">${item.question}</p></div><div><p class="font-semibold text-slate-800">Suggestions de l'IA :</p><div class="text-sm whitespace-pre-wrap prose prose-sm max-w-none">${marked.parse(item.suggestions || '')}</div></div>`;
+                const deleteButtonHTML = context === 'student' ? `<button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step4" data-entry-index="${index}">🗑️</button>` : '';
+                return `<details class="bg-background-light rounded-lg border border-border-subtle"><summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center"><span>${item.theme}</span>${deleteButtonHTML}</summary><div class="p-3 border-t border-border-subtle">${contentHTML}</div></details>`;
+            }).join('') + '</div>';
+        }
+        else if (stepKey === 'step5' && Array.isArray(stepData?.articles) && stepData.articles.length > 0) {
+            hasSubEntries = true; hasContentInSection = true;
+            sectionContentHTML = '<div class="space-y-3">' + stepData.articles.map((article, index) => {
+                let contentHTML = `<div class="mb-2"><p class="font-semibold">Ce que j'ai appris :</p><p class="whitespace-pre-wrap text-sm">${article.notes || 'Non renseigné.'}</p></div>`;
+                if (article.analysis) contentHTML += `<div class="mb-2"><p class="font-semibold">Analyse de OrIA :</p><div class="prose prose-sm max-w-none">${marked.parse(article.analysis)}</div></div>`;
+                const deleteButtonHTML = context === 'student' ? `<button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step5" data-entry-index="${index}">🗑️</button>` : '';
+                return `<details class="bg-background-light rounded-lg border"><summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center"><span>${article.title}</span>${deleteButtonHTML}</summary><div class="p-3 border-t">${contentHTML}</div></details>`;
+            }).join('') + '</div>';
+        }
+        else if (stepKey === 'step6' && Array.isArray(stepData?.projets) && stepData.projets.length > 0) {
+            hasSubEntries = true; hasContentInSection = true;
+            sectionContentHTML = '<div class="space-y-3">' + stepData.projets.map((projet, index) => {
+                let contentHTML = `<div class="mb-2"><p class="font-semibold">Motivations :</p><p class="whitespace-pre-wrap text-sm">${projet.motivations || ''}</p></div><div class="mb-2"><p class="font-semibold">Structure proposée :</p><p class="whitespace-pre-wrap text-sm">${projet.structure || ''}</p></div>${projet.optimisation ? `<div class="mb-2"><p class="font-semibold">Conseils d'optimisation :</p><div class="prose prose-sm max-w-none">${marked.parse(projet.optimisation)}</div></div>` : ''}`;
+                const deleteButtonHTML = context === 'student' ? `<button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step6" data-entry-index="${index}">🗑️</button>` : '';
+                return `<details class="bg-background-light rounded-lg border border-border-subtle"><summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center"><span>${projet.formation}</span>${deleteButtonHTML}</summary><div class="p-3 border-t">${contentHTML}</div></details>`;
+            }).join('') + '</div>';
+        } else {
+            const staticContent = [];
+            if (stepKey === 'step10') {
+                if (Array.isArray(stepData.experiences) && stepData.experiences.length > 0) {
+                    const experiencesContent = stepData.experiences.map((exp, index) => `<div class="p-3 bg-white rounded-lg border mt-2"><p class="font-medium text-OrIAntation-darkblue">Expérience #${index + 1}</p><div class="prose prose-sm max-w-none text-slate-600">${marked.parse(exp.analysis)}</div></div>`).join('');
+                    staticContent.push(`<h4>Mes Expériences Significatives</h4><div class="space-y-2">${experiencesContent}</div>`);
+                }
+                if (stepData.soft_skills_profile) staticContent.push(`<h4>Profil de compétences</h4><div class="prose prose-sm max-w-none">${marked.parse(stepData.soft_skills_profile)}</div>`);
+                if (stepData.skills_synthesis) staticContent.push(`<h4>Synthèse du Connecteur</h4><div class="prose prose-sm max-w-none">${marked.parse(stepData.skills_synthesis)}</div>`);
+            } else if (stepKey === 'step8') {
+                if(stepData.contacts?.length > 0) staticContent.push(`<h4>Liste de contacts</h4><ul>${stepData.contacts.map(c => `<li>${c.nom}</li>`).join('')}</ul>`);
+                if(stepData.pro_strategie) staticContent.push(`<h4>Stratégie de contact</h4><p>${stepData.pro_strategie}</p>`);
+            } else if (stepKey === 'step7' && stepData.scores) {
+                staticContent.push(Object.entries(stepData.scores).map(([domain, history]) => `<h4>${domain}</h4><ul>${history.map(e => `<li>${e.date}: ${e.score}/${e.total}</li>`).join('')}</ul>`).join(''));
+            } else if (stepKey === 'step9' || stepKey === 'step11' || stepKey === 'step12') {
+                 const config = Object.values(stepsConfig).find(c => c.stepKey === stepKey);
+                 if (config && config.fields) {
+                    config.fields.forEach(field => {
+                        const value = stepData[field.id];
+                        if (value) staticContent.push(`<p><strong>${field.label}:</strong><br>${value}</p>`);
+                    });
+                 }
+            }
+            if (staticContent.length > 0) {
+                hasContentInSection = true;
+                sectionContentHTML = `<div class="prose prose-sm max-w-none text-slate-600 space-y-4">${staticContent.join('')}</div>`;
+            }
+        }
+
+        if (hasContentInSection) {
+            hasAnyContent = true;
+            const sectionContainer = document.createElement('div');
+            sectionContainer.id = `journal-section-${stepKey}`;
+            sectionContainer.className = 'border border-border-subtle rounded-lg overflow-hidden';
+            const deleteButtonHTML = !hasSubEntries && context === 'student' ? `<button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Vider la section" data-step-key="${stepKey}" data-action="clear-section">🗑️</button>` : '';
+            sectionContainer.innerHTML = `
+                <div class="journal-section-header flex justify-between items-center bg-background-light p-4 cursor-pointer hover:bg-slate-100 transition">
+                    <h3 class="text-lg font-bold text-cyan-700">${stepTitles[stepKey]}</h3>
+                    <div class="flex items-center gap-2">${deleteButtonHTML}<span class="transform transition-transform duration-200 text-cyan-700">▼</span></div>
+                </div>
+                <div class="journal-section-content p-4 border-t border-border-subtle hidden">${sectionContentHTML}</div>`;
+            journalContentDiv.appendChild(sectionContainer);
         }
     }
-
-    if (hasContentInSection) {
-        const sectionContainer = document.createElement('div');
-        sectionContainer.id = `journal-section-${stepKey}`;
-        sectionContainer.className = 'border border-border-subtle rounded-lg overflow-hidden';
-        sectionContainer.innerHTML = `
-            <div class="journal-section-header flex justify-between items-center bg-background-light p-4 cursor-pointer hover:bg-slate-100 transition">
-                <h3 class="text-lg font-bold text-cyan-700">${stepTitles[stepKey]}</h3>
-                <div class="flex items-center gap-2">
-                    ${!hasSubEntries ? `<button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Vider la section" data-step-key="${stepKey}" data-action="clear-section">🗑️</button>` : ''}
-                    <span class="transform transition-transform duration-200 text-cyan-700">▼</span>
-                </div>
-            </div>
-            <div class="journal-section-content p-4 border-t border-border-subtle hidden">${sectionContentHTML}</div>`;
-        journalContentDiv.appendChild(sectionContainer);
-    }
-}
-
-// ===========================================================================
-
-  
 
     if (!hasAnyContent) {
-        journalContentDiv.innerHTML = '<p class="text-center text-slate-500">Votre journal est encore vide. Explorez les étapes pour le remplir !</p>';
-
-        
+        journalContentDiv.innerHTML = '<p class="text-center text-slate-500">Le journal est encore vide. Explorez les étapes pour le remplir !</p>';
     }
-
-    
     
     div.appendChild(journalContentDiv);
 
-
-// ▼▼▼ REMPLACEZ L'ÉCOUTEUR D'ÉVÉNEMENTS EXISTANT PAR CELUI-CI ▼▼▼
-
-journalContentDiv.addEventListener('click', async (e) => {
-    const header = e.target.closest('.journal-section-header');
-    const deleteBtn = e.target.closest('.delete-journal-entry');
-
-    if (header && !deleteBtn) {
-        const content = header.nextElementSibling;
-        const icon = header.querySelector('span.transform');
-        if (content) content.classList.toggle('hidden');
-        if (icon) icon.classList.toggle('rotate-180');
-        return;
+    if (context === 'teacher') {
+        const discussionSection = document.createElement('div');
+        discussionSection.innerHTML = `
+            <div class="mt-8 border-t pt-6 text-center">
+                <button id="publicShareBtn" class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">🤝 Préparer une discussion</button>
+            </div>
+            <div id="publicOpenAIShareLoader" class="hidden"><div class="loader"></div></div>
+            <div id="publicOpenAIShareResult" class="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-lg"></div>`;
+        div.appendChild(discussionSection);
+    }
+    
+    if (context === 'student') {
+        const deleteSection = document.createElement('div');
+        deleteSection.className = 'text-center mt-12 pt-8 border-t border-border-subtle';
+        deleteSection.innerHTML = `<button onclick="deleteUserAccount()" class="text-sm text-slate-500 hover:text-red-600 hover:underline transition-colors">Supprimer mon compte et toutes mes données</button>`;
+        div.appendChild(deleteSection);
     }
 
-    if (deleteBtn) {
-        e.stopPropagation();
-        const stepKey = deleteBtn.dataset.stepKey;
-        const action = deleteBtn.dataset.action;
-        const entryIndex = parseInt(deleteBtn.dataset.entryIndex, 10);
-        
-        const confirmationMessage = action === 'clear-section' ? 'Vider toute cette section ?' : 'Supprimer cette entrée ?';
-        if (!await showConfirmationModal(confirmationMessage)) return;
-
-        if (action === 'clear-section') {
-            journalData[stepKey] = defaultData[stepKey];
-        } else if (!isNaN(entryIndex)) {
-         // La version corrigée
-const arraysMap = {
-    'retroplanning_saves': journalData.retroplanning_saves,
-    'step1': journalData.step1?.metiers,
-    'step2': journalData.step2?.combinations,
-    'step3': journalData.step3?.formations,
-    'step4': journalData.step4?.themes,
-    'step5': journalData.step5?.articles,
-    'step6': journalData.step6?.projets, // <--- AJOUTEZ CETTE LIGNE
-    'radar_history': journalData.radar_history,
-    'chatbot_saves': journalData.chatbot_saves,
-};
-            if (arraysMap[stepKey] && arraysMap[stepKey][entryIndex]) {
-                arraysMap[stepKey].splice(entryIndex, 1);
+    // ---- Logique des événements ----
+    const allEventListeners = () => {
+        if (context === 'student') {
+            const toggleShareBtn = div.querySelector('#toggle-share-btn');
+            if (toggleShareBtn) {
+    toggleShareBtn.addEventListener('click', async () => {
+        // Si un token existe, on veut désactiver le partage
+        if (journalDataToDisplay.share_token) {
+            const userConfirmed = await showConfirmationModal("Es-tu sûr de vouloir désactiver le partage ? Le lien ne fonctionnera plus.");
+            if (userConfirmed) {
+                // On supprime le token du journal
+                journalDataToDisplay.share_token = null;
+                // ▼▼▼ LIGNE AJOUTÉE ▼▼▼
+                // On supprime le document "drapeau" de la liste publique
+                await deleteDoc(doc(db, "publicShares", currentUserId));
+                
+                await saveData();
+                showView('journal');
             }
-        }
-        
-        await saveData();
-        await showView('journal'); // On rafraîchit la vue pour montrer les changements
-    }
-});
+        } else { // Sinon, on veut activer le partage
+            const chosenRole = await promptShareRole();
+            if (chosenRole) {
+                // On crée le token et on le met dans le journal
+                const newShareToken = 'shr_' + Math.random().toString(36).substr(2, 16);
+                journalDataToDisplay.share_token = newShareToken;
 
+                // ▼▼▼ LIGNE AJOUTÉE ▼▼▼
+                // On crée le document "drapeau" dans la liste publique
+                await setDoc(doc(db, "publicShares", currentUserId), { token: newShareToken });
 
-    div.querySelector('#toggle-share-btn').addEventListener('click', async () => {
-    if (journalData.share_token) {
-        // ... (la logique de désactivation ne change pas) ...
-        const userConfirmed = await showConfirmationModal("Es-tu sûr de vouloir désactiver le partage ? Le lien ne fonctionnera plus.");
-        if (userConfirmed) {
-            journalData.share_token = null; 
-            await saveData(); 
-            showView('journal');
-        }
-    } else { // Activer le partage
-        const chosenRole = await promptShareRole(); // 1. On demande le rôle
-        
-        if (chosenRole) { // 2. Si un rôle est choisi (pas Annuler)
-            journalData.share_token = 'shr_' + Math.random().toString(36).substr(2, 16); 
-            await saveData(); 
-            
-const newShareLink = `${window.location.origin}${window.location.pathname}?share_id=${currentUserId}&token=${journalData.share_token}`;
-
-            // 3. On ouvre la fenêtre du message avec le bon rôle
-            showShareMessageModal(newShareLink, currentUserInfo.firstName, chosenRole);
-            
-            showView('journal');
-        }
-    }
-});
-
-    if (shareToken) {
-        div.querySelector('#copy-share-link').addEventListener('click', () => {
-            navigator.clipboard.writeText(shareLink).then(() => {
-                showSurpriseModal("C'est fait !", '<p>Le lien de partage a été copié dans votre presse-papiers.</p>', 2000); // Disparaît après 2 secondes
-            });
-        });
-    }
-
-div.querySelector('#updateFilRougeBtn').addEventListener('click', async () => {
-    if (!isStepStarted('step0')) {
-        showInfoModal(
-            "Action requise",
-            "Pour générer ton Fil Rouge, tu dois d'abord compléter l'étape 'Mieux se connaître'."
-        );
-        return;
-    }
-    const loader = div.querySelector('#filRougeLoader');
-    const contentP = div.querySelector('#filRougeContent');
-    loader.style.display = 'block'; 
-    contentP.style.display = 'none';
-
-    const profileSummary = getProfileSummary();
-    const completionSummary = getCompletionSummary();
-
-    // ✅ ÉTAPE 1 : On définit les 4 "micro-missions" à accomplir
-    const missions = {
-        titre: "1. Ton Titre de Projet : Trouve un titre global, percutant et positif pour son projet d'orientation.",
-        pouvoirs: "2. Tes Super-Pouvoirs : Identifie ses 2 ou 3 plus grandes forces (compétences, traits de personnalité).",
-        terrain: "3. Ton Terrain de Jeu Idéal : Décris le type d'environnement d'études ou de travail où il pourrait s'épanouir.",
-        aventures: "4. Tes Prochaines Aventures : Suggère 2 ou 3 pistes de métiers ou de secteurs à explorer."
-    };
-
-    // ✅ ÉTAPE 2 : On crée une fonction qui génère un prompt ciblé pour UNE SEULE mission
-    const createFilRougeMicroPrompt = (instruction) => {
-        return `
-            Agis comme un coach d'orientation expert et concis.
-            # Données sur l'élève
-            - Résumé du profil : ${profileSummary}
-            - Résumé de la progression : ${completionSummary}
-            # Ta Mission UNIQUE
-            Ta seule mission est de répondre à cette instruction : "${instruction}".
-            # Format de Sortie
-            Rédige un unique paragraphe de texte. N'ajoute PAS le titre (comme "Ton Titre de Projet :").
-        `;
-    };
-
-    try {
-        // ✅ ÉTAPE 3 : On crée un tableau de promesses (une pour chaque mission)
-        const promises = Object.entries(missions).map(([key, instruction]) => {
-            const microPrompt = createFilRougeMicroPrompt(instruction);
-       return callOpenAI_API({
-    promptText: microPrompt,
-    promptId: "pmpt_68dc33a589bc8197a0229d72a4e3df100510635f4c084c2c",
-    isExpertCall: true,
-    loaderElement: loader // ✅ On passe le loader à la fonction
-}).then(result => ({ key, result }));        });
-
-        // ✅ ÉTAPE 4 : On lance toutes les missions en parallèle !
-        const resultsArray = await Promise.all(promises);
-
-        // ✅ ÉTAPE 5 : On rassemble les résultats dans le format final
-        const finalResultObject = resultsArray.reduce((acc, { key, result }) => {
-            acc[key] = result;
-            return acc;
-        }, {});
-
-        const result = `
-**Ton Titre de Projet** : ${finalResultObject.titre}
-
-**Tes Super-Pouvoirs** : ${finalResultObject.pouvoirs}
-
-**Ton Terrain de Jeu Idéal** : ${finalResultObject.terrain}
-
-**Tes Prochaines Aventures** : ${finalResultObject.aventures}
-        `.trim();
-
-        journalData.fil_rouge = result; 
-        await saveData();
-        await handleOnboarding({ from: 'fil_rouge_generated' });
-
-        contentP.innerHTML = marked.parse(result);
-        loader.style.display = 'none'; 
-        contentP.style.display = 'block';
-
-    } catch (e) {
-        console.error("Erreur lors de la génération du Fil Rouge:", e);
-        contentP.innerHTML = `<p class="text-red-500">Désolé, une erreur est survenue.</p>`;
-        loader.style.display = 'none'; 
-        contentP.style.display = 'block';
-    }
-});
-     div.addEventListener('click', (e) => {
-        const card = e.target.closest('.map-card-clickable');
-        if (!card) return;
-
-        e.preventDefault();
-        const targetId = card.dataset.target;
-        const targetElement = div.querySelector(`#${targetId}`);
-
-        if (targetElement) {
-            if (targetId.startsWith('journal-section-')) {
-                const content = targetElement.querySelector('.journal-section-content');
-                const icon = targetElement.querySelector('.journal-section-header span');
-                if (content && content.classList.contains('hidden')) {
-                    content.classList.remove('hidden');
-                    if (icon) icon.classList.add('rotate-180');
-                }
+                await saveData();
+                
+                // Le reste de la logique pour afficher le message est inchangé
+                const newShareLink = `${window.location.origin}${window.location.pathname}?share_id=${currentUserId}&token=${newShareToken}`;
+                showShareMessageModal(newShareLink, userInfo.firstName, chosenRole);
+                showView('journal');
             }
-            targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     });
-
-    const deleteSection = document.createElement('div');
-    deleteSection.className = 'text-center mt-12 pt-8 border-t border-border-subtle';
-    deleteSection.innerHTML = `
-        <button onclick="deleteUserAccount()" class="text-sm text-slate-500 hover:text-red-600 hover:underline transition-colors">
-            Supprimer mon compte et toutes mes données
-        </button>
-    `;
-    div.appendChild(deleteSection);
-
+}
+            const copyShareLinkBtn = div.querySelector('#copy-share-link');
+            if (copyShareLinkBtn) {
+                copyShareLinkBtn.addEventListener('click', () => {
+                    const shareLink = `${window.location.origin}${window.location.pathname}?share_id=${currentUserId}&token=${journalDataToDisplay.share_token}`;
+                    navigator.clipboard.writeText(shareLink).then(() => showSurpriseModal("C'est fait !", '<p>Le lien a été copié.</p>', 2000));
+                });
+            }
+            const updateFilRougeBtn = div.querySelector('#updateFilRougeBtn');
+            if (updateFilRougeBtn) {
+                updateFilRougeBtn.addEventListener('click', async () => {
+                    if (!isStepStarted('step0')) { showInfoModal("Action requise", "Complète d'abord l'étape 'Mieux se connaître'."); return; }
+                    const loader = div.querySelector('#filRougeLoader');
+                    const contentP = div.querySelector('#filRougeContent');
+                    loader.style.display = 'block'; contentP.style.display = 'none';
+                    const profileSummary = getProfileSummary();
+                    const completionSummary = getCompletionSummary();
+                    const missions = { 
+                        titre: "1. Ton Titre de Projet : Trouve un titre global, percutant et positif pour son projet d'orientation.",
+                        pouvoirs: "2. Tes Super-Pouvoirs : Identifie ses 2 ou 3 plus grandes forces (compétences, traits de personnalité).",
+                        terrain: "3. Ton Terrain de Jeu Idéal : Décris le type d'environnement d'études ou de travail où il pourrait s'épanouir.",
+                        aventures: "4. Tes Prochaines Aventures : Suggère 2 ou 3 pistes de métiers ou de secteurs à explorer."
+                    };
+                    const createFilRougeMicroPrompt = (instruction) => `Agis comme un coach d'orientation expert et concis. # Données sur l'élève - Résumé du profil : ${profileSummary} - Résumé de la progression : ${completionSummary} # Ta Mission UNIQUE Ta seule mission est de répondre à cette instruction : "${instruction}". # Format de Sortie Rédige un unique paragraphe de texte. N'ajoute PAS le titre (comme "Ton Titre de Projet :").`;
+                    try {
+                        const promises = Object.entries(missions).map(([key, instruction]) => {
+                            const microPrompt = createFilRougeMicroPrompt(instruction);
+                            return callOpenAI_API({ promptText: microPrompt, promptId: "pmpt_68dc33a589bc8197a0229d72a4e3df100510635f4c084c2c", isExpertCall: true, loaderElement: loader }).then(result => ({ key, result }));
+                        });
+                        const resultsArray = await Promise.all(promises);
+                        const finalResultObject = resultsArray.reduce((acc, { key, result }) => { acc[key] = result; return acc; }, {});
+                        const result = `**Ton Titre de Projet** : ${finalResultObject.titre}\n\n**Tes Super-Pouvoirs** : ${finalResultObject.pouvoirs}\n\n**Ton Terrain de Jeu Idéal** : ${finalResultObject.terrain}\n\n**Tes Prochaines Aventures** : ${finalResultObject.aventures}`.trim();
+                        journalDataToDisplay.fil_rouge = result;
+                        await saveData();
+                        await handleOnboarding({ from: 'fil_rouge_generated' });
+                        contentP.innerHTML = marked.parse(result);
+                    } catch (e) { 
+                        console.error("Erreur Fil Rouge:", e);
+                        contentP.innerHTML = `<p class="text-red-500">Désolé, une erreur est survenue.</p>`; 
+                    } finally { 
+                        loader.style.display = 'none'; 
+                        contentP.style.display = 'block'; 
+                    }
+                });
+            }
+        } else if (context === 'teacher') {
+            const publicShareBtn = div.querySelector('#publicShareBtn');
+            if (publicShareBtn) {
+                publicShareBtn.addEventListener('click', async () => {
+                    const loader = div.querySelector('#publicOpenAIShareLoader');
+                    const resultDiv = div.querySelector('#publicOpenAIShareResult');
+                    publicShareBtn.disabled = true;
+                    loader.innerHTML = `<div class="loader"></div><p class="text-slate-500 font-semibold mt-2">Analyse du parcours en cours...</p>`;
+                    try {
+                        const prompt = `Agis comme un coach... Voici le journal de bord complet : ${JSON.stringify(journalDataToDisplay)}. Analyse ce journal et génère 3 à 4 points de dialogue...`;
+                        const result = await callOpenAI_API({ promptText: prompt });
+                        resultDiv.innerHTML = marked.parse(result);
+                    } catch (error) { resultDiv.innerHTML = '<p class="text-red-500">Une erreur est survenue.</p>'; }
+                    finally { publicShareBtn.disabled = false; loader.innerHTML = ''; }
+                });
+            }
+        }
+        journalContentDiv.addEventListener('click', async (e) => {
+            const header = e.target.closest('.journal-section-header');
+            const deleteBtn = e.target.closest('.delete-journal-entry');
+            if (header && !deleteBtn) {
+                const content = header.nextElementSibling;
+                const icon = header.querySelector('span.transform');
+                if (content) content.classList.toggle('hidden');
+                if (icon) icon.classList.toggle('rotate-180');
+                return;
+            }
+            if (deleteBtn && context === 'student') {
+                e.stopPropagation();
+                const stepKey = deleteBtn.dataset.stepKey;
+                const action = deleteBtn.dataset.action;
+                const entryIndex = parseInt(deleteBtn.dataset.entryIndex, 10);
+                if (!await showConfirmationModal(action === 'clear-section' ? 'Vider toute cette section ?' : 'Supprimer cette entrée ?')) return;
+                if (action === 'clear-section') { journalDataToDisplay[stepKey] = defaultData[stepKey]; }
+                else if (!isNaN(entryIndex)) {
+                    const arraysMap = { 'retroplanning_saves': journalDataToDisplay.retroplanning_saves, 'step1': journalDataToDisplay.step1?.metiers, 'step2': journalDataToDisplay.step2?.combinations, 'step3': journalDataToDisplay.step3?.formations, 'step4': journalDataToDisplay.step4?.themes, 'step5': journalDataToDisplay.step5?.articles, 'step6': journalDataToDisplay.step6?.projets, 'radar_history': journalDataToDisplay.radar_history, 'chatbot_saves': journalDataToDisplay.chatbot_saves };
+                    if (arraysMap[stepKey]?.[entryIndex]) { arraysMap[stepKey].splice(entryIndex, 1); }
+                }
+                await saveData();
+                await showView('journal');
+            }
+        });
+        div.addEventListener('click', (e) => {
+            const card = e.target.closest('.map-card-clickable');
+            if (card) {
+                e.preventDefault();
+                const targetId = card.dataset.target;
+                const targetElement = div.querySelector(`#${targetId}`);
+                if (targetElement) { targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+            }
+        });
+    };
+    allEventListeners();
+    
+    // ---- Restauration des variables globales ----
+    journalData = originalJournalData;
+    userGradeLevel = originalUserGradeLevel;
+    
     return div;
 }
 
@@ -8438,6 +8413,7 @@ async function createPublicShareView(userId, token) {
     mainApp.innerHTML = `<div class="loader"></div>`;
 
     try {
+        // ... (la logique de récupération des données ne change pas)
         const userDocRef = doc(db, "users", userId);
         const docSnap = await getDoc(userDocRef);
 
@@ -8453,14 +8429,17 @@ async function createPublicShareView(userId, token) {
             schoolName: data.schoolName || 'son lycée',
             gradeLevel: data.gradeLevel || 'sa classe'
         };
+        // --- FIN DE LA LOGIQUE INCHANGÉE ---
 
-        // On appelle la nouvelle fonction de rendu universelle
-        const pageElement = renderJournalPageView(userInfo, data.journal);
+        const pageElement = await createUnifiedJournalView(userInfo, data.journal, 'teacher');
         
-        mainApp.innerHTML = '';
+        // ✅ ON MODIFIE ICI : on insère d'abord le logo, puis le journal
+        mainApp.innerHTML = `
+            <img src="logo.png" alt="Logo OrIAntation" class="mx-auto h-auto w-48 mb-8">
+        `;
         mainApp.appendChild(pageElement);
 
-    } catch (error) {
+    } catch (error) { // ... (la gestion d'erreur ne change pas)
         mainApp.innerHTML = `<div class="text-center p-8 bg-white rounded-lg shadow-md"><h2 class="text-xl font-bold text-red-600">Erreur</h2><p class="text-slate-600 mt-2">${error.message}</p></div>`;
     }
 }
@@ -8973,21 +8952,62 @@ function createPrivacyPolicyView() {
         </div>
 
         <h2 class="text-xl font-bold text-OrIAntation-darkblue mt-6 mb-2">4. Destinataires et sous-traitants des données</h2>
-        <p class="text-slate-600 mb-4">
-            Vos données sont traitées en interne par le responsable de traitement. Elles ne sont pas transmises à des tiers, à l'exception des sous-traitants nécessaires au bon fonctionnement de l'application :
-        </p>
-        <ul class="list-disc list-inside text-slate-600 mb-4">
-            <li><strong>Firebase (Google LLC)</strong> : En tant qu'hébergeur et fournisseur d'authentification. Les données sont stockées sur des serveurs situés en Europe, garantissant un niveau de protection conforme au RGPD.</li>
-            <li><strong>Modèle de langage GPT-4o (OpenAI, L.L.C.)</strong> : Le contenu de votre journal de bord est transmis à ce modèle d'intelligence artificielle pour générer les réponses personnalisées de l'application.
-    <ul class="list-circle list-inside ml-4 text-sm text-slate-500 mt-1">
-        <li>**Cadre juridique :** Ce traitement est encadré par l'Accord de Traitement des Données (DPA) d'OpenAI, qui inclut des Clauses Contractuelles Types (CCT) pour garantir un niveau de protection des données conforme au RGPD.</li>
-        <li>**Principe de non-utilisation pour l'entraînement :** Conformément à la politique d'OpenAI pour son API, les données que vous envoyez ne sont pas utilisées pour entraîner ou améliorer les modèles d'IA de l'entreprise.</li>
-    </ul>
-</li>
-        </ul>
-        <p class="text-slate-600 mb-4">
-            En cas d'activation de la fonction "Partage", un lien sécurisé est généré et vous seul(e) en êtes le(la) destinataire initial(e). La consultation des données par un tiers via ce lien relève de votre responsabilité.
-        </p>
+<p class="text-slate-600 mb-4">
+    Vos données sont traitées en interne par le responsable de traitement. Elles ne sont pas transmises à des tiers, à l'exception des sous-traitants nécessaires au bon fonctionnement de l'application :
+</p>
+<div class="space-y-6 mt-4">
+
+  <div class="border border-border-subtle rounded-lg p-4">
+    <h3 class="font-bold text-lg text-OrIAntation-darkblue flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4M4 7l8 4.5 8-4.5M12 12.5V21" /></svg>
+      Firebase (Google LLC)
+    </h3>
+    <p class="text-slate-600 mt-2">
+      En tant qu'hébergeur de la base de données et fournisseur du service d'authentification. Les données sont stockées sur des serveurs situés en Europe, garantissant un niveau de protection conforme au RGPD.
+    </p>
+  </div>
+
+  <div class="border border-border-subtle rounded-lg p-4">
+    <h3 class="font-bold text-lg text-OrIAntation-darkblue flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      Modèle de langage GPT-5 et GPT-4o (OpenAI, L.L.C.)
+    </h3>
+    <p class="text-slate-600 mt-2">
+      Le contenu de votre journal de bord est transmis à ce modèle d'intelligence artificielle pour générer les réponses personnalisées de l'application.
+    </p>
+    <div class="mt-3 bg-background-light p-3 rounded-md border border-border-subtle text-sm">
+      <p><strong class="font-semibold text-slate-700">Cadre juridique :</strong> Ce traitement est encadré par l'Accord de Traitement des Données (DPA) d'OpenAI, qui inclut des Clauses Contractuelles Types (CCT) pour garantir un niveau de protection des données conforme au RGPD.</p>
+      <p class="mt-2"><strong class="font-semibold text-slate-700">Principe de non-utilisation pour l'entraînement :</strong> Conformément à la politique d'OpenAI pour son API, les données que vous envoyez ne sont pas utilisées pour entraîner ou améliorer les modèles d'IA de l'entreprise.</p>
+    </div>
+  </div>
+
+  <div class="border border-border-subtle rounded-lg p-4">
+    <h3 class="font-bold text-lg text-OrIAntation-darkblue flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-cyan-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h1a2 2 0 002-2v-1a2 2 0 012-2h1.945M7.75 4l-2.75 4M16.25 4l2.75 4" /></svg>
+      Netlify, Inc.
+    </h3>
+    <p class="text-slate-600 mt-2">
+      En tant qu'hébergeur de l'interface web (frontend) de l'application. Netlify peut traiter des données techniques de connexion, telles que les adresses IP des visiteurs, à des fins de sécurité et de performance.
+    </p>
+  </div>
+  
+    <div class="border border-border-subtle rounded-lg p-4">
+    <h3 class="font-bold text-lg text-OrIAntation-darkblue flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-sky-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+      Brevo (anciennement Sendinblue)
+    </h3>
+    <p class="text-slate-600 mt-2">
+      En tant que service d'envoi d'e-mails transactionnels (vérification de compte, réinitialisation de mot de passe).
+    </p>
+    <div class="mt-3 bg-background-light p-3 rounded-md border border-border-subtle text-sm">
+        <p><strong class="font-semibold text-slate-700">Cadre juridique :</strong> Ce traitement est encadré par les conditions d'utilisation et la politique de confidentialité de Brevo, conformes au RGPD, l'entreprise étant européenne.</p>
+    </div>
+  </div>
+
+</div>
+<p class="text-slate-600 mb-4">
+    En cas d'activation de la fonction "Partage", un lien sécurisé est généré et vous seul(e) en êtes le(la) destinataire initial(e). La consultation des données par un tiers via ce lien relève de votre responsabilité.
+</p>
 
         <h2 class="text-xl font-bold text-OrIAntation-darkblue mt-6 mb-2">5. Durée de conservation des données</h2>
         <p class="text-slate-600 mb-4">
