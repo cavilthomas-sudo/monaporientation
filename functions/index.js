@@ -477,18 +477,58 @@ exports.sendTutorialReminderEmail = functions
         return null;
     });
 
-// Helper function pour calculer la progression (inchangée)
-function calculateProgress(journal) {
-    if (!journal) return 0;
-    const trackableSteps = ['step0', 'step1', 'step2', 'step3', 'step4', 'step5', 'step6', 'step7', 'step8', 'step9', 'step10', 'step11'];
-    let startedCount = 0;
-    trackableSteps.forEach(stepKey => {
-        const stepData = journal[stepKey];
-        if (stepData && typeof stepData === 'object' && Object.values(stepData).some(v => v && (Array.isArray(v) ? v.length > 0 : v.toString().trim() !== ''))) {
-            startedCount++;
+const allSteps = [
+    { id: 'journal', category: 'dashboard', levels: ['seconde', 'premiere', 'terminale'] },
+    { id: 'retroplanning', category: 'dashboard', levels: ['seconde', 'premiere', 'terminale'] },
+    { id: 'step0', category: 'dashboard', levels: ['seconde', 'premiere', 'terminale'] },
+    { id: 'step2', category: 'explore', levels: ['seconde', 'premiere'] },
+    { id: 'step1', category: 'explore', levels: ['seconde', 'premiere', 'terminale'] },
+    { id: 'step3', category: 'explore', levels: ['seconde', 'premiere', 'terminale'] },
+    { id: 'step5', category: 'explore', levels: ['seconde', 'premiere', 'terminale'] },
+    { id: 'step4', category: 'connect', levels: ['seconde', 'premiere', 'terminale'] },
+    { id: 'step8', category: 'connect', levels: ['seconde', 'premiere', 'terminale'] },
+    { id: 'step11', category: 'connect', levels: ['seconde', 'premiere', 'terminale'] },
+    { id: 'step10', category: 'build', levels: ['seconde', 'premiere', 'terminale'] },
+    { id: 'step6', category: 'build', levels: ['terminale'] },
+    { id: 'step7', category: 'build', levels: ['seconde', 'premiere', 'terminale'] },
+    { id: 'step12', category: 'build', levels: ['premiere', 'terminale'] },
+    { id: 'step9', category: 'build', levels: ['terminale'] }
+];
+
+// Fonction corrigée
+// REMPLACER L'ANCIENNE FONCTION calculateProgress PAR CELLE-CI dans functions/index.js
+
+function calculateProgress(journal, gradeLevel) {
+    if (!journal || !gradeLevel) return 0;
+
+    // Filtre les étapes disponibles pour le niveau de l'élève
+    const stepsForLevel = allSteps.filter(step => step.levels.includes(gradeLevel));
+
+    // Exclut les étapes qui ne comptent pas pour la barre de progression
+    const nonTrackableStepIds = ['journal', 'retroplanning', 'step12'];
+    const trackableSteps = stepsForLevel.filter(step => !nonTrackableStepIds.includes(step.id));
+
+    // Compte combien de ces étapes ont été commencées
+    const startedCount = trackableSteps.filter(step => {
+    const stepData = journal[step.id];
+    if (!stepData) return false;
+    // On utilise ici la même logique que la fonction isStepStarted() du front-end
+    return Object.values(stepData).some(value => {
+        if (value === null || value === undefined) {
+            return false;
         }
+        // Gère correctement les objets vides {}
+        if (typeof value === 'object' && !Array.isArray(value)) {
+            return Object.keys(value).length > 0;
+        }
+        // Gère les chaînes de caractères et les tableaux
+        return value.toString().trim() !== '';
     });
-    return trackableSteps.length > 0 ? Math.round((startedCount / trackableSteps.length) * 100) : 0;
+}).length;
+
+    if (trackableSteps.length === 0) return 0;
+
+    return Math.round((startedCount / trackableSteps.length) * 100);
 }
 
 // Fonction pour le tableau de bord
@@ -505,23 +545,25 @@ exports.getSchoolDashboardData = functions.region("europe-west3").https.onCall(a
     const studentsSnapshot = await studentsQuery.get();
     const studentsData = studentsSnapshot.docs.map(doc => {
         const student = doc.data();
-        const progress = calculateProgress(student.journal);
-        const lastActivity = student.lastActivity ? student.lastActivity.toDate() : null;
+// DANS LA FONCTION getSchoolDashboardData de index.js
+const progress = calculateProgress(student.journal, student.gradeLevel);    
+    const lastActivity = student.lastActivity ? student.lastActivity.toDate() : null;
         let status = 'active';
         if (lastActivity) {
             const daysSinceLastActivity = (new Date() - lastActivity) / (1000 * 60 * 60 * 24);
             if (daysSinceLastActivity > 21 && progress < 50) { status = 'at_risk'; } 
             else if (progress > 75) { status = 'excellent'; }
         } else { status = 'at_risk'; }
- return { 
-            id: doc.id, 
-            firstName: student.firstName || 'N/A', 
-            lastName: student.lastName || 'N/A', 
-            gradeLevel: student.gradeLevel || 'N/A', 
-            progress: progress, 
-            status: status,
-            lastActivity: lastActivity // On ajoute la date d'activité aux données renvoyées
-        };
+return { 
+    id: doc.id, 
+    firstName: student.firstName || 'N/A', 
+    lastName: student.lastName || 'N/A', 
+    gradeLevel: student.gradeLevel || 'N/A', 
+    progress: progress, 
+    status: status,
+    // LA SOLUTION EST ICI : On envoie une chaîne de caractères standardisée
+    lastActivity: lastActivity ? lastActivity.toISOString() : null 
+};
     });
     let inviteCode = null;
     const inviteCodeQuery = await admin.firestore().collection('inviteCodes').where('classId', '==', classId).limit(1).get();
@@ -607,7 +649,7 @@ exports.getSchoolAnalytics = functions
             if (!journal) return;
 
             // NOUVEAU : Calcul de la répartition de la progression
-            const progress = calculateProgress(journal);
+            const progress = calculateProgress(journal, student.gradeLevel);
             if (progress <= 25) progressDistribution['Débutant (0-25%)']++;
             else if (progress <= 75) progressDistribution['En exploration (26-75%)']++;
             else progressDistribution['Avancé (76-100%)']++;

@@ -422,7 +422,7 @@ function extractJsonFromString(str) {
            if (!currentUserId) return;
            try {
                const saveSubscription = httpsCallable(functions, 'savePushSubscription');
-               await saveSubscription({ subscription: subscription });
+           await saveSubscription({ subscription: subscription.toJSON() });
                devLog("Abonnement Push enregistré avec succès !");
            } catch (error) {
                console.error("Erreur lors de la sauvegarde de l'abonnement :", error);
@@ -1242,10 +1242,7 @@ const backAction = cameFromLogin ? window.showSignupViewFromGuide : () => window
 
         let journalData = {};
         
-       // Détecter si l'URL est un lien de partage
-// REMPLACEZ VOTRE LOGIQUE DE DÉMARRAGE ACTUELLE PAR CELLE-CI
 
-      // REMPLACEZ VOTRE LOGIQUE DE DÉMARRAGE ACTUELLE PAR CELLE-CI
 
 function initializeNormalAppFlow() {
     // Cette fonction est maintenant le point d'entrée pour un démarrage normal.
@@ -1271,6 +1268,8 @@ function initializeNormalAppFlow() {
         document.querySelector('footer').style.display = 'block';
         showSignupView();
     }
+
+    
 
 
 // REMPLACEZ VOTRE FONCTION onAuthStateChanged PAR CETTE VERSION FINALE
@@ -1442,6 +1441,16 @@ function capitalizeWords(str) {
         .split(' ')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
+}
+
+function formatPreciseDateTime(date) {
+    if (!date) return "Jamais";
+    const activityDate = new Date(date); // Les dates de Firebase arrivent comme des chaînes ISO
+    if (isNaN(activityDate.getTime())) return "Jamais";
+    return activityDate.toLocaleString('fr-FR', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+    });
 }
 
 function showLoginView() {
@@ -1972,17 +1981,16 @@ window.deleteUserAccount = deleteUserAccount;
 }
 
 
-async function saveData(context = {}) { // Le contexte est conservé pour skipOnboarding
+async function saveData(context = {}) {
     if (!currentUserId) return;
     const userDocRef = doc(db, "users", currentUserId);
 
-    // On ne sauvegarde que ce qui est susceptible de changer durant une session
     const dataToSave = {
         gradeLevel: userGradeLevel,
         journal: journalData,
-        lastActivity: new Date() // <-- LA CORRECTION CLÉ : on met à jour la date ici aussi
+        lastActivity: new Date() // <-- VOICI LA LIGNE CRUCIALE AJOUTÉE
     };
-    
+
     try {
         // Le { merge: true } garantit qu'on ne touche pas aux autres champs (prénom, nom, etc.)
         await setDoc(userDocRef, dataToSave, { merge: true });
@@ -3078,10 +3086,17 @@ function createTeacherDashboardView() {
     div.innerHTML = `
         <img src="logo.png" alt="Logo OrIAntation" class="mx-auto h-60 w-auto mb-4">
         <h1 class="text-2xl font-bold text-OrIAntation-darkblue mb-1 text-center">Tableau de Bord de ${currentUserInfo.firstName} ${currentUserInfo.lastName}</h1>
-<p class="text-center text-slate-500 mb-4">${currentUserInfo.gender === 'femme' ? 'Enseignante' : 'Enseignant'} au ${capitalizeWords(currentUserInfo.schoolName)}</p>        
-<div class="text-center mb-6">
-    <button onclick="signOut(auth)" class="text-sm text-slate-500 hover:text-red-600 hover:underline transition">Se déconnecter</button>
-</div>
+        <p class="text-center text-slate-500 mb-4">${currentUserInfo.gender === 'femme' ? 'Enseignante' : 'Enseignant'} au ${currentUserInfo.schoolName}</p>        
+        
+        <div class="text-center mb-6 flex justify-center items-center gap-4">
+            <button id="show-guide-from-dashboard" class="text-sm text-cyan-700 hover:underline transition">
+                Guide d'utilisation
+            </button>
+            <span class="text-slate-400">|</span>
+            <button onclick="signOut(auth)" class="text-sm text-slate-500 hover:text-red-600 hover:underline transition">
+                Se déconnecter
+            </button>
+        </div>
         
         <div id="stats-container" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
             <div class="bg-sky-50 p-4 rounded-lg text-center border border-sky-200">
@@ -3097,7 +3112,6 @@ function createTeacherDashboardView() {
                 <p id="stats-at-risk" class="text-2xl font-bold text-orange-900">-</p>
             </div>
         </div>
-
         <div id="invite-code-container" class="mb-8"></div>
 
         <div class="text-center mb-6">
@@ -3122,6 +3136,14 @@ function createTeacherDashboardView() {
             <p class="text-center text-slate-500 mt-2">Chargement des données de la classe...</p>
         </div>
     `;
+
+    const showGuideBtn = div.querySelector('#show-guide-from-dashboard');
+    if (showGuideBtn) {
+        showGuideBtn.addEventListener('click', () => {
+            guideUserRole = 'enseignant'; // On s'assure que le bon profil de guide est chargé
+            showView('guide');          // On affiche la vue du guide
+        });
+    }
 
     // Le reste de la logique JavaScript de la fonction reste inchangé
     
@@ -3176,13 +3198,13 @@ ${studentsToRender.map(student => {
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
-                                    <span class="w-3 h-3 rounded-full ${indicator.color}" title="${indicator.title}"></span>
-                                    <span class="ml-3 font-medium text-gray-900">${student.firstName} ${student.lastName}</span>
+<span class="w-3 h-3 rounded-full ${indicator.color} status-indicator cursor-pointer" 
+      data-title="${indicator.title}"></span>
+                                          <span class="ml-3 font-medium text-gray-900">${student.firstName} ${student.lastName}</span>
                                 </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                ${formatDateAgo(student.lastActivity)}
-                            </td>
+                           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+    ${formatPreciseDateTime(student.lastActivity)}
+</td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="w-full bg-gray-200 rounded-full h-2.5">
@@ -3428,8 +3450,46 @@ showAnalyticsBtn.addEventListener('click', async () => {
                 showView('teacherDashboard');
             }
         }
+        
     });
-// ...
+    div.addEventListener('click', (e) => {
+    const indicator = e.target.closest('.status-indicator');
+    if (indicator) {
+        const modalTitle = "Légende des statuts d'élèves";
+        const modalContentHTML = `
+            <div class="space-y-4 text-left">
+                <div>
+                    <h4 class="font-semibold text-OrIAntation-darkblue flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-orange-500 flex-shrink-0"></span>
+                        Élève à suivre (inactif ou bloqué)
+                    </h4>
+                    <p class="text-sm pl-5 text-slate-600">
+                        Cet élève est considéré comme "à suivre" : son activité est très faible (plus de 3 semaines d'inactivité) ou sa progression est inférieure à 25%.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-OrIAntation-darkblue flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-green-500 flex-shrink-0"></span>
+                        Élève actif
+                    </h4>
+                    <p class="text-sm pl-5 text-slate-600">
+                        Cet élève est actif et progresse régulièrement.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-OrIAntation-darkblue flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-blue-500 flex-shrink-0"></span>
+                        Progression excellente
+                    </h4>
+                    <p class="text-sm pl-5 text-slate-600">
+                        Cet élève a une excellente progression, supérieure à 75%.
+                    </p>
+                </div>
+            </div>
+        `;
+        createSimpleModal(modalTitle, modalContentHTML);
+    }
+});
     
     return div;
 }
@@ -5574,162 +5634,157 @@ function createGuideView() {
     const div = document.createElement('div');
     div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-border-subtle';
 
-    // --- 1. Définition de tous les blocs de contenu (version nettoyée) ---
-
-    const styleHTML = `
-        <style>
-            .guide-container { line-height: 1.7; }
-            .guide-container h2 { border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; color: #1A3263; margin-top: 60px; font-size: 1.75em; font-weight: 700; text-align: center; }
-            .guide-container h3 { color: #1A3263; font-size: 1.3em; margin-top: 40px; font-weight: 600; text-align: center; }
-            .guide-container .centered-subtitle { text-align: center; margin-bottom: 30px; }
-            .guide-container h4 { margin-top: 0; font-size: 1.1em; font-weight: 600; display: flex; align-items: center; gap: 0.75rem; justify-content: center; text-align: center; }
-            .guide-container .logo { display: block; margin: 0 auto 10px auto; width: 250px; }
-            .guide-container .info-box { padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid; }
-            .guide-container .info-box-parents { background-color: #f7fee7; border-color: #84cc16; }
-            .guide-container .info-box-parents h4 { color: #4d7c0f; display: block; }
-            .guide-container .info-box-parents ul { padding-left: 20px; margin-bottom: 0; color: #65a30d; }
-            .guide-container .info-box-teachers { background-color: #fff7ed; border-color: #f97316; }
-            .guide-container .info-box-teachers h4 { color: #9a3412; display: block; }
-            .guide-container .info-box-teachers ul { padding-left: 20px; margin-bottom: 0; color: #c2410c; }
-            .guide-container .conseil-prof { background-color: #ecfeff; border-left: 4px solid #0891b2; padding: 15px; margin-top: 15px; border-radius: 8px; font-style: italic; color: #155e75; }
-            .guide-container .conseil-prof h4 { color: #164e63; }
-            .guide-container .etape { margin-bottom: 30px; padding-left: 10px; border-left: 2px solid #e2e8f0; }
-            .guide-container ul { padding-left: 25px; margin-top: 10px; }
-            .guide-container li { margin-bottom: 8px; }
-        </style>
-    `;
+    // --- 1. Définition de tous les blocs de contenu ---
 
     const introHTML = `
-    <img src="logo.png" alt="Logo OrIAntation" class="logo">
-    <h2>OrIA comme Boussole 2.0 !!</h2>
-    <p>Quand les autres outils d'orientation ne se contentent souvent que d'être de simples catalogues : de longues listes de métiers et de formations, OrIA fait la différence. Plus qu'une base de données, c'est une véritable expérience qui est offerte : une <strong>boussole 2.0, boostée à l'IA</strong>, conçue pour donner un avantage stratégique à celui qui l'utilise.</p>
-    <div class="info-box conseil-prof" style="font-style: normal;">
-        <h4 style="font-weight: bold; color: #3730A3; display:block;">Le rôle d'OrIA</h4>
-        <p style="margin-top: 10px; font-style: normal;">Dans un système complexe, l'information brute ne suffit pas. OrIA n'est pas là pour donner les mêmes réponses à tout le monde. Son travail est de <strong>scanner le terrain, d'analyser les profils uniques et de détecter les "chemins de traverse"</strong> : ces parcours malins et ces opportunités cachées que la plupart des gens ne voient pas.</p>
-        <p style="margin-top: 15px; font-style: normal;"><strong>L'utilisateur reste le Stratège </strong> quand OrIA est un copilote surpuissant qui sait fournir des données et des options non-conventionnelles. La mission : ne jamais se contenter d'un chemin, tracer les siens !! </p>
+    <div class="guide-container">
+        <img src="logo.png" alt="Logo OrIAntation" class="logo" style="width: 200px; margin-bottom: 20px;">
+        <h2>OrIA comme Boussole 2.0 !</h2>
+        <p>Quand les autres outils d'orientation se contentent souvent d'être de simples catalogues (de longues listes de métiers et de formations), OrIA fait la différence. Plus qu'une base de données, c'est une véritable expérience qui est offerte : une <strong>boussole 2.0, boostée à l'IA</strong>, conçue pour donner un avantage stratégique à celui qui l'utilise.</p>
+        <div class="info-box conseil-prof" style="font-style: normal;">
+            <h4 style="font-weight: bold; color: #3730A3; display:block;">Le rôle d'OrIA</h4>
+            <p style="margin-top: 10px; font-style: normal;">Dans un système complexe, l'information brute ne suffit pas. OrIA n'est pas là pour donner les mêmes réponses à tout le monde. Son travail est de <strong>scanner le terrain, d'analyser les profils uniques et de détecter les "chemins de traverse"</strong> : ces parcours malins et ces opportunités cachées que la plupart des gens ne voient pas.</p>
+            <p style="margin-top: 15px; font-style: normal;"><strong>L'utilisateur reste le Stratège</strong> quand OrIA est un copilote surpuissant qui sait fournir des données et des options non-conventionnelles. La mission : ne jamais se contenter d'un chemin, mais tracer les siens !</p>
+        </div>
     </div>
-`;
-
-
+    `;
 
     const installationHTML = `
-        <h2>Installer l'application sur votre téléphone</h2>
-        <p>Pour un accès plus rapide, vous pouvez ajouter "OrIAntation" à l'écran d'accueil de votre téléphone. L'application se comportera comme une véritable application native.</p>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
-            <div class="bg-background-light p-4 rounded-lg border">
-                <h4 class="text-OrIAntation-darkblue">📱 Sur iPhone (iOS)</h4>
-                <ol class="list-decimal list-inside text-sm text-slate-700 mt-2 space-y-2">
-                    <li>Ouvrez l'application dans le navigateur <strong>Safari</strong>.</li>
-                    <li>Appuyez sur l'icône de partage (un carré avec une flèche vers le haut).</li>
-                    <li>Faites défiler vers le bas et sélectionnez <strong>"Sur l'écran d'accueil"</strong>.</li>
-                    <li>Confirmez en appuyant sur "Ajouter".</li>
-                </ol>
-            </div>
-            <div class="bg-background-light p-4 rounded-lg border">
-                <h4 class="text-OrIAntation-darkblue">📱 Sur Android</h4>
-                <ol class="list-decimal list-inside text-sm text-slate-700 mt-2 space-y-2">
-                    <li>Ouvrez l'application dans le navigateur <strong>Chrome</strong>.</li>
-                    <li>Appuyez sur le menu (les trois points verticaux en haut à droite).</li>
-                    <li>Sélectionnez <strong>"Installer l'application"</strong> ou "Ajouter à l'écran d'accueil".</li>
-                    <li>Suivez les instructions pour confirmer.</li>
-                </ol>
+        <div class="guide-container">
+            <h2>Installer l'application sur votre téléphone</h2>
+            <p>Pour un accès plus rapide, vous pouvez ajouter "OrIAntation" à l'écran d'accueil de votre téléphone. L'application se comportera comme une véritable application native.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
+                <div class="bg-background-light p-4 rounded-lg border">
+                    <h4 class="text-OrIAntation-darkblue">📱 Sur iPhone (iOS)</h4>
+                    <ol class="list-decimal list-inside text-sm text-slate-700 mt-2 space-y-2">
+                        <li>Ouvrez l'application dans le navigateur <strong>Safari</strong>.</li>
+                        <li>Appuyez sur l'icône de partage (un carré avec une flèche vers le haut).</li>
+                        <li>Faites défiler vers le bas et sélectionnez <strong>"Sur l'écran d'accueil"</strong>.</li>
+                        <li>Confirmez en appuyant sur "Ajouter".</li>
+                    </ol>
+                </div>
+                <div class="bg-background-light p-4 rounded-lg border">
+                    <h4 class="text-OrIAntation-darkblue">📱 Sur Android</h4>
+                    <ol class="list-decimal list-inside text-sm text-slate-700 mt-2 space-y-2">
+                        <li>Ouvrez l'application dans le navigateur <strong>Chrome</strong>.</li>
+                        <li>Appuyez sur le menu (les trois points verticaux en haut à droite).</li>
+                        <li>Sélectionnez <strong>"Installer l'application"</strong> ou "Ajouter à l'écran d'accueil".</li>
+                        <li>Suivez les instructions pour confirmer.</li>
+                    </ol>
+                </div>
             </div>
         </div>
     `;
 
-
     const partie1ElevesHTML = `
-        <h2>Partie 1 : Pour les Élèves</h2>
-    <p>L'orientation peut ressembler à un océan de données : des centaines de métiers, des milliers de formations. Il est facile de s'y perdre. OrIAntation est ton <strong>tableau de bord personnel</strong>. Il ne te donne pas plus d'informations, il t'aide à trouver <strong>la bonne information pour toi</strong>.</p>
-    <div class="info-box conseil-prof" style="font-style: normal;">
-        <h4 style="font-weight: bold; color: #3730A3; display:block;">Ta méthode en 4 Étapes :</h4>
-        <ul>
-            <li><strong>Collecter tes données :</strong> Identifier avec précision tes forces, tes talents et tes motivations profondes.</li>
-            <li><strong>Analyser les possibilités :</strong> Explorer les métiers et les formations comme un analyste, en te basant sur des informations fiables.</li>
-            <li><strong>Centraliser ta réflexion :</strong> Transformer le Journal de Bord en une base de connaissances claire sur ton projet.</li>
-            <li><strong>Prendre des décisions éclairées :</strong> Utiliser tes analyses pour préparer tes candidatures et planifier ton avenir.</li>
-        </ul>
-    </div>
-`;
-
+        <div class="guide-container">
+            <h2>Partie 1 : Pour les Élèves - Ton QG d'Orientation</h2>
+            <p>L'orientation peut ressembler à un océan de données : des centaines de métiers, des milliers de formations. Il est facile de s'y perdre. OrIAntation est ton <strong>tableau de bord personnel</strong>. Il ne te donne pas plus d'informations, il t'aide à trouver <strong>la bonne information pour toi</strong>.</p>
+            <div class="info-box conseil-prof" style="font-style: normal;">
+                <h4 style="font-weight: bold; color: #3730A3; display:block;">Ta méthode en 4 Étapes :</h4>
+                <ul>
+                    <li><strong>Collecter tes données :</strong> Identifier avec précision tes forces, tes talents et tes motivations profondes.</li>
+                    <li><strong>Analyser les possibilités :</strong> Explorer les métiers et les formations comme un analyste, en te basant sur des informations fiables.</li>
+                    <li><strong>Centraliser ta réflexion :</strong> Transformer le Journal de Bord en une base de connaissances claire sur ton projet.</li>
+                    <li><strong>Prendre des décisions éclairées :</strong> Utiliser tes analyses pour préparer tes candidatures et planifier ton avenir.</li>
+                </ul>
+            </div>
+        </div>
+    `;
 
     const partie2ParentsHTML = `
-        <h2>Partie 1 : Pour les Parents</h2>
-    <p>Le rôle d'un parent n'est pas de donner les réponses, mais d'aider à poser les bonnes questions. OrIAntation est conçu comme un support pour vous aider à accompagner votre enfant dans sa propre analyse, en facilitant un dialogue constructif basé sur les données qu'il collecte.</p>
-    <div class="info-box info-box-parents">
-        <h4>Comment l'accompagner dans sa stratégie ?</h4>
-        <ul>
-            <li><strong>Adoptez une posture de "Consultant" :</strong> L'application est son espace d'analyse. Votre rôle est de l'aider à interpréter ses propres données, pas de les valider. Discutez de ses découvertes et des points qui le surprennent.</li>
-            <li><strong>Utilisez le "Journal de Bord" partagé :</strong> Quand il partage son journal, c'est une invitation à analyser sa démarche. Le bouton "Préparer une discussion" vous donnera des angles d'approche basés sur ses propres écrits.</li>
-            <li><strong>Conseil clé :</strong> Valorisez la méthode plus que la destination. L'objectif est qu'il apprenne à analyser un problème complexe (son orientation) pour prendre une décision éclairée, une compétence essentielle pour son avenir.</li>
-        </ul>
-    </div>
-`;
+        <div class="guide-container">
+            <h2>Partie 1 : Pour les Parents - Devenir le "Sparring Partner"</h2>
+            <p>Le rôle d'un parent n'est pas de donner les réponses, mais d'aider à poser les bonnes questions. OrIAntation est conçu comme un support pour vous aider à accompagner votre enfant dans sa propre analyse, en facilitant un dialogue constructif basé sur les données qu'il collecte.</p>
+            <div class="info-box info-box-parents">
+                <h4>Comment l'accompagner dans sa stratégie ?</h4>
+                <ul>
+                    <li><strong>Adoptez une posture de "Consultant" :</strong> L'application est son espace d'analyse. Votre rôle est de l'aider à interpréter ses propres données, pas de les valider. Discutez de ses découvertes et des points qui le surprennent.</li>
+                    <li><strong>Utilisez le "Journal de Bord" partagé :</strong> Quand il partage son journal, c'est une invitation à analyser sa démarche. Le bouton "Préparer une discussion" vous donnera des angles d'approche basés sur ses propres écrits.</li>
+                    <li><strong>Conseil clé :</strong> Valorisez la méthode plus que la destination. L'objectif est qu'il apprenne à analyser un problème complexe (son orientation) pour prendre une décision éclairée, une compétence essentielle pour son avenir.</li>
+                </ul>
+            </div>
+        </div>
+    `;
 
     const partie3EnseignantsHTML = `
-        <h2>Partie 1 : Pour les Enseignants</h2>
-    <p>Au-delà d'un simple outil d'exploration, OrIAntation est une plateforme qui permet d'enseigner une compétence clé du <strong>Parcours Avenir</strong> : la capacité à prendre des décisions éclairées en analysant des informations complexes.</p>
-    <div class="info-box info-box-teachers">
-        <h4>Pistes d'utilisation pédagogique</h4>
-        <ul>
-            <li><strong>Suivi individualisé basé sur la donnée :</strong> Le "Journal de Bord" partagé n'est pas un simple cahier, c'est un véritable tableau de bord de la réflexion de l'élève. Il permet de préparer des entretiens de suivi basés sur des données concrètes.</li>
-            <li><strong>Ateliers de "Data Literacy" :</strong> Les étapes d'OrIAntation peuvent servir de support pour des séances où les élèves apprennent à collecter de l'information (sur eux-mêmes et les formations), à l'analyser et à la synthétiser pour en tirer des conclusions.</li>
-            <li><strong>Développer la pensée critique :</strong> La confrontation entre le profil de l'élève et les "attendus" des formations est un excellent exercice pour développer une argumentation structurée, essentielle pour le Grand Oral.</li>
-        </ul>
-    </div>
-`;
+        <div class="guide-container">
+            <h2>Partie 1 : Pour les Enseignants - Un Outil au Service du Parcours Avenir</h2>
+            <p>Au-delà d'un simple outil d'exploration, OrIAntation est une plateforme pédagogique qui permet de suivre la progression des élèves et de structurer des séances dédiées au <strong>Parcours Avenir</strong>.</p>
+            <div class="info-box info-box-teachers">
+                <h4>Pistes d'utilisation pédagogique</h4>
+                <ul>
+                    <li><strong>Suivi individualisé basé sur la donnée :</strong> Votre Tableau de Bord vous donne une vue d'ensemble de la progression de la classe, identifie les élèves "à risque" (inactifs) et vous permet de consulter leur Journal de Bord pour préparer des entretiens de suivi basés sur des données concrètes.</li>
+                    <li><strong>Ateliers de "Data Literacy" :</strong> Les étapes d'OrIAntation peuvent servir de support pour des séances où les élèves apprennent à collecter de l'information (sur eux-mêmes et les formations), à l'analyser et à la synthétiser pour en tirer des conclusions.</li>
+                    <li><strong>Développer la pensée critique :</strong> La confrontation entre le profil de l'élève et les "attendus" des formations est un excellent exercice pour développer une argumentation structurée, essentielle pour le Grand Oral.</li>
+                </ul>
+            </div>
+        </div>
+    `;
     
-    const seancesEnseignantsHTML = `
+    const dashboardEnseignantsHTML = `
+        <div class="guide-container">
+            <h2>Partie 2 : Maîtriser le Tableau de Bord Enseignant</h2>
+            <p>Votre tableau de bord est conçu pour vous donner une vision claire et rapide de l'activité de votre classe et vous permettre d'agir efficacement.</p>
+            <div class="etape">
+                <h4>Le Code d'Invitation</h4>
+                <p>Ce code est unique à votre classe. Partagez-le avec vos élèves lors de leur inscription pour qu'ils soient automatiquement rattachés à votre tableau de bord.</p>
+            </div>
+            <div class="etape">
+                <h4>Les Indicateurs Clés</h4>
+                <p>En haut de la page, trois statistiques vous donnent un aperçu instantané : le <strong>nombre d'élèves</strong>, la <strong>progression moyenne</strong> de la classe, et le nombre d'<strong>élèves "à suivre"</strong> (ceux dont l'activité est faible ou qui semblent bloqués).</p>
+            </div>
+            <div class="etape">
+                <h4>La Liste des Élèves</h4>
+                <p>Ce tableau vous permet de suivre chaque élève individuellement. Vous pouvez le trier par nom, progression ou dernière activité pour identifier rapidement les besoins. En cliquant sur <strong>"Voir le journal"</strong>, vous accédez à une vue détaillée de la réflexion de l'élève, parfaite pour préparer un entretien.</p>
+            </div>
+            <div class="etape">
+                <h4>Les Statistiques Détaillées de la Classe</h4>
+                <p>En cliquant sur ce bouton, vous ouvrez un panel d'analyse puissant avec quatre graphiques :</p>
+                <ul>
+                    <li><strong>Répartition de la Progression :</strong> Pour voir si votre classe est plutôt en phase de "Début", d'"Exploration" ou "Avancée".</li>
+                    <li><strong>Secteurs Populaires :</strong> Identifie les grands domaines (Santé, Informatique, Art...) qui attirent le plus vos élèves.</li>
+                    <li><strong>Métiers les Plus Explorés :</strong> Le top 5 des métiers spécifiques que vos élèves ont sauvegardés.</li>
+                    <li><strong>Niveaux de Formation Visés :</strong> Pour savoir si vos élèves s'orientent plutôt vers des études courtes, l'université ou les grandes écoles.</li>
+                </ul>
+            </div>
+        </div>
+    `;
+
+const seancesEnseignantsHTML = `
         <h2>Partie 3 : 10 Idées de Séances Clés en Main (1h)</h2>
+        <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg> Séance 1 : Scanner son Profil - Devenir l'Expert de soi-même</h4><p><strong>Classe Cible :</strong> Seconde (début d'année), Première.<br><strong>Objectif Pédagogique :</strong> Amener l'élève à identifier ses propres "données" (forces, motivations) et à acquérir un vocabulaire précis pour se décrire.<br><strong>Étape Utilisée :</strong> Mieux se connaître.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Introduction : "Votre orientation est un problème à résoudre. La première étape est de collecter les bonnes données sur vous-même." (10min). 2. Les élèves complètent le questionnaire pour générer leur profil de base (25min). 3. Discussion collective sur la signification des <strong>Archétypes</strong> et du <strong>graphique RIASEC</strong> comme outils d'analyse (15min).</div></div>
+        <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" /></svg> Séance 2 : Le Simulateur Stratégique de Spécialités</h4><p><strong>Classe Cible :</strong> Seconde (2ème trimestre).<br><strong>Objectif Pédagogique :</strong> Utiliser la simulation pour prendre des décisions éclairées sur les spécialités.<br><strong>Étape Utilisée :</strong> Le simulateur de spécialités.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Rappel des enjeux (5min). 2. En binômes, les élèves testent 2 combinaisons, utilisent OrIA pour obtenir un <strong>témoignage d'étudiant</strong> et analysent le lien avec leur profil (30min). 3. Mise en commun : chaque binôme partage la combinaison la plus "inattendue" qu'il a trouvée (15min).</div></div>
+        <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.07a2.25 2.25 0 0 1-2.25 2.25h-13.5a2.25 2.25 0 0 1-2.25-2.25v-4.07m18-4.32-7.5-5.25a2.25 2.25 0 0 0-2.013.003L2.25 9.83m18 4.32V9.83" /></svg> Séance 3 : Le Portfolio - Transformer l'Expérience en Compétence</h4><p><strong>Classe Cible :</strong> Première (fin d'année), Terminale.<br><strong>Objectif Pédagogique :</strong> Apprendre à l'élève à "extraire" et formuler des compétences à partir de son vécu (méthode STAR).<br><strong>Étape Utilisée :</strong> Mon Portfolio de Compétences.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Introduction : "Vos expériences sont des mines de compétences. Apprenons à les extraire." (10min). 2. Chaque élève choisit une expérience (stage, passion, projet...) et utilise l'<strong>Assistant de Portfolio</strong> pour la transformer en texte valorisé (30min). 3. Partage volontaire de 2-3 exemples pour montrer la transformation (10min).</div></div>
+        <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> Séance 4 : Débunker l'Orientation - Chasse aux Mythes</h4><p><strong>Classe Cible :</strong> Tous niveaux.<br><strong>Objectif Pédagogique :</strong> Développer l'esprit critique et la littératie informationnelle en déconstruisant les idées reçues.<br><strong>Étape Utilisée :</strong> Fact Checking.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Constitution d'équipes (5min). 2. Lancement d'un défi : chaque équipe choisit un domaine et doit obtenir le meilleur score au quiz "Chasse aux Mythes" (30min). 3. Chaque équipe présente à la classe le mythe le plus surprenant qu'elle a déconstruit (15min).</div></div>
+        <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 7.756a4.5 4.5 0 1 0 0 8.488M7.5 10.5h5.25m-5.25 3h5.25M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> Séance 5 : Ancrer son Projet dans la Réalité</h4><p><strong>Classe Cible :</strong> Première (fin d'année), Terminale.<br><strong>Objectif Pédagogique :</strong> Intégrer les contraintes matérielles (budget, logement) comme une donnée clé du projet.<br><strong>Étape Utilisée :</strong> Simulateur Vie Étudiante.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Introduction : "Un projet viable est un projet financé." (5min). 2. Les élèves utilisent le <strong>simulateur de budget</strong> pour une ville qui les intéresse et explorent les <strong>aides financières</strong> (30min). 3. Discussion collective sur les écarts de coût de la vie et les aides méconnues (15min).</div></div>
+        <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.761 9.761 0 0 1-2.541-.358m-4.002 0A9.754 9.754 0 0 1 3 12c0-4.556 4.03-8.25 9-8.25a9.754 9.754 0 0 1 4.545 1.343" /></svg> Séance 6 : Se Préparer au Contact - L'Enquête Métier</h4><p><strong>Classe Cible :</strong> Première, Terminale.<br><strong>Objectif Pédagogique :</strong> Développer l'aisance orale et la capacité à mener une discussion structurée.<br><strong>Étape Utilisée :</strong> L'Expérience.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Introduction sur la valeur d'un retour "terrain" (10min). 2. OrIA génère des questions personnalisées pour chaque élève, puis ils s'entraînent avec le <strong>simulateur d'entretien</strong> (30min). 3. Débriefing sur les difficultés et les bonnes pratiques (10min).</div></div>
+        <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg> Séance 7 : Atelier d'Écriture - Le Projet de Formation Motivé</h4><p><strong>Classe Cible :</strong> Terminale.<br><strong>Objectif Pédagogique :</strong> Apprendre à argumenter et à structurer un écrit de candidature.<br><strong>Étape Utilisée :</strong> Préparer sa candidature.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Analyse collective d'un PFM anonymisé (10min). 2. Les élèves utilisent l'<strong>Atelier d'écriture</strong> : ils génèrent une structure, rédigent un paragraphe, puis utilisent OrIA pour obtenir des pistes d'amélioration (35min). 3. Partage d'un "avant/après" pour illustrer la valeur ajoutée (5min).</div></div>
+        <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="m15.75 15.75-2.489-2.489m0 0a3.375 3.375 0 1 0-4.773-4.773 3.375 3.375 0 0 0 4.774 4.774ZM21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> Séance 8 : Débloquer sa Réflexion - Le Radar</h4><p><strong>Classe Cible :</strong> Tous niveaux (particulièrement les élèves "perdus" ou "bloqués").<br><strong>Objectif Pédagogique :</strong> Utiliser la créativité de OrIA pour ouvrir de nouvelles pistes et relancer une dynamique de recherche.<br><strong>Étape Utilisée :</strong> Le Radar à Opportunités.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Discussion sur le droit d'être indécis (5min). 2. Chaque élève utilise le bouton "Me surprendre !" et note la suggestion de OrIA (20min). 3. En petits groupes, ils discutent de la pertinence (ou non) de la suggestion et de ce qu'elle révèle sur leur profil (25min).</div></div>
+        <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.82m5.84-2.56a17.96 17.96 0 0 0-5.84-2.56m0 0A17.965 17.965 0 0 1 12 2.25a17.965 17.965 0 0 1 7.41 12.56m-7.41 0v4.82" /></svg> Séance 9 : Planifier son Année - Le Rétroplanning</h4><p><strong>Classe Cible :</strong> Tous niveaux (en début d'année).<br><strong>Objectif Pédagogique :</strong> Visualiser l'année à venir, dédramatiser les échéances et développer des compétences de planification.<br><strong>Étape Utilisée :</strong> Mon Rétroplanning.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Présentation des grandes échéances de l'année (10min). 2. Les élèves génèrent leur <strong>rétroplanning personnalisé</strong> et cochent les tâches déjà entamées (25min). 3. Discussion sur la tâche du mois qui leur semble la plus importante (15min).</div></div>
+        <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg> Séance 10 : Stratégie "Plan B" - Gérer l'Incertitude</h4><p><strong>Classe Cible :</strong> Terminale.<br><strong>Objectif Pédagogique :</strong> Développer la résilience et la capacité à envisager des alternatives de manière constructive.<br><strong>Étape Utilisée :</strong> Anticiper la suite.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Discussion sur la gestion du stress et des réponses de Parcoursup (10min). 2. Les élèves utilisent la <strong>simulation de conversation "Plan B"</strong> pour réfléchir à des alternatives à leur vœu n°1 (35min). 3. Réflexion individuelle sur les pistes qui ont émergé (5min).</div></div>
+    `;
     
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg> Séance 1 : Scanner son Profil - Devenir l'Expert de soi-même</h4><p><strong>Classe Cible :</strong> Seconde (début d'année), Première.<br><strong>Objectif Pédagogique :</strong> Amener l'élève à identifier ses propres "données" (forces, motivations) et à acquérir un vocabulaire précis pour se décrire.<br><strong>Étape Utilisée :</strong> Mieux se connaître.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Introduction : "Votre orientation est un problème à résoudre. La première étape est de collecter les bonnes données sur vous-même." (10min). 2. Les élèves complètent le questionnaire pour générer leur profil de base (25min). 3. Discussion collective sur la signification des <strong>Archétypes</strong> et du <strong>graphique RIASEC</strong> comme outils d'analyse (15min).</div></div>
-
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" /></svg> Séance 2 : Le Simulateur Stratégique de Spécialités</h4><p><strong>Classe Cible :</strong> Seconde (2ème trimestre).<br><strong>Objectif Pédagogique :</strong> Utiliser la simulation pour prendre des décisions éclairées sur les spécialités.<br><strong>Étape Utilisée :</strong> Le simulateur de spécialités.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Rappel des enjeux (5min). 2. En binômes, les élèves testent 2 combinaisons, utilisent OrIA pour obtenir un <strong>témoignage d'étudiant</strong> et analysent le lien avec leur profil (30min). 3. Mise en commun : chaque binôme partage la combinaison la plus "inattendue" qu'il a trouvée (15min).</div></div>
-
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.07a2.25 2.25 0 0 1-2.25 2.25h-13.5a2.25 2.25 0 0 1-2.25-2.25v-4.07m18-4.32-7.5-5.25a2.25 2.25 0 0 0-2.013.003L2.25 9.83m18 4.32V9.83" /></svg> Séance 3 : Le Portfolio - Transformer l'Expérience en Compétence</h4><p><strong>Classe Cible :</strong> Première (fin d'année), Terminale.<br><strong>Objectif Pédagogique :</strong> Apprendre à l'élève à "extraire" et formuler des compétences à partir de son vécu (méthode STAR).<br><strong>Étape Utilisée :</strong> Mon Portfolio de Compétences.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Introduction : "Vos expériences sont des mines de compétences. Apprenons à les extraire." (10min). 2. Chaque élève choisit une expérience (stage, passion, projet...) et utilise l'<strong>Assistant de Portfolio</strong> pour la transformer en texte valorisé (30min). 3. Partage volontaire de 2-3 exemples pour montrer la transformation (10min).</div></div>
-
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> Séance 4 : Débunker l'Orientation - Chasse aux Mythes</h4><p><strong>Classe Cible :</strong> Tous niveaux.<br><strong>Objectif Pédagogique :</strong> Développer l'esprit critique et la littératie informationnelle en déconstruisant les idées reçues.<br><strong>Étape Utilisée :</strong> Fact Checking.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Constitution d'équipes (5min). 2. Lancement d'un défi : chaque équipe choisit un domaine et doit obtenir le meilleur score au quiz "Chasse aux Mythes" (30min). 3. Chaque équipe présente à la classe le mythe le plus surprenant qu'elle a déconstruit (15min).</div></div>
-
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 7.756a4.5 4.5 0 1 0 0 8.488M7.5 10.5h5.25m-5.25 3h5.25M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> Séance 5 : Ancrer son Projet dans la Réalité</h4><p><strong>Classe Cible :</strong> Première (fin d'année), Terminale.<br><strong>Objectif Pédagogique :</strong> Intégrer les contraintes matérielles (budget, logement) comme une donnée clé du projet.<br><strong>Étape Utilisée :</strong> Simulateur Vie Étudiante.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Introduction : "Un projet viable est un projet financé." (5min). 2. Les élèves utilisent le <strong>simulateur de budget</strong> pour une ville qui les intéresse et explorent les <strong>aides financières</strong> (30min). 3. Discussion collective sur les écarts de coût de la vie et les aides méconnues (15min).</div></div>
-
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.761 9.761 0 0 1-2.541-.358m-4.002 0A9.754 9.754 0 0 1 3 12c0-4.556 4.03-8.25 9-8.25a9.754 9.754 0 0 1 4.545 1.343" /></svg> Séance 6 : Se Préparer au Contact - L'Enquête Métier</h4><p><strong>Classe Cible :</strong> Première, Terminale.<br><strong>Objectif Pédagogique :</strong> Développer l'aisance orale et la capacité à mener une discussion structurée.<br><strong>Étape Utilisée :</strong> L'Expérience.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Introduction sur la valeur d'un retour "terrain" (10min). 2. OrIA génère des questions personnalisées pour chaque élève, puis ils s'entraînent avec le <strong>simulateur d'entretien</strong> (30min). 3. Débriefing sur les difficultés et les bonnes pratiques (10min).</div></div>
-
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg> Séance 7 : Atelier d'Écriture - Le Projet de Formation Motivé</h4><p><strong>Classe Cible :</strong> Terminale.<br><strong>Objectif Pédagogique :</strong> Apprendre à argumenter et à structurer un écrit de candidature.<br><strong>Étape Utilisée :</strong> Préparer sa candidature.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Analyse collective d'un PFM anonymisé (10min). 2. Les élèves utilisent l'<strong>Atelier d'écriture</strong> : ils génèrent une structure, rédigent un paragraphe, puis utilisent OrIA pour obtenir des pistes d'amélioration (35min). 3. Partage d'un "avant/après" pour illustrer la valeur ajoutée (5min).</div></div>
-
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="m15.75 15.75-2.489-2.489m0 0a3.375 3.375 0 1 0-4.773-4.773 3.375 3.375 0 0 0 4.774 4.774ZM21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> Séance 8 : Débloquer sa Réflexion - Le Radar</h4><p><strong>Classe Cible :</strong> Tous niveaux (particulièrement les élèves "perdus" ou "bloqués").<br><strong>Objectif Pédagogique :</strong> Utiliser la créativité de OrIA pour ouvrir de nouvelles pistes et relancer une dynamique de recherche.<br><strong>Étape Utilisée :</strong> Le Radar à Opportunités.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Discussion sur le droit d'être indécis (5min). 2. Chaque élève utilise le bouton "Me surprendre !" et note la suggestion de OrIA (20min). 3. En petits groupes, ils discutent de la pertinence (ou non) de la suggestion et de ce qu'elle révèle sur leur profil (25min).</div></div>
-
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.82m5.84-2.56a17.96 17.96 0 0 0-5.84-2.56m0 0A17.965 17.965 0 0 1 12 2.25a17.965 17.965 0 0 1 7.41 12.56m-7.41 0v4.82" /></svg> Séance 9 : Planifier son Année - Le Rétroplanning</h4><p><strong>Classe Cible :</strong> Tous niveaux (en début d'année).<br><strong>Objectif Pédagogique :</strong> Visualiser l'année à venir, dédramatiser les échéances et développer des compétences de planification.<br><strong>Étape Utilisée :</strong> Mon Rétroplanning.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Présentation des grandes échéances de l'année (10min). 2. Les élèves génèrent leur <strong>rétroplanning personnalisé</strong> et cochent les tâches déjà entamées (25min). 3. Discussion sur la tâche du mois qui leur semble la plus importante (15min).</div></div>
-    
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg> Séance 10 : Stratégie "Plan B" - Gérer l'Incertitude</h4><p><strong>Classe Cible :</strong> Terminale.<br><strong>Objectif Pédagogique :</strong> Développer la résilience et la capacité à envisager des alternatives de manière constructive.<br><strong>Étape Utilisée :</strong> Anticiper la suite.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Discussion sur la gestion du stress et des réponses de Parcoursup (10min). 2. Les élèves utilisent la <strong>simulation de conversation "Plan B"</strong> pour réfléchir à des alternatives à leur vœu n°1 (35min). 3. Réflexion individuelle sur les pistes qui ont émergé (5min).</div></div>
-`;
-
-    const partie4FonctionnalitesHTML_base = `
+const partie4FonctionnalitesHTML_eleves = `
     <h2>Partie 2 : Exploration Détaillée des Fonctionnalités</h2>
     <p class="text-slate-600 mb-6 text-center">Ton menu est organisé en deux grandes sections pour t'aider à naviguer plus facilement : ton Tableau de Bord personnel et ton Parcours d'Orientation étape par étape.</p>
-
     <h3 class="centered-subtitle" style="font-size: 1.5em; color: #1A3263;">🚀 Le Tableau de Bord</h3>
     <p class="text-slate-600 mb-6 text-center">Ce sont tes outils centraux, ceux que tu utiliseras tout au long de ton parcours pour suivre tes progrès, synthétiser tes idées et planifier tes actions.</p>
-
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.75V16.5L12 14.25 7.5 16.5V3.75m9 0H18A2.25 2.25 0 0 1 20.25 6v12A2.25 2.25 0 0 1 18 20.25H6A2.25 2.25 0 0 1 3.75 18V6A2.25 2.25 0 0 1 6 3.75h1.5m9 0h-9" /></svg> Mon Journal de Bord</h4><p><strong>Objectif :</strong> Centraliser et synthétiser toutes tes réflexions au même endroit.</p><p><strong>Fonctionnement :</strong> Retrouve les synthèses de ton travail (organisées en sections dépliables), ta <strong>Carte d'Orientation</strong> et ton profil visuel. OrIA peut générer un <strong>"Fil Rouge"</strong> pour résumer ton projet. Une fonction de partage est disponible pour échanger avec tes proches.</p><div class="conseil-prof"><strong>Conseil :</strong> Ce journal est la base de discussion la plus concrète et la plus riche que tu puisses avoir avec tes parents ou ton professeur principal.</div></div>
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0h18M12 12.75h.008v.008H12v-.008Z" /></svg> Mon Rétroplanning</h4><p><strong>Objectif :</strong> Planifier son année sans stress en visualisant les grandes échéances.</p><p><strong>Fonctionnement :</strong> OrIA génère un calendrier d'actions mois par mois adapté à ta classe (Seconde, Première, Terminale). Tu peux cocher les tâches accomplies.</p><div class="conseil-prof"><strong>Conseil :</strong> C'est l'outil parfait pour ne jamais être pris de court. Une année bien planifiée est une année plus sereine.</div></div>
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg> Mieux se connaître</h4><p><strong>Objectif :</strong> Dresser un portrait précis de ta personnalité, de tes intérêts et de ce qui te motive.</p><p><strong>Fonctionnement :</strong> Tu réponds à un questionnaire de 30 questions. OrIA analyse tes réponses pour révéler ton <strong>Archétype de personnalité</strong> (ex: "L'Architecte Logique"), génère une analyse détaillée et crée une <strong>synthèse visuelle (graphique RIASEC)</strong> de tes pôles d'intérêts. Tu peux aussi croiser ces résultats avec ceux de tests externes pour une analyse encore plus fine.</p><div class="conseil-prof"><strong>Conseil :</strong> Réponds honnêtement ! Il n'y a pas de bonnes ou de mauvaises réponses. Le but est de créer une base solide pour la suite.</div></div>
-
     <hr style="margin: 60px 0;">
-
     <h3 class="centered-subtitle" style="font-size: 1.5em; color: #1A3263;">🧭 Le Parcours d'Orientation</h3>
     <p class="text-slate-600 mb-6 text-center">Ce sont les étapes guidées pour construire ton projet. Elles sont organisées en trois grandes phases logiques.</p>
-    
     <h4 class="centered-subtitle" style="font-size: 1.2em; color: #0891b2; margin-top: 40px;">1. Explorer les Possibilités</h4>
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" /></svg> Le simulateur de spécialités (avec Horizons21)</h4><p><strong>Objectif :</strong> Faire le lien entre les matières choisies au lycée et les filières d'études supérieures.</p><p><strong>Fonctionnement :</strong> Teste des combinaisons de spécialités et analyse les "horizons" qu'elles t'ouvrent. OrIA peut aussi te donner un témoignage d'étudiant pour t'aider à te projeter.</p><div class="conseil-prof"><strong>Conseil :</strong> C'est l'outil essentiel pour faire tes choix en fin de Seconde et de Première de manière éclairée.</div></div>
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18" /></svg> Les Fondations (avec Onisep)</h4><p><strong>Objectif :</strong> Découvrir des métiers sur la base d'informations fiables et officielles.</p><p><strong>Fonctionnement :</strong> Explore des fiches métiers sur Onisep.fr. Pour chaque métier, OrIA peut <strong>simuler une "journée type"</strong>, trouver des <strong>témoignages</strong> ou générer un <strong>tableau comparatif</strong> pour t'aider à choisir entre plusieurs pistes.</p><div class="conseil-prof"><strong>Conseil :</strong> L'Onisep est la source la plus neutre et la plus complète. C'est le point de départ incontournable.</div></div>
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.57 50.57 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" /></svg> Le Catalogue (avec Parcoursup)</h4><p><strong>Objectif :</strong> Apprendre à utiliser le moteur de recherche des formations post-bac comme un expert.</p><p><strong>Fonctionnement :</strong> Copie-colle les "attendus" d'une formation qui t'intéresse, et OrIA génère un <strong>rapport de compatibilité personnalisé</strong> en analysant l'ensemble de ton journal de bord pour voir si ton profil correspond.</p><div class="conseil-prof"><strong>Conseil :</strong> Utilise Parcoursup dès la Seconde pour explorer, sans la pression des vœux. C'est le meilleur catalogue de formations qui existe.</div></div>
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z" /></svg> L'Actu</h4><p><strong>Objectif :</strong> Rester informé(e) sur le monde des études et des métiers en consultant des articles ou des classements.</p><p><strong>Fonctionnement :</strong> Explore des sites comme L'Étudiant.fr ou Studyrama. Pour chaque info que tu trouves, OrIA peut l'analyser pour te dire en quoi elle est pertinente par rapport à ton propre profil.</p><div class="conseil-prof"><strong>Conseil :</strong> Croiser les sources d'information est essentiel. L'analyse de OrIA t'aidera à prendre du recul sur ce que tu lis.</div></div>
-    
     <h4 class="centered-subtitle" style="font-size: 1.2em; color: #0891b2; margin-top: 40px;">2. Se Connecter au Monde Réel</h4>
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.761 9.761 0 0 1-2.541-.358m-4.002 0A9.754 9.754 0 0 1 3 12c0-4.556 4.03-8.25 9-8.25a9.754 9.754 0 0 1 4.545 1.343" /></svg> L'Expérience (avec Inspire)</h4><p><strong>Objectif :</strong> Obtenir un retour authentique de la part d'étudiants.</p><p><strong>Fonctionnement :</strong> L'outil t'aide à préparer des questions pertinentes, puis te propose un <strong>simulateur d'entretien</strong> pour t'entraîner à discuter avec un "étudiant éclaireur" virtuel.</p><div class="conseil-prof"><strong>Conseil :</strong> C'est le meilleur moyen de connaître la "vraie vie" d'une formation, au-delà des brochures officielles.</div></div>
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.82m5.84-2.56a17.96 17.96 0 0 0-5.84-2.56m0 0A17.965 17.965 0 0 1 12 2.25a17.965 17.965 0 0 1 7.41 12.56m-7.41 0v4.82" /></svg> Passer à l'action</h4><p><strong>Objectif :</strong> Préparer des rencontres avec des professionnels et des visites d'établissements.</p><p><strong>Fonctionnement :</strong> Utilise le <strong>gestionnaire de contacts</strong> pour ajouter ton réseau personnel et trouver des professionnels via OrIA. Tu peux suivre le statut de tes prises de contact et obtenir de l'aide pour rédiger tes mails.</p><div class="conseil-prof"><strong>Conseil :</strong> La recherche en ligne est une chose, la réalité du terrain en est une autre. Une rencontre peut tout changer !</div></div>
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg> Rencontres sur mon Territoire</h4><p><strong>Objectif :</strong> Trouver des événements (salons, JPO) et des structures d'aide près de chez toi.</p><p><strong>Fonctionnement :</strong> Indique ta ville, et OrIA recherche les événements pertinents. Tu peux même ajouter un salon ou une JPO directement à ton Rétroplanning en un clic.</p><div class="conseil-prof"><strong>Conseil :</strong> L'orientation se fait aussi sur le terrain. Une visite ou une rencontre peut parfois tout changer.</div></div>
-
     <h4 class="centered-subtitle" style="font-size: 1.2em; color: #0891b2; margin-top: 40px;">3. Construire son Projet</h4>
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.07a2.25 2.25 0 0 1-2.25 2.25h-13.5a2.25 2.25 0 0 1-2.25-2.25v-4.07m18-4.32-7.5-5.25a2.25 2.25 0 0 0-2.013.003L2.25 9.83m18 4.32V9.83" /></svg> Mon Portfolio de Compétences</h4><p><strong>Objectif :</strong> Créer un portfolio unique de tes atouts, basé sur ce que tu fais et ce que tu es, pour valoriser tes candidatures (Parcoursup, Grand Oral...).</p><p><strong>Fonctionnement :</strong> Cette étape propose deux ateliers puissants : 1. L'<strong>Analyseur d'expériences</strong> transforme tes récits (stage, passion, projet...) en paragraphes rédigés et percutants. 2. Le <strong>Détecteur de compétences</strong> révèle tes forces transversales (Rigueur, Créativité, Leadership...) via un quiz rapide.</p><div class="conseil-prof"><strong>Conseil :</strong> C'est une étape cruciale. Savoir parler de soi et de ses compétences est un atout majeur pour Parcoursup et au-delà.</div></div>
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg> Préparer sa candidature (Terminales)</h4><p><strong>Objectif :</strong> Rédiger un "projet de formation motivé" clair et percutant pour Parcoursup.</p><p><strong>Fonctionnement :</strong> OrIA te propose une structure pour ta lettre. Ensuite, l'<strong>Atelier d'écriture</strong> te permet de soumettre un brouillon de paragraphe et d'obtenir des conseils ciblés pour l'améliorer, sans jamais l'écrire à ta place.</p><div class="conseil-prof"><strong>Conseil :</strong> Une lettre bien structurée a plus d'impact qu'un long texte confus. Cet outil t'apprend à être clair et convaincant.</div></div>
@@ -5737,85 +5792,69 @@ function createGuideView() {
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 7.756a4.5 4.5 0 1 0 0 8.488M7.5 10.5h5.25m-5.25 3h5.25M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> Simulateur Vie Étudiante</h4><p><strong>Objectif :</strong> Se projeter concrètement dans sa future vie d'étudiant.</p><p><strong>Fonctionnement :</strong> Estime le coût de la vie dans ta future ville d'études et découvre les principales aides financières, avec des liens directs et fiables vers les sites officiels.</p><div class="conseil-prof"><strong>Conseil :</strong> L'aspect financier est une partie importante du projet. L'anticiper permet de faire des choix plus sereins.</div></div>
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg> Anticiper la suite (Terminales)</h4><p><strong>Objectif :</strong> Préparer l'après-Parcoursup, y compris les refus.</p><p><strong>Fonctionnement :</strong> Utilise la <strong>simulation de conversation "Plan B"</strong> pour dialoguer avec OrIA et explorer des alternatives de manière constructive si ton vœu n°1 est refusé.</p><div class="conseil-prof"><strong>Conseil :</strong> Une bonne orientation, c'est aussi être bien préparé pour la suite. Ces étapes te donnent les clés pour une transition réussie.</div></div>
 `;
-    // Ajoutez ces blocs de code après partie4FonctionnalitesHTML_base
-// ▼▼▼ REMPLACE TA VARIABLE "partie4FonctionnalitesHTML_parents" PAR CELLE-CI ▼▼▼
 
 const partie4FonctionnalitesHTML_parents = `
     <h2>Partie 2 : Exploration Détaillée des Fonctionnalités</h2>
     <p class="text-slate-600 mb-6 text-center">Le menu de votre enfant est organisé en deux grandes sections pour l'aider à naviguer : son Tableau de Bord personnel et son Parcours d'Orientation étape par étape.</p>
-
     <h3 class="centered-subtitle" style="font-size: 1.5em; color: #1A3263;">🚀 Le Tableau de Bord</h3>
     <p class="text-slate-600 mb-6 text-center">Ce sont ses outils centraux, qu'il/elle utilisera tout au long de son parcours pour suivre ses progrès, synthétiser ses idées et planifier ses actions.</p>
-
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.75V16.5L12 14.25 7.5 16.5V3.75m9 0H18A2.25 2.25 0 0 1 20.25 6v12A2.25 2.25 0 0 1 18 20.25H6A2.25 2.25 0 0 1 3.75 18V6A2.25 2.25 0 0 1 6 3.75h1.5m9 0h-9" /></svg> Mon Journal de Bord</h4><p><strong>Objectif :</strong> Lui permettre de centraliser et de synthétiser toutes ses réflexions au même endroit.</p><p><strong>Fonctionnement :</strong> Il/elle y retrouve les synthèses de son travail (dans des sections dépliables), sa <strong>Carte d'Orientation</strong> et son profil visuel. Une fonction de <strong>partage</strong> est disponible pour vous permettre d'échanger avec lui/elle.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> Ce journal est la base de discussion la plus concrète et la plus riche que vous puissiez avoir avec votre enfant. Utilisez le bouton "Préparer une discussion" sur la page partagée.</div></div>
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0h18M12 12.75h.008v.008H12v-.008Z" /></svg> Mon Rétroplanning</h4><p><strong>Objectif :</strong> L'aider à planifier son année sans stress en visualisant les grandes échéances.</p><p><strong>Fonctionnement :</strong> OrIA génère un calendrier d'actions mois par mois adapté à sa classe. Il/elle peut cocher les tâches accomplies.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> C'est l'outil parfait pour ne jamais être pris de court. Une année bien planifiée est une année plus sereine.</div></div>
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg> Mieux se connaître</h4><p><strong>Objectif :</strong> Aider votre enfant à dresser un portrait de sa personnalité et de ses préférences.</p><p><strong>Fonctionnement :</strong> Il/elle répond à un questionnaire. OrIA analyse ses réponses pour révéler son <strong>Archétype de personnalité</strong> et créer un <strong>graphique de ses pôles d'intérêts (RIASEC)</strong>.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> Invitez-le/la à répondre honnêtement. L'objectif est de l'aider à mieux se connaître, pas de l'évaluer. C'est un excellent point de départ pour une discussion.</div></div>
-
     <hr style="margin: 60px 0;">
-
     <h3 class="centered-subtitle" style="font-size: 1.5em; color: #1A3263;">🧭 Le Parcours d'Orientation</h3>
     <p class="text-slate-600 mb-6 text-center">Ce sont les étapes guidées pour construire son projet. Elles sont organisées en trois grandes phases logiques.</p>
-    
     <h4 class="centered-subtitle" style="font-size: 1.2em; color: #0891b2; margin-top: 40px;">1. Explorer les Possibilités</h4>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" /></svg> Le simulateur de spécialités (avec Horizons21)</h4><p><strong>Objectif :</strong> L'aider à faire le lien entre les matières choisies au lycée et les filières d'études supérieures.</p><p><strong>Fonctionnement :</strong> Il/elle teste des combinaisons de spécialités et analyse les "horizons" (domaines d'études) qu'elles lui ouvrent.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> C'est l'outil essentiel pour l'aider à faire des choix éclairés en fin de Seconde et de Première.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18" /></svg> Les Fondations (avec Onisep)</h4><p><strong>Objectif :</strong> L'aider à découvrir des métiers sur la base d'informations fiables et officielles.</p><p><strong>Fonctionnement :</strong> Il/elle peut explorer des fiches métiers, mais aussi utiliser OrIA pour <strong>simuler une "journée type"</strong> d'un professionnel ou générer un <strong>tableau comparatif</strong> entre plusieurs métiers qui l'intéressent.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> L'Onisep est la source la plus neutre et la plus complète. C'est le point de départ incontournable pour ses recherches.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.57 50.57 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" /></svg> Le Catalogue (avec Parcoursup)</h4><p><strong>Objectif :</strong> L'aider à utiliser le moteur de recherche des formations post-bac comme un expert.</p><p><strong>Fonctionnement :</strong> L'outil va au-delà de la simple recherche. Il peut générer un <strong>rapport de compatibilité personnalisé</strong> entre le profil complet de votre enfant et les "attendus" d'une formation.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> Utiliser Parcoursup dès la Seconde pour explorer, sans la pression des vœux, est une excellente stratégie. C'est le meilleur catalogue de formations qui existe.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z" /></svg> L'Actu</h4><p><strong>Objectif :</strong> L'aider à s'informer sur les classements et l'actualité du monde des études.</p><p><strong>Fonctionnement :</strong> Quand il/elle trouve une information intéressante, OrIA peut l'analyser en la croisant avec son profil personnel pour voir en quoi elle est pertinente pour lui/elle.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> Discuter de l'actualité de l'orientation est un bon moyen de rester connecté(e) à sa réflexion.</div></div>
-    
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" /></svg> Le simulateur de spécialités</h4><p><strong>Objectif :</strong> L'aider à faire le lien entre les matières choisies au lycée et les filières d'études supérieures.</p><p><strong>Fonctionnement :</strong> Il/elle teste des combinaisons de spécialités et analyse les "horizons" (domaines d'études) qu'elles lui ouvrent.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> C'est l'outil essentiel pour l'aider à faire des choix éclairés en fin de Seconde et de Première.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18" /></svg> Les Fondations</h4><p><strong>Objectif :</strong> L'aider à découvrir des métiers sur la base d'informations fiables.</p><p><strong>Fonctionnement :</strong> Il/elle peut explorer des fiches métiers, mais aussi utiliser OrIA pour <strong>simuler une "journée type"</strong> d'un professionnel ou générer un <strong>tableau comparatif</strong> entre plusieurs métiers.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> L'Onisep est la source la plus neutre et la plus complète. C'est le point de départ incontournable pour ses recherches.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.57 50.57 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" /></svg> Le Catalogue</h4><p><strong>Objectif :</strong> L'aider à utiliser le moteur de recherche des formations post-bac comme un expert.</p><p><strong>Fonctionnement :</strong> L'outil peut générer un <strong>rapport de compatibilité personnalisé</strong> entre le profil de votre enfant et les "attendus" d'une formation.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> Utiliser Parcoursup dès la Seconde pour explorer, sans la pression des vœux, est une excellente stratégie.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z" /></svg> L'Actu</h4><p><strong>Objectif :</strong> L'aider à s'informer sur les classements et l'actualité du monde des études.</p><p><strong>Fonctionnement :</strong> Quand il/elle trouve une information, OrIA peut l'analyser en la croisant avec son profil pour voir en quoi elle est pertinente pour lui/elle.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> Discuter de l'actualité de l'orientation est un bon moyen de rester connecté(e) à sa réflexion.</div></div>
     <h4 class="centered-subtitle" style="font-size: 1.2em; color: #0891b2; margin-top: 40px;">2. Se Connecter au Monde Réel</h4>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.761 9.761 0 0 1-2.541-.358m-4.002 0A9.754 9.754 0 0 1 3 12c0-4.556 4.03-8.25 9-8.25a9.754 9.754 0 0 1 4.545 1.343" /></svg> L'Expérience (avec Inspire)</h4><p><strong>Objectif :</strong> L'encourager à obtenir un retour authentique de la part d'étudiants.</p><p><strong>Fonctionnement :</strong> L'outil l'aide à préparer des questions pertinentes et propose un <strong>simulateur d'entretien</strong> pour qu'il/elle s'entraîne à discuter avec un étudiant virtuel et gagne en confiance.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> C'est le meilleur moyen de connaître la "vraie vie" d'une formation, au-delà des brochures officielles.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.82m5.84-2.56a17.96 17.96 0 0 0-5.84-2.56m0 0A17.965 17.965 0 0 1 12 2.25a17.965 17.965 0 0 1 7.41 12.56m-7.41 0v4.82" /></svg> Passer à l'action</h4><p><strong>Objectif :</strong> L'aider à préparer des rencontres avec des professionnels et des visites d'établissements.</p><p><strong>Fonctionnement :</strong> L'application propose un <strong>gestionnaire de contacts</strong> où il/elle peut lister des personnes à interroger, suivre l'avancement de ses démarches et obtenir de l'aide pour rédiger un mail de contact.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> Une rencontre sur le terrain peut tout changer. Vous pouvez aussi l'aider en mobilisant votre propre réseau.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg> Rencontres sur mon Territoire</h4><p><strong>Objectif :</strong> L'aider à trouver des événements et des structures d'aide près de chez lui/elle.</p><p><strong>Fonctionnement :</strong> Il/elle indique sa ville, et OrIA recherche les événements pertinents. Il/elle peut ajouter une JPO ou un salon directement à son <strong>Rétroplanning</strong>.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> L'orientation se fait aussi sur le terrain. Accompagner votre enfant à un salon peut être un moment d'échange privilégié.</div></div>
-
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.761 9.761 0 0 1-2.541-.358m-4.002 0A9.754 9.754 0 0 1 3 12c0-4.556 4.03-8.25 9-8.25a9.754 9.754 0 0 1 4.545 1.343" /></svg> L'Expérience</h4><p><strong>Objectif :</strong> L'encourager à obtenir un retour authentique de la part d'étudiants.</p><p><strong>Fonctionnement :</strong> L'outil l'aide à préparer des questions et propose un <strong>simulateur d'entretien</strong> pour qu'il/elle s'entraîne à discuter avec un étudiant virtuel et gagne en confiance.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> C'est le meilleur moyen de connaître la "vraie vie" d'une formation, au-delà des brochures officielles.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.82m5.84-2.56a17.96 17.96 0 0 0-5.84-2.56m0 0A17.965 17.965 0 0 1 12 2.25a17.965 17.965 0 0 1 7.41 12.56m-7.41 0v4.82" /></svg> Passer à l'action</h4><p><strong>Objectif :</strong> L'aider à préparer des rencontres avec des professionnels.</p><p><strong>Fonctionnement :</strong> L'application propose un <strong>gestionnaire de contacts</strong> où il/elle peut lister des personnes à interroger et suivre ses démarches.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> Une rencontre sur le terrain peut tout changer. Vous pouvez aussi l'aider en mobilisant votre propre réseau.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg> Rencontres sur mon Territoire</h4><p><strong>Objectif :</strong> L'aider à trouver des événements et des structures d'aide près de chez lui/elle.</p><p><strong>Fonctionnement :</strong> Il/elle peut ajouter une JPO ou un salon directement à son <strong>Rétroplanning</strong>.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> Accompagner votre enfant à un salon peut être un moment d'échange privilégié.</div></div>
     <h4 class="centered-subtitle" style="font-size: 1.2em; color: #0891b2; margin-top: 40px;">3. Construire son Projet</h4>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.07a2.25 2.25 0 0 1-2.25 2.25h-13.5a2.25 2.25 0 0 1-2.25-2.25v-4.07m18-4.32-7.5-5.25a2.25 2.25 0 0 0-2.013.003L2.25 9.83m18 4.32V9.83" /></svg> Mon Portfolio de Compétences</h4><p><strong>Objectif :</strong> L'aider à créer un portfolio unique de ses atouts, basé sur ce qu'il/elle fait et ce qu'il/elle est.</p><p><strong>Fonctionnement :</strong> Cette étape propose deux ateliers. L'un l'aide à transformer ses expériences (stage, projet, passion...) en paragraphes valorisables pour ses candidatures. L'autre est un 'détecteur' rapide pour révéler ses compétences transversales (rigueur, créativité...).</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> C'est une étape cruciale pour son dossier Parcoursup et son Grand Oral. Encouragez-le/la à la compléter en détail.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg> Préparer sa candidature (Terminales)</h4><p><strong>Objectif :</strong> L'aider à rédiger un "projet de formation motivé" clair et percutant pour Parcoursup.</p><p><strong>Fonctionnement :</strong> En plus de lui proposer une structure, l'outil dispose d'un <strong>Atelier d'écriture</strong> où il/elle peut soumettre un brouillon de paragraphe et recevoir des conseils pour l'améliorer.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> Une lettre bien structurée a plus d'impact qu'un long texte confus. Cet outil lui apprend à être clair et convaincant.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> Fact Checking</h4><p><strong>Objectif :</strong> Tester ses connaissances et déconstruire les idées reçues sur certains métiers ou filières.</p><p><strong>Fonctionnement :</strong> Il/elle peut lancer un quiz générique ("Chasse aux Mythes") ou un "Défi Personnalisé" qui le questionne par rapport à son propre profil.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> C'est une façon ludique de vérifier ses informations et d'ouvrir ses horizons en combattant les préjugés.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 7.756a4.5 4.5 0 1 0 0 8.488M7.5 10.5h5.25m-5.25 3h5.25M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> Simulateur Vie Étudiante</h4><p><strong>Objectif :</strong> L'aider à se projeter concrètement dans sa future vie d'étudiant.</p><p><strong>Fonctionnement :</strong> Il/elle peut estimer le coût de la vie dans sa future ville d'études et découvrir les principales aides financières. C'est un excellent support pour une discussion en famille.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> L'aspect financier est une partie importante du projet. L'anticiper ensemble permet de faire des choix plus sereins.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg> Anticiper la suite (Terminales)</h4><p><strong>Objectif :</strong> L'aider à préparer l'après-Parcoursup et à gérer le stress des réponses.</p><p><strong>Fonctionnement :</strong> OrIA propose une <strong>simulation de conversation "Plan B"</strong> pour l'aider à réfléchir à des alternatives de manière positive en cas de refus de son vœu n°1.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> Une bonne orientation, c'est aussi être bien préparé pour la suite. Cet outil peut l'aider à relativiser et à envisager d'autres chemins.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.07a2.25 2.25 0 0 1-2.25 2.25h-13.5a2.25 2.25 0 0 1-2.25-2.25v-4.07m18-4.32-7.5-5.25a2.25 2.25 0 0 0-2.013.003L2.25 9.83m18 4.32V9.83" /></svg> Mon Portfolio de Compétences</h4><p><strong>Objectif :</strong> L'aider à créer un portfolio unique de ses atouts, basé sur ce qu'il/elle fait et ce qu'il/elle est.</p><p><strong>Fonctionnement :</strong> L'outil aide à transformer ses expériences (stage, passion...) en paragraphes valorisables et à révéler ses compétences transversales.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> C'est une étape cruciale pour son dossier Parcoursup et son Grand Oral. Encouragez-le/la à la compléter en détail.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg> Préparer sa candidature (Terminales)</h4><p><strong>Objectif :</strong> L'aider à rédiger un "projet de formation motivé" clair et percutant.</p><p><strong>Fonctionnement :</strong> L'<strong>Atelier d'écriture</strong> lui permet de soumettre un brouillon et de recevoir des conseils pour l'améliorer.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> Cet outil lui apprend à être clair et convaincant.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> Fact Checking</h4><p><strong>Objectif :</strong> Tester ses connaissances et déconstruire les idées reçues.</p><p><strong>Fonctionnement :</strong> Il/elle peut lancer des quiz pour confronter son profil aux idées reçues.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> C'est une façon ludique de vérifier ses informations et d'ouvrir ses horizons.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 7.756a4.5 4.5 0 1 0 0 8.488M7.5 10.5h5.25m-5.25 3h5.25M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> Simulateur Vie Étudiante</h4><p><strong>Objectif :</strong> L'aider à se projeter concrètement dans sa future vie d'étudiant.</p><p><strong>Fonctionnement :</strong> Il/elle peut estimer le coût de la vie et découvrir les aides financières.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> L'aspect financier est une partie importante du projet. L'anticiper ensemble permet de faire des choix plus sereins.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg> Anticiper la suite (Terminales)</h4><p><strong>Objectif :</strong> L'aider à préparer l'après-Parcoursup et à gérer le stress des réponses.</p><p><strong>Fonctionnement :</strong> OrIA propose une <strong>simulation de conversation "Plan B"</strong> pour l'aider à réfléchir à des alternatives de manière positive.</p><div class="conseil-prof"><strong>Conseil du Parent :</strong> Cet outil peut l'aider à relativiser et à envisager d'autres chemins.</div></div>
 `;
 
 const partie4FonctionnalitesHTML_enseignants = `
-    <h2>Partie 2 : Exploration Détaillée des Fonctionnalités</h2>
-    <p class="text-slate-600 mb-6 text-center">Le menu de l'élève est organisé en deux grandes sections pour l'aider à naviguer : son Tableau de Bord personnel et son Parcours d'Orientation étape par étape.</p>
-
+    <h2>Partie 3 : Exploration Détaillée des Fonctionnalités</h2>
+    <p class="text-slate-600 mb-6 text-center">Le menu de l'élève est organisé en deux grandes sections : son Tableau de Bord personnel et son Parcours d'Orientation étape par étape.</p>
     <h3 class="centered-subtitle" style="font-size: 1.5em; color: #1A3263;">🚀 Le Tableau de Bord</h3>
     <p class="text-slate-600 mb-6 text-center">Ce sont les outils centraux de l'élève, conçus pour le suivi, la synthèse et la planification de sa démarche d'orientation.</p>
-
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.75V16.5L12 14.25 7.5 16.5V3.75m9 0H18A2.25 2.25 0 0 1 20.25 6v12A2.25 2.25 0 0 1 18 20.25H6A2.25 2.25 0 0 1 3.75 18V6A2.25 2.25 0 0 1 6 3.75h1.5m9 0h-9" /></svg> Mon Journal de Bord</h4><p><strong>Objectif :</strong> Centraliser la réflexion de l'élève pour faciliter le suivi.</p><p><strong>Fonctionnement :</strong> Le journal synthétise tout le travail de l'élève. La fonction de <strong>partage</strong> est essentielle : elle vous donne accès à une vue d'ensemble de sa démarche avant un entretien.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Ce journal est la base de discussion la plus concrète et la plus riche que vous puissiez avoir avec un élève lors d'un entretien de suivi. Utilisez le bouton "Préparer une discussion" sur la page partagée.</div></div>
     <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0h18M12 12.75h.008v.008H12v-.008Z" /></svg> Mon Rétroplanning</h4><p><strong>Objectif :</strong> Aider l'élève à planifier son année et à visualiser les échéances.</p><p><strong>Fonctionnement :</strong> OrIA génère un calendrier d'actions mois par mois adapté à chaque niveau de classe.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Un excellent support visuel à présenter en début d'année pour fixer le cap du Parcours Avenir.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg> Mieux se connaître</h4><p><strong>Objectif :</strong> Permettre à l'élève de dresser un portrait de sa personnalité, de ses intérêts et de ses motivations.</p><p><strong>Fonctionnement :</strong> L'élève répond à un questionnaire de 30 questions. OrIA analyse ses réponses pour révéler un <strong>Archétype de personnalité</strong>, génère une analyse détaillée et un <strong>graphique de ses pôles d'intérêts (RIASEC)</strong>.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> C'est une excellente base pour un entretien individuel. L'Archétype et le graphique RIASEC fournissent un vocabulaire et un support visuel pour aider l'élève à parler de lui.</div></div>
-
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg> Mieux se connaître</h4><p><strong>Objectif :</strong> Permettre à l'élève de dresser un portrait de sa personnalité, de ses intérêts et de ses motivations.</p><p><strong>Fonctionnement :</strong> L'élève répond à un questionnaire. OrIA analyse ses réponses pour révéler un <strong>Archétype de personnalité</strong>, une analyse détaillée et un <strong>graphique de ses pôles d'intérêts (RIASEC)</strong>.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> C'est une excellente base pour un entretien individuel. L'Archétype et le graphique RIASEC fournissent un vocabulaire et un support visuel pour aider l'élève à parler de lui.</div></div>
     <hr style="margin: 60px 0;">
-
     <h3 class="centered-subtitle" style="font-size: 1.5em; color: #1A3263;">🧭 Le Parcours d'Orientation</h3>
-    <p class="text-slate-600 mb-6 text-center">Ce sont les étapes guidées pour construire son projet. Elles sont organisées en trois grandes phases logiques, chacune offrant des opportunités pédagogiques.</p>
-    
+    <p class="text-slate-600 mb-6 text-center">Ce sont les étapes guidées pour construire son projet, chacune offrant des opportunités pédagogiques.</p>
     <h4 class="centered-subtitle" style="font-size: 1.2em; color: #0891b2; margin-top: 40px;">1. Explorer les Possibilités</h4>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" /></svg> Le simulateur de spécialités (avec Horizons21)</h4><p><strong>Objectif :</strong> Aider l'élève à faire des choix de spécialités éclairés.</p><p><strong>Fonctionnement :</strong> L'élève teste des combinaisons de spécialités et analyse les "horizons" qu'elles lui ouvrent.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> C'est l'outil essentiel à mobiliser lors des séances d'accompagnement au choix en Seconde et en Première.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18" /></svg> Les Fondations (avec Onisep)</h4><p><strong>Objectif :</strong> Ancrer la recherche de l'élève dans des sources fiables et l'aider à se projeter.</p><p><strong>Fonctionnement :</strong> L'élève peut explorer des métiers et utiliser OrIA pour <strong>simuler une "journée type"</strong> ou générer un <strong>tableau comparatif</strong> entre plusieurs pistes.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Ces outils interactifs favorisent une exploration plus active et approfondie que la simple lecture de fiches.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.57 50.57 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" /></svg> Le Catalogue (avec Parcoursup)</h4><p><strong>Objectif :</strong> Apprendre à l'élève à décrypter une fiche formation et à s'auto-évaluer.</p><p><strong>Fonctionnement :</strong> La fonction de <strong>rapport de compatibilité personnalisé</strong> croise l'ensemble des données du journal de l'élève avec les "attendus" d'une formation.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Encouragez les élèves à utiliser cet outil pour objectiver leurs choix et préparer leurs arguments pour le projet de formation motivé.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z" /></svg> L'Actu</h4><p><strong>Objectif :</strong> Développer l'esprit critique de l'élève face à l'information sur l'orientation.</p><p><strong>Fonctionnement :</strong> L'élève peut soumettre une information ou un classement trouvé en ligne, et OrIA l'analyse en la mettant en perspective avec son propre profil.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Peut servir de support pour des séances d'EMI (Éducation aux Médias et à l'Information) appliquées à l'orientation.</div></div>
-    
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" /></svg> Le simulateur de spécialités</h4><p><strong>Objectif :</strong> Aider l'élève à faire des choix de spécialités éclairés.</p><p><strong>Fonctionnement :</strong> L'élève teste des combinaisons de spécialités et analyse les "horizons" qu'elles lui ouvrent.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> C'est l'outil essentiel à mobiliser lors des séances d'accompagnement au choix en Seconde et en Première.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18" /></svg> Les Fondations</h4><p><strong>Objectif :</strong> Ancrer la recherche de l'élève dans des sources fiables et l'aider à se projeter.</p><p><strong>Fonctionnement :</strong> L'élève peut explorer des métiers et utiliser OrIA pour <strong>simuler une "journée type"</strong> ou générer un <strong>tableau comparatif</strong>.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Ces outils interactifs favorisent une exploration plus active et approfondie que la simple lecture de fiches.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.57 50.57 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" /></svg> Le Catalogue</h4><p><strong>Objectif :</strong> Apprendre à l'élève à décrypter une fiche formation et à s'auto-évaluer.</p><p><strong>Fonctionnement :</strong> La fonction de <strong>rapport de compatibilité</strong> croise les données du journal de l'élève avec les "attendus" d'une formation.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Encouragez les élèves à utiliser cet outil pour objectiver leurs choix et préparer leurs arguments pour le projet de formation motivé.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z" /></svg> L'Actu</h4><p><strong>Objectif :</strong> Développer l'esprit critique de l'élève face à l'information sur l'orientation.</p><p><strong>Fonctionnement :</strong> OrIA analyse une information trouvée en ligne en la mettant en perspective avec le profil de l'élève.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Peut servir de support pour des séances d'EMI appliquées à l'orientation.</div></div>
     <h4 class="centered-subtitle" style="font-size: 1.2em; color: #0891b2; margin-top: 40px;">2. Se Connecter au Monde Réel</h4>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.761 9.761 0 0 1-2.541-.358m-4.002 0A9.754 9.754 0 0 1 3 12c0-4.556 4.03-8.25 9-8.25a9.754 9.754 0 0 1 4.545 1.343" /></svg> L'Expérience (avec Inspire)</h4><p><strong>Objectif :</strong> Préparer l'élève à des interactions réelles et développer son aisance orale.</p><p><strong>Fonctionnement :</strong> L'outil propose un <strong>simulateur d'entretien</strong> où l'élève peut s'entraîner à dialoguer avec un étudiant virtuel.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Très utile pour les élèves les plus timides afin de préparer des JPO ou des entretiens de stage.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.82m5.84-2.56a17.96 17.96 0 0 0-5.84-2.56m0 0A17.965 17.965 0 0 1 12 2.25a17.965 17.965 0 0 1 7.41 12.56m-7.41 0v4.82" /></svg> Passer à l'action</h4><p><strong>Objectif :</strong> Aider l'élève à structurer sa démarche de prise de contact.</p><p><strong>Fonctionnement :</strong> Le <strong>gestionnaire de contacts</strong> permet de suivre l'avancement des démarches (contacté, réponse reçue...). OrIA peut aider à la rédaction de mails.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Peut servir de support à un projet où les élèves doivent interviewer des professionnels.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg> Rencontres sur mon Territoire</h4><p><strong>Objectif :</strong> Connecter le projet de l'élève aux ressources et événements locaux.</p><p><strong>Fonctionnement :</strong> OrIA recherche les JPO, salons et structures d'aide locales. Les événements peuvent être ajoutés en un clic au <strong>Rétroplanning</strong> de l'élève.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Utile pour communiquer les dates importantes de l'orientation sur le territoire de l'établissement.</div></div>
-
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.761 9.761 0 0 1-2.541-.358m-4.002 0A9.754 9.754 0 0 1 3 12c0-4.556 4.03-8.25 9-8.25a9.754 9.754 0 0 1 4.545 1.343" /></svg> L'Expérience</h4><p><strong>Objectif :</strong> Préparer l'élève à des interactions réelles et développer son aisance orale.</p><p><strong>Fonctionnement :</strong> Le <strong>simulateur d'entretien</strong> permet à l'élève de s'entraîner à dialoguer avec un étudiant virtuel.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Très utile pour les élèves les plus timides afin de préparer des JPO ou des entretiens de stage.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.82m5.84-2.56a17.96 17.96 0 0 0-5.84-2.56m0 0A17.965 17.965 0 0 1 12 2.25a17.965 17.965 0 0 1 7.41 12.56m-7.41 0v4.82" /></svg> Passer à l'action</h4><p><strong>Objectif :</strong> Aider l'élève à structurer sa démarche de prise de contact.</p><p><strong>Fonctionnement :</strong> Le <strong>gestionnaire de contacts</strong> permet de suivre l'avancement des démarches. OrIA peut aider à la rédaction de mails.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Peut servir de support à un projet où les élèves doivent interviewer des professionnels.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg> Rencontres sur mon Territoire</h4><p><strong>Objectif :</strong> Connecter le projet de l'élève aux ressources et événements locaux.</p><p><strong>Fonctionnement :</strong> OrIA recherche les JPO et salons locaux. Les événements peuvent être ajoutés au <strong>Rétroplanning</strong>.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Utile pour communiquer les dates importantes de l'orientation sur le territoire.</div></div>
     <h4 class="centered-subtitle" style="font-size: 1.2em; color: #0891b2; margin-top: 40px;">3. Construire son Projet</h4>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.07a2.25 2.25 0 0 1-2.25 2.25h-13.5a2.25 2.25 0 0 1-2.25-2.25v-4.07m18-4.32-7.5-5.25a2.25 2.25 0 0 0-2.013.003L2.25 9.83m18 4.32V9.83" /></svg> Mon Portfolio de Compétences</h4><p><strong>Objectif :</strong> Aider l'élève à identifier et valoriser ses compétences, y compris celles acquises dans des contextes non-formels.</p><p><strong>Fonctionnement :</strong> Cette étape propose deux ateliers : un <strong>analyseur d'expériences</strong> pour transformer un récit en paragraphe de candidature (méthode STAR), et un <strong>détecteur de compétences</strong> transversales via un quiz.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Outil très pertinent pour la préparation au Grand Oral et pour l'enseignement de la compétence "Savoir parler de soi".</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg> Préparer sa candidature (Terminales)</h4><p><strong>Objectif :</strong> Aider l'élève à améliorer la qualité rédactionnelle de son projet de formation motivé.</p><p><strong>Fonctionnement :</strong> L'<strong>Atelier d'écriture</strong> permet à l'élève de soumettre un brouillon de paragraphe et de recevoir des conseils d'amélioration ciblés.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Cet outil ne fait pas le travail à la place de l'élève mais lui apprend à affiner son argumentation, une compétence clé.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> Fact Checking</h4><p><strong>Objectif :</strong> Déconstruire les stéréotypes sur les filières et les métiers de manière ludique.</p><p><strong>Fonctionnement :</strong> L'élève peut lancer un quiz générique ou un "Défi Personnalisé" qui le questionne par rapport à son propre profil.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Idéal pour une séance collective dynamique, en équipes, pour lancer des débats et ouvrir les horizons.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 7.756a4.5 4.5 0 1 0 0 8.488M7.5 10.5h5.25m-5.25 3h5.25M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> Simulateur Vie Étudiante</h4><p><strong>Objectif :</strong> Ancrer le projet d'études dans la réalité matérielle et financière.</p><p><strong>Fonctionnement :</strong> L'élève peut estimer le coût de la vie dans une ville et découvrir les aides financières.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Parfait pour une séance sur l'autonomie et la préparation à la vie étudiante.</div></div>
-    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg> Anticiper la suite (Terminales)</h4><p><strong>Objectif :</strong> Développer la résilience et la capacité de l'élève à envisager des plans alternatifs.</p><p><strong>Fonctionnement :</strong> La <strong>simulation de conversation "Plan B"</strong> est un dialogue coaché avec OrIA pour aider l'élève à gérer la déception d'un refus et à rebondir.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Un outil intéressant pour travailler les compétences psycho-sociales liées à l'orientation.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.07a2.25 2.25 0 0 1-2.25 2.25h-13.5a2.25 2.25 0 0 1-2.25-2.25v-4.07m18-4.32-7.5-5.25a2.25 2.25 0 0 0-2.013.003L2.25 9.83m18 4.32V9.83" /></svg> Mon Portfolio de Compétences</h4><p><strong>Objectif :</strong> Aider l'élève à identifier et valoriser ses compétences.</p><p><strong>Fonctionnement :</strong> L'<strong>analyseur d'expériences</strong> transforme un récit en paragraphe de candidature, et le <strong>détecteur de compétences</strong> révèle ses forces transversales.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Outil très pertinent pour la préparation au Grand Oral et pour l'enseignement de la compétence "Savoir parler de soi".</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg> Préparer sa candidature (Terminales)</h4><p><strong>Objectif :</strong> Aider l'élève à améliorer la qualité rédactionnelle de son projet de formation motivé.</p><p><strong>Fonctionnement :</strong> L'<strong>Atelier d'écriture</strong> permet à l'élève de soumettre un brouillon et de recevoir des conseils d'amélioration.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Cet outil ne fait pas le travail à la place de l'élève mais lui apprend à affiner son argumentation.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> Fact Checking</h4><p><strong>Objectif :</strong> Déconstruire les stéréotypes sur les filières et les métiers.</p><p><strong>Fonctionnement :</strong> L'élève peut lancer des quiz génériques ou un "Défi Personnalisé".</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Idéal pour une séance collective dynamique pour lancer des débats.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 7.756a4.5 4.5 0 1 0 0 8.488M7.5 10.5h5.25m-5.25 3h5.25M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> Simulateur Vie Étudiante</h4><p><strong>Objectif :</strong> Ancrer le projet d'études dans la réalité matérielle.</p><p><strong>Fonctionnement :</strong> L'élève peut estimer le coût de la vie et découvrir les aides financières.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Parfait pour une séance sur l'autonomie et la préparation à la vie étudiante.</div></div>
+    <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg> Anticiper la suite (Terminales)</h4><p><strong>Objectif :</strong> Développer la résilience de l'élève face à l'incertitude.</p><p><strong>Fonctionnement :</strong> La <strong>simulation de conversation "Plan B"</strong> est un dialogue coaché pour aider l'élève à rebondir.</p><div class="conseil-prof"><strong>Conseil du Prof :</strong> Un outil intéressant pour travailler les compétences psycho-sociales.</div></div>
 `;
 
-
-    const partie5TechHTML_base = `
+    const partie5TechHTML = `
         <h2>Partie 3 : Technologie et Données Personnelles</h2>
         <div class="etape">
             <h4>Le Modèle d'IA Utilisé</h4>
-<p>L'intelligence artificielle intégrée à cette application est propulsée par <strong>GPT-4o</strong>, un modèle de langage avancé développé par <strong>OpenAI</strong>.</p>        </div>
+            <p>L'intelligence artificielle intégrée à cette application est propulsée par <strong>GPT-4o</strong>, un modèle de langage avancé développé par <strong>OpenAI</strong>.</p>
+        </div>
         <div class="etape">
             <h4>Vos Données Personnelles</h4>
             <div class="conseil-prof" style="font-style: normal;">
@@ -5829,45 +5868,120 @@ const partie4FonctionnalitesHTML_enseignants = `
             </div>
         </div>
     `;
+    // --- 2. Logique de construction de l'accordéon ---
 
-    // --- 2. Assemblage dynamique du guide final ---
-     let finalGuideHTML = '';
-
+    let sections = [];
     switch (guideUserRole) {
         case 'parent':
-            finalGuideHTML = introHTML +
-                             partie2ParentsHTML +
-                             partie4FonctionnalitesHTML_parents +
-                             installationHTML +
-                             partie5TechHTML_base;
+            sections = [
+                { title: "🚀 Introduction : OrIA comme Boussole 2.0", content: introHTML, open: true },
+                { title: "👨👩👧 Pour les Parents : Devenir le 'Sparring Partner'", content: partie2ParentsHTML },
+                { title: "🧭 Exploration des Fonctionnalités", content: partie4FonctionnalitesHTML_parents },
+                { title: "📱 Installation de l'Application", content: installationHTML },
+                { title: "🔒 Technologie et Données Personnelles", content: partie5TechHTML }
+            ];
             break;
         case 'enseignant':
-            finalGuideHTML = introHTML +
-                             partie3EnseignantsHTML +
-                             partie4FonctionnalitesHTML_enseignants +
-                             seancesEnseignantsHTML +
-                             installationHTML +
-                             partie5TechHTML_base;
+            sections = [
+                { title: "🚀 Introduction : OrIA comme Boussole 2.0", content: introHTML, open: true },
+                { title: "🧑🏫 Pour les Enseignants : Un Outil au Service du Parcours Avenir", content: partie3EnseignantsHTML },
+                { title: "📊 Maîtriser le Tableau de Bord Enseignant", content: dashboardEnseignantsHTML },
+                { title: "🧭 Exploration des Fonctionnalités", content: partie4FonctionnalitesHTML_enseignants },
+                { title: "💡 10 Idées de Séances Clés en Main", content: seancesEnseignantsHTML },
+                { title: "📱 Installation de l'Application", content: installationHTML },
+                { title: "🔒 Technologie et Données Personnelles", content: partie5TechHTML }
+            ];
             break;
         case 'eleve':
         default:
-            finalGuideHTML = introHTML +
-                             partie1ElevesHTML +
-                             partie4FonctionnalitesHTML_base +
-                             installationHTML +
-                             partie5TechHTML_base;
+            sections = [
+                { title: "🚀 Introduction : OrIA comme Boussole 2.0", content: introHTML, open: true },
+                { title: "🧑🎓 Pour les Élèves : Ton QG d'Orientation", content: partie1ElevesHTML },
+                { title: "🧭 Exploration Détaillée des Fonctionnalités", content: partie4FonctionnalitesHTML_eleves },
+                { title: "📱 Installation de l'Application", content: installationHTML },
+                { title: "🔒 Technologie et Données Personnelles", content: partie5TechHTML }
+            ];
             break;
     }
 
+    const accordionHTML = sections.map(section => `
+        <details class="guide-accordion-item" ${section.open ? 'open' : ''}>
+            <summary class="guide-accordion-title">
+                ${section.title}
+            </summary>
+            <div class="guide-accordion-content">
+                ${section.content.replace(/<h2[^>]*>.*?<\/h2>/s, '')}
+            </div>
+        </details>
+    `).join('');
 
-    // 3. Injection dans le DOM et gestion du bouton retour
     div.innerHTML = `
+        <style>
+            /* Styles pour l'accordéon */
+            .guide-accordion-item { border-bottom: 1px solid #e2e8f0; }
+            .guide-accordion-title {
+                font-size: 1.25rem; font-weight: 600; color: #1A3263;
+                padding: 1rem; cursor: pointer; list-style: none;
+                display: flex; justify-content: center;
+                align-items: center; position: relative;
+                transition: background-color 0.2s;
+            }
+            .guide-accordion-title:hover { background-color: #f8fafc; }
+            .guide-accordion-title::-webkit-details-marker { display: none; }
+            .guide-accordion-title::after {
+                content: '+'; font-size: 1.5rem; font-weight: 300;
+                color: #0891b2; transition: transform 0.2s;
+                position: absolute; right: 1rem;
+            }
+            .guide-accordion-item[open] > summary { border-bottom: 1px solid #e2e8f0; }
+            .guide-accordion-item[open] > summary::after { transform: rotate(45deg); }
+            .guide-accordion-content { padding: 0 1rem 1.5rem 1rem; }
+
+            /* --- MODIFICATIONS CI-DESSOUS --- */
+
+            /* Règle générale : tout centrer */
+            .guide-container {
+                line-height: 1.7;
+                text-align: center; /* MODIFIÉ */
+            }
+            /* Tous les titres sont centrés */
+            .guide-container h2, .guide-container h3, .guide-container h4 {
+                color: #1A3263; margin-top: 40px; font-weight: 600; text-align: center;
+            }
+            .guide-container h2 { font-size: 1.75em; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;}
+            .guide-container h3 { font-size: 1.3em; }
+            .guide-container h4 { margin-top: 25px; font-size: 1.1em; display: flex; align-items: center; gap: 0.75rem; justify-content: center; }
+            
+            /* Les boîtes et le contenu des étapes héritent du centrage */
+            .guide-container .info-box, .guide-container .conseil-prof, .guide-container .etape {
+                padding: 20px; margin: 20px auto; border-radius: 8px; border-left-width: 4px;
+                max-width: 90%; /* Pour un meilleur rendu visuel du texte centré */
+            }
+            .guide-container .etape { border-left-width: 2px; padding-left: 10px; }
+            .guide-container .info-box h4, .guide-container .conseil-prof h4 { justify-content: center; }
+
+            /* Comportement spécial pour les listes pour qu'elles restent lisibles */
+            .guide-container ul, .guide-container ol {
+                display: inline-block; /* Permet de centrer le bloc de la liste */
+                text-align: left; /* Garde le texte dans la liste aligné à gauche */
+                padding-left: 25px; margin-top: 10px;
+            }
+
+            /* Styles spécifiques (inchangés) */
+            .guide-container .logo { display: block; margin: 0 auto 20px auto; width: 200px; }
+            .guide-container .info-box-parents { background-color: #f7fee7; border-color: #84cc16; }
+            .guide-container .info-box-parents h4 { color: #4d7c0f; } .guide-container .info-box-parents ul { color: #65a30d; }
+            .guide-container .info-box-teachers { background-color: #fff7ed; border-color: #f97316; }
+            .guide-container .info-box-teachers h4 { color: #9a3412; } .guide-container .info-box-teachers ul { color: #c2410c; }
+            .guide-container .conseil-prof { background-color: #ecfeff; border-color: #0891b2; font-style: italic; color: #155e75;}
+            .guide-container .conseil-prof h4 { color: #164e63; }
+            .guide-container li { margin-bottom: 8px; }
+        </style>
+        
         <div class="guide-container">
-            ${styleHTML}
-            ${finalGuideHTML}
+            ${accordionHTML}
         </div>
     `;
-
 
     return div;
 }
@@ -7993,23 +8107,23 @@ div.querySelector('#add-custom-event-btn').addEventListener('click', async () =>
     switch(userGradeLevel) {
         case 'seconde':
             missions = {
-                conseilGeneral: "- Pour 'conseilGeneral': donne un conseil sur l'organisation et la méthode de travail.",
-                conseilSpecialites: "- Pour 'conseilSpecialites': donne un conseil sur l'exploration des futures spécialités."
+                conseilConnexionProfilMetiers: "- Pour 'conseilConnexionProfilMetiers': C'est le premier conseil. L'élève a son profil. La mission est de l'aider à le connecter à des pistes concrètes. Suggère-lui d'utiliser 'Les Fondations' pour explorer 2-3 familles de métiers qui correspondent à son archétype (ex: si 'Artisan', explorer les métiers du bâtiment ou de la nature). Suggère aussi d'utiliser le 'Radar à Opportunités' pour une piste plus créative.",
+                conseilExplorationStrategique: "- Pour 'conseilExplorationStrategique': C'est le deuxième conseil. Maintenant qu'il a des pistes de métiers, il doit trouver les bonnes spécialités. Propose-lui d'utiliser le 'Simulateur de spécialités' pour tester les combinaisons qui mènent aux métiers qu'il a identifiés à l'étape précédente.",
+                conseilStageDeSeconde: "- Pour 'conseilStageDeSeconde': C'est le troisième conseil, axé sur l'action. Rappelle l'importance du stage d'observation et guide-le vers l'étape 'Passer à l'action' pour trouver des idées de lieux et préparer son mail de candidature."
             };
             break;
         case 'premiere':
             missions = {
-                conseilGeneralOrientation: "- Pour 'conseilGeneralOrientation': donne un conseil stratégique pour l'année de Première.",
-                conseilAbandonSpecialite: "- Pour 'conseilAbandonSpecialite': donne une méthode pour aider à décider quelle spécialité abandonner.",
-                conseilReussiteEpreuves: "- Pour 'conseilReussiteEpreuves': donne des conseils pour le bac de Français et la nouvele épreuve de mathématiques."
+                conseilStrategieAnnee: "- Pour 'conseilStrategieAnnee': Donne un conseil sur la stratégie à adopter en Première. Insiste sur le fait que c'est l'année pour approfondir ses spécialités et confirmer ses choix en les liant à des projets post-bac concrets (BUT, Licence, Prépa...). Suggère d'utiliser 'Le Catalogue' et 'Les Fondations' pour cela.",
+                conseilAbandonSpecialite: "- Pour 'conseilAbandonSpecialite': Donne une méthode claire en 3 points pour aider à décider quelle spécialité abandonner en fin d'année. Suggère d'utiliser le 'Simulateur de spécialités' pour évaluer l'impact de ce choix.",
+                conseilDossierParcoursup: "- Pour 'conseilDossierParcoursup': Donne un conseil pour préparer dès la Première son dossier Parcoursup. Explique que les notes et appréciations de cette année sont cruciales. Suggère de commencer à utiliser 'Mon Portfolio de Compétences' pour valoriser ses expériences et de jeter un œil à l'étape 'Préparer sa candidature' pour comprendre ce qui sera demandé en Terminale."
             };
             break;
         case 'terminale':
             missions = {
-                conseilParcoursup: "- Pour 'conseilParcoursup': donne une stratégie pour les vœux et le projet motivé.",
-                conseilSpecialites: "- Pour 'conseilSpecialites': donne une méthode de révision pour les épreuves finales du bac.",
-                conseilPhilosophie: "- Pour 'conseilPhilosophie': insiste sur la structure de l'argumentation.",
-                conseilGrandOral: "- Pour 'conseilGrandOral': insiste sur le choix du sujet et l'entraînement."
+                conseilMasterclassParcoursup: "- Pour 'conseilMasterclassParcoursup': Donne une stratégie en 3 étapes pour un dossier Parcoursup percutant. 1) Utiliser 'Mon Portfolio de Compétences' pour lister toutes ses expériences et compétences. 2) Se servir de cette liste pour remplir la rubrique 'Activités et centres d'intérêt'. 3) Utiliser l'atelier 'Préparer sa candidature' pour rédiger chaque projet de formation motivé.",
+                conseilStrategieGrandOral: "- Pour 'conseilStrategieGrandOral': Donne un conseil pour trouver un bon sujet pour le Grand Oral. Suggère de relire les synthèses de 'Mieux se connaître' et 'Mon Portfolio' pour trouver un sujet qui soit à la fois lié à ses spécialités ET à son projet personnel, ce qui est très valorisé par le jury.",
+                conseilAnticipationPlanB: "- Pour 'conseilAnticipationPlanB': Donne un conseil pour gérer le stress de l'attente des résultats. Explique l'importance de préparer un 'Plan B' et suggère d'utiliser l'étape 'Anticiper la suite' pour réfléchir sereinement à des alternatives en cas de réponse négative au vœu n°1."
             };
             break;
     }
