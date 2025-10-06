@@ -417,12 +417,46 @@ function extractJsonFromString(str) {
     }
 }
 
-       // REMPLACEZ ce bloc par la nouvelle version
-// ✅ REMPLACEZ le premier bloc de démarrage (ligne 1484) par celui-ci
+// NOUVELLE FONCTION : Sauvegarde l'abonnement dans Firestore via une Cloud Function
+       async function saveSubscriptionToFirestore(subscription) {
+           if (!currentUserId) return;
+           try {
+               const saveSubscription = httpsCallable(functions, 'savePushSubscription');
+               await saveSubscription({ subscription: subscription });
+               devLog("Abonnement Push enregistré avec succès !");
+           } catch (error) {
+               console.error("Erreur lors de la sauvegarde de l'abonnement :", error);
+           }
+       }
 
-// ▼▼▼ REMPLACE LE BLOC DE DÉMARRAGE (celui qui commence par (async...)) PAR CELUI-CI ▼▼▼
-
-// ▼▼▼ REMPLACE LE BLOC DE DÉMARRAGE PAR CETTE VERSION FINALE ▼▼▼
+       // NOUVELLE FONCTION : Met en place tout le processus d'abonnement
+       async function setupPushNotifications() {
+           if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+               devLog("Notifications Push non supportées par ce navigateur.");
+               return;
+           }
+           try {
+               const registration = await navigator.serviceWorker.register('/sw.js');
+               devLog('Service Worker enregistré !', registration);
+               const permission = await Notification.requestPermission();
+               if (permission !== 'granted') {
+                   devLog("Permission de notification refusée.");
+                   return;
+               }
+               let subscription = await registration.pushManager.getSubscription();
+               if (subscription === null) {
+                   devLog("Aucun abonnement trouvé, on en crée un nouveau.");
+                   const vapidPublicKey = 'BNCDYwj7YAiREgh5LbW9vPqA4NXmBpDQDzk9oWk6K-Wkt05ibaELJIKdhB2aRff2QxZ90DiXUJjBUmXdWyimZPM'; // ⚠️ N'OUBLIEZ PAS DE LA REMPLACER !
+                   subscription = await registration.pushManager.subscribe({
+                       userVisibleOnly: true,
+                       applicationServerKey: vapidPublicKey,
+                   });
+               }
+               await saveSubscriptionToFirestore(subscription);
+           } catch (error) {
+               console.error('Échec de la mise en place des notifications Push :', error);
+           }
+       }
 
 (async () => {
     const params = new URLSearchParams(window.location.search);
@@ -1263,6 +1297,9 @@ onAuthStateChanged(auth, user => {
             // On charge les données de l'utilisateur
             loadData().then(async () => {
                 // 'loadData' est terminée, on peut maintenant prendre des décisions
+
+            setupPushNotifications();
+
                 
                 if (currentUserInfo.role === 'enseignant') {
                     // CAS 1 : C'est un enseignant

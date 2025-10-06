@@ -79,3 +79,34 @@ self.addEventListener('fetch', event => {
     })
   );
 });
+
+// --- AJOUT POUR LES NOTIFICATIONS PUSH ---
+// Le code ci-dessous est ajouté à votre fichier existant.
+
+// Événement 'push' : se déclenche quand le service worker reçoit une notification.
+self.addEventListener('push', event => {
+  const data = event.data.json();
+  const options = {
+    body: data.body,
+    icon: data.icon || '/logo.png', // Utilise l'icône du payload, ou une par défaut
+    badge: '/logo_badges.png',
+    data: { // On stocke les données additionnelles ici
+        url: data.url || '/' // On récupère l'URL cible
+    }
+  };
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// Événement 'notificationclick' : se déclenche quand l'utilisateur clique sur la notification.
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  // On récupère l'URL stockée et on ouvre la bonne page
+  const targetUrl = event.notification.data.url || '/';
+  event.waitUntil(
+    clients.openWindow(targetUrl)
+  );
+});
+
+// --- FIN DE L'AJOUT ---

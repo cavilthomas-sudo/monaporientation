@@ -6,9 +6,74 @@ const admin = require("firebase-admin");
 const axios = require("axios");
 const SibApiV3Sdk = require('@getbrevo/brevo');
 const cors = require('cors')({origin: true});
+const webpush = require('web-push');
+
 
 // Initialisation de Firebase Admin
 admin.initializeApp();
+
+const VAPID_PUBLIC_KEY = "BNCDYwj7YAiREgh5LbW9vPqA4NXmBpDQDzk9oWk6K-Wkt05ibaELJIKdhB2aRff2QxZ90DiXUJjBUmXdWyimZPM"; 
+const VAPID_PRIVATE_KEY = functions.config().vapid ? functions.config().vapid.private_key : "VOTRE_CLÉ_PRIVÉE_VAPID_ICI";
+
+webpush.setVapidDetails(
+  'mailto:contact@oriantation.fr', // Votre email de contact
+  VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY
+);
+
+/**
+ * Envoie une notification push à un utilisateur via ses abonnements enregistrés.
+ * C'est la version finale, robuste et fonctionnelle.
+ * @param {string} userId - L'ID de l'utilisateur dans Firestore.
+ * @param {string} title - Le titre de la notification.
+ * @param {string} body - Le corps du message de la notification.
+ */
+async function sendPushNotification(userId, title, body) {
+  const userDoc = await admin.firestore().doc(`users/${userId}`).get();
+  const userData = userDoc.data();
+
+  if (!userData || !userData.pushSubscriptions || userData.pushSubscriptions.length === 0) {
+    console.log(`Pas d'abonnement push trouvé pour l'utilisateur ${userId}.`);
+    return;
+  }
+
+  // 1. On prépare le contenu de la notification. Cela doit être une chaîne de caractères.
+  const payload = JSON.stringify({
+    title: title,
+    body: body,
+    icon: 'https://oriantation.fr/logo.png'
+  });
+
+  const subscriptions = userData.pushSubscriptions;
+  const promises = [];
+  const invalidSubscriptions = [];
+
+  // 2. On parcourt chaque abonnement de l'utilisateur.
+  subscriptions.forEach(sub => {
+    const pushPromise = webpush.sendNotification(sub, payload)
+      .catch(error => {
+        // Si un abonnement est expiré (code 410), on le marque pour suppression.
+        if (error.statusCode === 410) {
+          console.log(`Abonnement expiré pour l'utilisateur ${userId}. Suppression...`);
+          invalidSubscriptions.push(sub);
+        } else {
+          console.error(`Erreur d'envoi de la notification pour ${userId}:`, error);
+        }
+      });
+    promises.push(pushPromise);
+  });
+
+  // 3. On attend que toutes les notifications soient envoyées.
+  await Promise.all(promises);
+
+  // 4. Si des abonnements invalides ont été trouvés, on les retire de Firestore.
+  if (invalidSubscriptions.length > 0) {
+    await admin.firestore().doc(`users/${userId}`).update({
+      pushSubscriptions: admin.firestore.FieldValue.arrayRemove(...invalidSubscriptions)
+    });
+    console.log(`${invalidSubscriptions.length} abonnements invalides ont été supprimés.`);
+  }
+}
 
 async function internalCallOpenAI({ promptText, model = 'gpt-4o', isJson = false, promptId = null, variables = {} }) {
     const openaiApiKey = functions.config().openai.key;
@@ -42,6 +107,7 @@ async function internalCallOpenAI({ promptText, model = 'gpt-4o', isJson = false
         throw new Error("Structure de réponse OpenAI invalide.");
     }
 }
+
 
 async function sendEmailWithBrevo({ templateId, toEmail, params }) {
     const brevoApiKey = functions.config().brevo.key;
@@ -98,6 +164,69 @@ async function sendEmailWithBrevo({ templateId, toEmail, params }) {
     // Envoi de l'email
     await apiInstance.sendTransacEmail(sendSmtpEmail);
 }
+
+const WEEKLY_EMAIL_PROMPT_TEMPLATE = `
+# Rôle et Identité
+Tu es "OrIA", le coach IA bienveillant de l'application d'orientation "OrIAntation". Tu rédiges un e-mail hebdomadaire personnalisé pour encourager un lycéen nommé {firstName}.
+
+# Contexte de l'Élève
+- Son Prénom : {firstName}
+- Son profil de personnalité et ses explorations : {profileSummary}
+- Sa progression générale dans l'application : {completionSummary}
+- Son planning pour le mois en cours : {retroplanningSummary}
+
+# Ta Mission (Mise à Jour)
+Rédige un e-mail court, encourageant et actionnable. L'objectif est de lui montrer que son travail est suivi, de valoriser sa progression et de lui suggérer UNE SEULE prochaine étape claire et pertinente.
+
+# Logique de Coaching (MISE À JOUR - SUIS CET ORDRE DE PRIORITÉ)
+
+1.  **Priorité 1 : Le Rétroplanning.**
+    - Si l'élève a des tâches **non terminées** dans son rétroplanning pour le mois en cours, ton message doit **impérativement** lui en rappeler une de manière encourageante. Fais le lien entre cette tâche et une étape de l'application.
+
+2.  **Priorité 2 : Suggérer une nouvelle exploration (si le rétroplanning est à jour).**
+    - Si l'élève n'a pas de tâche en retard, ou si son profil d'exploration est vide ('Aucun' métier/formation), ta mission est de lui proposer **une piste de métier ou de domaine à explorer**.
+    - La suggestion doit être **pertinente** par rapport à son profil (Archétype).
+    - Tu dois l'inviter à utiliser l'étape "Les Fondations" ou le "Radar à Opportunités" pour explorer cette nouvelle piste.
+
+3.  **Priorité 3 : Approfondir le projet (si les points 1 et 2 ne s'appliquent pas).**
+    - Si l'élève est à jour dans son planning et a déjà exploré des pistes, félicite-le.
+    - Suggère une action d'approfondissement qui fait le lien entre ses explorations (ex: "J'ai vu que tu avais exploré le métier de [métier] et la formation [formation]. Et si tu utilisais le 'Comparateur' pour voir comment ils se connectent ?").
+
+4.  **Cas spécial : Si l'élève est en Terminale entre Janvier et Mars.**
+    - Ton message doit IMPÉRATIVEMENT être en lien avec Parcoursup, en plus des autres logiques.
+
+# Format de Sortie OBLIGATOIRE
+Ta réponse doit être **UNIQUEMENT un objet JSON valide**, sans aucun texte avant ou après.
+{
+  "subject": "Un titre d'e-mail court et accrocheur (ex: 'OrIAntation : Ta mission de la semaine !')",
+  "body": "Le corps de l'e-mail en HTML simple. Utilise des <p> pour les paragraphes et des <strong> pour mettre en valeur les points importants. N'inclus PAS de salutation (Bonjour...). Le texte doit commencer directement."
+}
+`;
+
+const TUTORIAL_REMINDER_PROMPT_TEMPLATE = `
+# Rôle et Identité
+Tu es "OrIA", le coach IA bienveillant de l'application "OrIAntation". Tu rédiges un e-mail de rappel amical et motivant pour {firstName}, qui n'a pas terminé le tutoriel d'initiation.
+
+# Contexte de l'Élève
+- Son Prénom : {firstName}
+- La liste des étapes du tutoriel qu'il lui reste à faire est : {remainingStepsList}
+
+# Ta Mission
+Rédige un e-mail pour l'encourager à se reconnecter et à terminer son initiation. Le ton doit être positif et non culpabilisant.
+
+# Logique de Contenu
+1.  Commence par une phrase d'encouragement (ex: "J'ai vu que tu avais bien démarré ton exploration...").
+2.  Présente clairement la liste des étapes restantes pour terminer le tutoriel. Tu peux utiliser une liste numérotée en HTML (<ol><li>...).
+3.  Mets en évidence la **toute première étape de cette liste** comme sa prochaine mission concrète et explique brièvement en quoi elle consiste.
+4.  Termine par une note positive sur les bénéfices de la finalisation du tutoriel (ex: "Une fois ces étapes terminées, tu auras une excellente vision de départ pour ton projet !").
+
+# Format de Sortie OBLIGATOIRE
+Ta réponse doit être **UNIQUEMENT un objet JSON valide**, sans aucun texte avant ou après.
+{
+  "subject": "OrIAntation : On finalise ton lancement ?",
+  "body": "Le corps de l'e-mail en HTML simple. Utilise des <p> pour les paragraphes, <strong> pour les points importants, et une liste ordonnée <ol> pour les étapes restantes."
+}
+`;
 
 
 // MODIFIEZ VOTRE FONCTION generateContent POUR UTILISER LA NOUVELLE FONCTION INTERNE
@@ -324,6 +453,15 @@ exports.sendTutorialReminderEmail = functions
                     });
 
                     console.log(`E-mail de rappel de tutoriel envoyé à ${email}.`);
+
+                // ▼▼▼ ACTION 2 : C'EST LA SEULE PARTIE IMPORTANTE À AJOUTER ▼▼▼
+                    // On appelle la fonction de notification push juste après.
+                    await sendPushNotification(
+                        doc.id, // L'ID de l'utilisateur pour retrouver ses abonnements
+                        "👋 Un petit rappel amical !", // Titre de la notification
+                        `Salut ${firstName} ! N'oublie pas de continuer ton parcours pour débloquer ton potentiel.` // Message
+                    );
+                    console.log(`Notification push envoyée à ${firstName}.`);
 
                 } catch (error) {
                     console.error(`Erreur lors de la génération/envoi du rappel pour ${doc.id}:`, error);
@@ -634,4 +772,30 @@ exports.getSchoolFromCode = functions
         });
 
         return { success: true, inviteCode: inviteCode };
+    });
+
+    exports.savePushSubscription = functions
+    .region("europe-west3")
+    .https.onCall(async (data, context) => {
+        if (!context.auth) {
+            throw new functions.https.HttpsError('unauthenticated', 'Authentification requise.');
+        }
+
+        const userId = context.auth.uid;
+        const subscription = data.subscription;
+
+        if (!subscription || !subscription.endpoint) {
+            throw new functions.https.HttpsError('invalid-argument', 'L\'objet d\'abonnement est invalide.');
+        }
+
+        const userDocRef = admin.firestore().doc(`users/${userId}`);
+
+        // On utilise un champ 'pushSubscriptions' qui est un tableau pour permettre à un
+        // utilisateur d'avoir plusieurs abonnements (ex: un sur son ordi, un sur son tel).
+        // 'arrayUnion' ajoute l'abonnement seulement s'il n'est pas déjà dans le tableau.
+        await userDocRef.update({
+            pushSubscriptions: admin.firestore.FieldValue.arrayUnion(subscription)
+        });
+
+        return { success: true };
     });
