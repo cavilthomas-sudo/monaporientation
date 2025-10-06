@@ -333,6 +333,8 @@
         const IS_DEV_MODE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
         let step1DocumentClickListeners = [];
+        let isNewUserFlow = false;
+
 
 
         function devLog(...args) {
@@ -944,6 +946,8 @@ ${studentFirstName}`;
     }
 }
 
+
+
 // AJOUT : Nouvelle fonction pour la page de réinitialisation de mot de passe
 // ✅ VERSION FINALE AVEC LOGO ET BOUTONS CORRIGÉS
 
@@ -1238,6 +1242,11 @@ function initializeNormalAppFlow() {
 // REMPLACEZ VOTRE FONCTION onAuthStateChanged PAR CETTE VERSION FINALE
 
 onAuthStateChanged(auth, user => {
+
+    if (isNewUserFlow) {
+        return;
+    }
+    
     const chatbotToggle = document.getElementById('chatbot-toggle');
     const floatingBackBtn = document.getElementById('floatingBackBtn');
     
@@ -1390,11 +1399,12 @@ showInfoModal("Erreur", "Une erreur est survenue lors de la suppression. Veuille
             
         // 🔹 Fonction utilitaire
 function capitalizeWords(str) {
-    if (!str) return ''; // Sécurité pour éviter une erreur si le champ est vide
-    // 1. On met d'abord tout en minuscules (ex: "lycÉE" -> "lycée")
-    let lowercasedStr = str.toLowerCase();
-    // 2. Ensuite, on met la première lettre de chaque mot en majuscule (ex: "lycée" -> "Lycée")
-    return lowercasedStr.replace(/\b\w/g, c => c.toUpperCase());
+    if (!str) return '';
+    return str
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 }
 
 function showLoginView() {
@@ -1613,49 +1623,55 @@ function showForgotPasswordView() {
 }
 
 
-function showSignupView() {
-    const floatingBackBtn = document.getElementById('floatingBackBtn');
-    if (floatingBackBtn) {
-        floatingBackBtn.style.display = 'none';
-    }
+// ==================== DÉBUT DU BLOC COMPLET À REMPLACER ====================
+
+// Cette fonction affiche le formulaire une fois le rôle choisi. Elle contient une grande partie de votre ancienne logique.
+function renderSignupForm(role) {
+    const isStudent = role === 'eleve';
+    const formTitle = isStudent ? "Inscription Élève" : "Inscription Enseignant";
+
+    const studentFieldsHTML = `
+        <div id="student-school-container" class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-3">
+            <label class="block text-md font-medium text-slate-700 mb-2">Comment te rattacher à ton lycée ?</label>
+            <div class="flex gap-4 mb-2">
+                <label class="flex items-center"><input type="radio" name="school_method" value="code" class="h-4 w-4 text-cyan-600" checked> <span class="ml-2 text-sm">Avec un code</span></label>
+                <label class="flex items-center"><input type="radio" name="school_method" value="name" class="h-4 w-4 text-cyan-600"> <span class="ml-2 text-sm">Avec le nom</span></label>
+            </div>
+            <div id="school-code-field">
+                <input id="schoolCode" type="text" placeholder="Code fourni par ton professeur" class="w-full p-3 border border-slate-300 rounded-lg">
+            </div>
+            <div id="school-name-field" class="hidden">
+                <input id="schoolNameStudent" type="text" placeholder="Nom complet de ton lycée" class="w-full p-3 border border-slate-300 rounded-lg">
+                <input id="schoolCityStudent" type="text" placeholder="Ville de ton lycée (Ex: Orléans)" class="w-full p-3 mt-2 border border-slate-300 rounded-lg">
+            </div>
+        </div>
+    `;
+
+    const teacherFieldsHTML = `
+        <div id="teacher-school-container" class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-3 space-y-3">
+            <div>
+                <label class="block text-md font-medium text-slate-700">Votre établissement</label>
+                <input id="schoolNameTeacher" type="text" placeholder="Nom complet de votre établissement" class="w-full p-3 mt-1 border border-slate-300 rounded-lg">
+            </div>
+            <div>
+                <label class="block text-md font-medium text-slate-700">Ville de l'établissement</label>
+                <input id="schoolCityTeacher" type="text" placeholder="Ex: Orléans" class="w-full p-3 mt-1 border border-slate-300 rounded-lg">
+            </div>
+            <div>
+                <label class="block text-md font-medium text-slate-700">Nom de votre classe</label>
+                <input id="className" type="text" placeholder="Ex: Première Générale 2" class="w-full p-3 mt-1 border border-slate-300 rounded-lg">
+            </div>
+        </div>
+    `;
 
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in">
-            <img src="logo.png" alt="Logo OrIAntation" class="mx-auto h-auto w-auto">
-            <p class="font-semibold text-OrIAntation-darkblue mt-2 mb-6">Plutôt choisir que subir !</p>
-            <form id="signupForm" class="mb-4">
+            <h2 class="text-2xl font-bold text-center text-OrIAntation-darkblue mb-6">${formTitle}</h2>
+            <form id="signupForm" data-role="${role}">
                 <input id="firstName" type="text" placeholder="Prénom" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
                 <input id="lastName" type="text" placeholder="Nom" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
                 
-                <div id="student-school-container" class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-3">
-                    <label class="block text-md font-medium text-slate-700 mb-2">Comment te rattacher à ton lycée ?</label>
-                    <div class="flex gap-4 mb-2">
-                        <label class="flex items-center"><input type="radio" name="school_method" value="code" class="h-4 w-4 text-cyan-600" checked> <span class="ml-2 text-sm">Avec un code</span></label>
-                        <label class="flex items-center"><input type="radio" name="school_method" value="name" class="h-4 w-4 text-cyan-600"> <span class="ml-2 text-sm">Avec le nom</span></label>
-                    </div>
-                    <div id="school-code-field">
-                        <input id="schoolCode" type="text" placeholder="Code fourni par ton professeur" class="w-full p-3 border border-slate-300 rounded-lg">
-                    </div>
-                    <div id="school-name-field" class="hidden">
-                        <input id="schoolNameStudent" type="text" placeholder="Nom complet de ton lycée" class="w-full p-3 border border-slate-300 rounded-lg">
-                        <input id="schoolCityStudent" type="text" placeholder="Ville de ton lycée (Ex: Orléans)" class="w-full p-3 mt-2 border border-slate-300 rounded-lg">
-                    </div>
-                </div>
-
-                <div id="teacher-school-container" class="hidden bg-slate-50 p-4 rounded-lg border border-slate-200 mb-3 space-y-3">
-                     <div>
-                        <label class="block text-md font-medium text-slate-700">Votre établissement</label>
-                        <input id="schoolNameTeacher" type="text" placeholder="Nom complet de votre établissement" class="w-full p-3 mt-1 border border-slate-300 rounded-lg">
-                    </div>
-                    <div>
-    <label class="block text-md font-medium text-slate-700">Ville de l'établissement</label>
-    <input id="schoolCityTeacher" type="text" placeholder="Ex: Orléans" class="w-full p-3 mt-1 border border-slate-300 rounded-lg">
-</div>
-                     <div>
-                        <label class="block text-md font-medium text-slate-700">Nom de votre classe</label>
-                        <input id="className" type="text" placeholder="Ex: Première Générale 2" class="w-full p-3 mt-1 border border-slate-300 rounded-lg">
-                    </div>
-                </div>
+                ${isStudent ? studentFieldsHTML : teacherFieldsHTML}
 
                 <select id="gender" class="w-full p-3 mb-3 border border-slate-300 rounded-lg bg-white" required>
                     <option value="" disabled selected>Je suis...</option>
@@ -1664,15 +1680,8 @@ function showSignupView() {
                     <option value="autre">Autre / Préfère ne pas préciser</option>
                 </select>
 
-                <input id="email" type="email" placeholder="Adresse e-mail" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
+                <input id="email" type="email" placeholder="Adresse e-mail${isStudent ? '' : ' académique'}" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
                 <input id="password" type="password" placeholder="Mot de passe (6 caractères min.)" class="w-full p-3 mb-4 border border-slate-300 rounded-lg" required>
-                
-                <div class="flex items-center my-4">
-                    <input type="checkbox" id="isTeacherCheckbox" class="h-4 w-4 text-cyan-600 focus:ring-cyan-500 border-gray-300 rounded">
-                    <label for="isTeacherCheckbox" class="ml-2 block text-sm text-slate-700">
-                        Je suis un enseignant (requiert une adresse académique)
-                    </label>
-                </div>
                 
                 <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4">
     <p class="text-sm text-slate-700 mb-2">
@@ -1689,173 +1698,44 @@ function showSignupView() {
                 
                 <button type="submit" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700">Créer mon compte</button>
             </form>
-            <p class="text-center text-sm text-slate-500">Déjà un compte ? 
-                <button id="showLoginButton" class="font-semibold text-primary-action hover:underline">Connectez-vous</button>
-            </p>
+            <div class="text-center mt-4">
+                 <button id="back-to-choice-btn" class="text-sm font-semibold text-primary-action hover:underline">Retour au choix du profil</button>
+            </div>
             <p id="authError" class="text-red-500 text-center mt-4"></p>
         </div>
     `;
 
+    // --- On ré-applique toutes vos logiques existantes ---
+
     if (Object.keys(signupFormData).length > 0) {
         document.getElementById('firstName').value = signupFormData.firstName || '';
         document.getElementById('lastName').value = signupFormData.lastName || '';
-        document.getElementById('schoolNameStudent').value = signupFormData.schoolName || '';
+        if (isStudent) {
+            document.getElementById('schoolNameStudent').value = signupFormData.schoolName || '';
+        } else {
+            document.getElementById('schoolNameTeacher').value = signupFormData.schoolName || '';
+        }
         document.getElementById('gender').value = signupFormData.gender || '';
         document.getElementById('email').value = signupFormData.email || '';
         signupFormData = {}; 
     }
 
-    const signupForm = document.getElementById('signupForm');
-    const showLoginButton = document.getElementById('showLoginButton');
-    const showPrivacyPolicyButton = document.getElementById('showPrivacyPolicyFromSignup');
-    const authError = document.getElementById('authError');
-    const isTeacherCheckbox = document.getElementById('isTeacherCheckbox');
-
-    // Logique pour afficher/cacher les champs élèves vs enseignants
-    const studentSchoolContainer = document.getElementById('student-school-container');
-    const teacherSchoolContainer = document.getElementById('teacher-school-container');
-    isTeacherCheckbox.addEventListener('change', (e) => {
-        const isTeacher = e.target.checked;
-        studentSchoolContainer.classList.toggle('hidden', isTeacher);
-        teacherSchoolContainer.classList.toggle('hidden', !isTeacher);
-    });
-    
-    // Logique pour les boutons radio élèves
-    const schoolCodeField = document.getElementById('school-code-field');
-    const schoolNameField = document.getElementById('school-name-field');
-    document.getElementsByName('school_method').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            if (e.target.value === 'code') {
-                schoolCodeField.classList.remove('hidden');
-                schoolNameField.classList.add('hidden');
-            } else {
-                schoolCodeField.classList.add('hidden');
-                schoolNameField.classList.remove('hidden');
-            }
+    if (isStudent) {
+        const schoolCodeField = document.getElementById('school-code-field');
+        const schoolNameField = document.getElementById('school-name-field');
+        document.getElementsByName('school_method').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                schoolCodeField.classList.toggle('hidden', e.target.value !== 'code');
+                schoolNameField.classList.toggle('hidden', e.target.value !== 'name');
+            });
         });
-    });
-
-    signupForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        authError.textContent = '';
-
-        const isTeacher = isTeacherCheckbox.checked;
-        const email = document.getElementById('email').value;
-
-        if (isTeacher) {
-            const domain = email.split('@')[1];
-            if (!approvedTeacherDomains.includes(domain)) {
-                authError.textContent = "Inscription enseignant : veuillez utiliser une adresse e-mail académique valide.";
-                return;
-            }
-        }
-
-        const firstName = capitalizeWords(document.getElementById('firstName').value);
-        const lastName = capitalizeWords(document.getElementById('lastName').value);
-        const gender = document.getElementById('gender').value;
-        const password = document.getElementById('password').value;
-        const userRole = isTeacher ? 'enseignant' : 'eleve';
-        
-        let schoolId, schoolName, classId = null;
-        let className = '';
-
-        try {
-            if (isTeacher) {
-                schoolName = capitalizeWords(document.getElementById('schoolNameTeacher').value.trim());
-                className = document.getElementById('className').value.trim();
-                if (!schoolName || !className) {
-                    throw new Error("Le nom de l'établissement et de la classe sont requis pour les enseignants.");
-                }
-                
-                schoolId = schoolName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-           } else { // La logique pour l'inscription d'un élève
-    const schoolMethod = document.querySelector('input[name="school_method"]:checked').value;
-
-    if (schoolMethod === 'code') {
-        // --- CETTE PARTIE RESTE INCHANGÉE ---
-        // Quand un élève utilise un code, la fonction `getSchoolFromCode` se charge déjà de
-        // récupérer le bon schoolId (qui inclura la ville, une fois vos données migrées).
-        const schoolCode = document.getElementById('schoolCode').value;
-        if (!schoolCode) throw new Error("Le code d'établissement est requis.");
-
-        const getSchool = httpsCallable(functions, 'getSchoolFromCode');
-        const schoolResult = await getSchool({ code: schoolCode });
-        schoolId = schoolResult.data.schoolId;
-        schoolName = schoolResult.data.schoolName;
-        classId = schoolResult.data.classId;
-
-    } else { // Cas où l'élève entre le nom manuellement
-        // ▼▼▼ DÉBUT DES MODIFICATIONS ▼▼▼
-
-        // 1. On récupère les DEUX champs : le nom et la VILLE
-        const schoolNameInput = document.getElementById('schoolNameStudent').value;
-        const schoolCityInput = document.getElementById('schoolCityStudent').value; // NOUVEAU
-
-        // On vérifie que les deux champs sont bien remplis
-        if (!schoolNameInput || !schoolCityInput) { 
-            throw new Error("Le nom ET la ville du lycée sont requis.");
-        }
-
-        // 2. On formate le nom du lycée et de la ville
-        schoolName = capitalizeWords(schoolNameInput.trim());
-        const schoolCity = capitalizeWords(schoolCityInput.trim()); // NOUVEAU
-
-        // 3. On crée l'identifiant unique en combinant le nom et la ville
-        const normalizedSchoolName = schoolName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-        const normalizedCity = schoolCity.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-        schoolId = `${normalizedSchoolName}-${normalizedCity}`; // NOUVELLE LOGIQUE DE CRÉATION DE L'ID
-
-        // ▲▲▲ FIN DES MODIFICATIONS ▲▲▲
     }
-}
 
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-
-            const userDocData = {
-                firstName, lastName, schoolId, schoolName, gender, email,
-                role: userRole,
-                createdAt: new Date(),
-                lastActivity: new Date() // ✅ AJOUTEZ CETTE LIGNE
-        
-            };
-            if (classId) {
-                userDocData.classId = classId;
-            }
-
-            const userDocRef = doc(db, "users", user.uid);
-            await setDoc(userDocRef, userDocData);
-
-            if (isTeacher) {
-                const schoolCity = document.getElementById('schoolCityTeacher').value.trim();
-                await setupClass({ schoolName: schoolName, className: className, schoolCity: schoolCity });
-            }
-
-            const templateIdToSend = isTeacher ? 2 : 1; // <--- REMPLACEZ 2 par l'ID de votre nouveau template enseignant
-
-    // On envoie l'e-mail de vérification avec le bon template
-    const functionUrl = 'https://europe-west3-monapp0rientation.cloudfunctions.net/sendTransactionalEmail';
-    await fetch(functionUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            data: {
-                templateId: templateIdToSend, // On utilise notre variable
-                toEmail: user.email,
-                params: { firstName: firstName }
-            }
-        }),
-    });
-            
-        } catch (error) {
-            console.error("Erreur lors de la création du compte :", error);
-            authError.textContent = error.message || "Une erreur est survenue lors de la création du compte.";
-        }
-    });
-
-    showLoginButton.addEventListener('click', showLoginView);
+    document.getElementById('back-to-choice-btn').addEventListener('click', showSignupView);
+    
+    const showPrivacyPolicyButton = document.getElementById('showPrivacyPolicyFromSignup');
     showPrivacyPolicyButton.addEventListener('click', () => {
-        const schoolName = isTeacherCheckbox.checked 
+        const schoolName = !isStudent 
             ? document.getElementById('schoolNameTeacher')?.value 
             : document.getElementById('schoolNameStudent')?.value;
 
@@ -1872,7 +1752,172 @@ function showSignupView() {
         document.getElementById('mainApp').style.display = 'block';
         showView('privacy');
     });
+
+    const signupForm = document.getElementById('signupForm');
+    const authError = document.getElementById('authError');
+   // REMPLACEZ VOTRE addEventListener EXISTANT PAR CE BLOC COMPLET
+// REMPLACEZ VOTRE addEventListener EXISTANT PAR CE BLOC COMPLET
+signupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    isNewUserFlow = true; // Lève le drapeau pour pauser l'écouteur onAuthStateChanged
+
+    const authError = document.getElementById('authError');
+    authError.textContent = '';
+    
+    const role = e.target.dataset.role;
+    const isTeacher = role === 'enseignant';
+    
+    const email = document.getElementById('email').value;
+
+    if (isTeacher) {
+        const domain = email.split('@')[1];
+        if (!approvedTeacherDomains.includes(domain)) {
+            authError.textContent = "Inscription enseignant : veuillez utiliser une adresse e-mail académique valide.";
+            isNewUserFlow = false; // Baisse le drapeau en cas d'erreur
+            return;
+        }
+    }
+
+    const firstName = capitalizeWords(document.getElementById('firstName').value);
+    const lastName = capitalizeWords(document.getElementById('lastName').value);
+    const gender = document.getElementById('gender').value;
+    const password = document.getElementById('password').value;
+    const userRole = role;
+    
+    let schoolId, schoolName, classId = null;
+    let className = '';
+
+    try {
+        if (isTeacher) {
+            schoolName = capitalizeWords(document.getElementById('schoolNameTeacher').value.trim());
+            const schoolCity = capitalizeWords(document.getElementById('schoolCityTeacher').value.trim());
+            className = document.getElementById('className').value.trim();
+            if (!schoolName || !className || !schoolCity) {
+                throw new Error("Le nom de l'établissement, la classe et la ville sont requis.");
+            }
+         const normalizedSchool = schoolName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, '-');
+         const normalizedCity = schoolCity.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, '-');
+            schoolId = `${normalizedSchool}-${normalizedCity}`;
+
+            const normalizedClass = className.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+            const tempIdPart = Math.random().toString(36).substring(2, 6);
+            classId = `${schoolId}-${normalizedClass}-${tempIdPart}`;
+            
+        } else { // Cas d'un élève
+            const schoolMethod = document.querySelector('input[name="school_method"]:checked').value;
+            if (schoolMethod === 'code') {
+                const schoolCode = document.getElementById('schoolCode').value;
+                if (!schoolCode) throw new Error("Le code d'établissement est requis.");
+                const getSchool = httpsCallable(functions, 'getSchoolFromCode');
+                const schoolResult = await getSchool({ code: schoolCode });
+                schoolId = schoolResult.data.schoolId;
+                schoolName = schoolResult.data.schoolName;
+                classId = schoolResult.data.classId;
+            } else { // Inscription manuelle d'un élève
+                const schoolNameInput = document.getElementById('schoolNameStudent').value;
+                const schoolCityInput = document.getElementById('schoolCityStudent').value;
+                if (!schoolNameInput || !schoolCityInput) throw new Error("Le nom ET la ville du lycée sont requis.");
+                schoolName = capitalizeWords(schoolNameInput.trim());
+                const schoolCity = capitalizeWords(schoolCityInput.trim());
+                const normalizedSchoolName = schoolName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, '-');
+                const normalizedCity = schoolCity.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, '-');
+                schoolId = `${normalizedSchoolName}-${normalizedCity}`;
+                const schoolDocRef = doc(db, "schools", schoolId);
+                const schoolDoc = await getDoc(schoolDocRef);
+                if (!schoolDoc.exists()) {
+                    await setDoc(schoolDocRef, { name: schoolName, city: schoolCity, createdAt: new Date() });
+                }
+            }
+        }
+
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // ========== LA CORRECTION EST ICI ==========
+        // On définit manuellement l'ID de l'utilisateur courant
+        // pour que `loadData` puisse fonctionner immédiatement.
+        currentUserId = user.uid;
+        // ===========================================
+
+        const userDocData = { firstName, lastName, schoolId, schoolName, gender, email, role: userRole, createdAt: new Date(), lastActivity: new Date() };
+        
+        if (classId) {
+            userDocData.classId = classId;
+        }
+
+        await setDoc(doc(db, "users", user.uid), userDocData);
+
+        if (isTeacher) {
+            const setupClass = httpsCallable(functions, 'setupTeacherClass');
+            const schoolCityForTeacher = document.getElementById('schoolCityTeacher').value.trim();
+            await setupClass({ schoolName: schoolName, className: className, schoolCity: schoolCityForTeacher });
+        }
+
+        const templateIdToSend = isTeacher ? 2 : 1;
+        const functionUrl = 'https://europe-west3-monapp0rientation.cloudfunctions.net/sendTransactionalEmail';
+        await fetch(functionUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: { templateId: templateIdToSend, toEmail: user.email, params: { firstName: firstName } } }),
+        });
+        
+        // Cet appel peut maintenant fonctionner car `currentUserId` est défini
+        await loadData(); 
+
+        // Redirection manuelle une fois que tout est terminé
+        if (isTeacher) {
+            showView('teacherDashboard');
+        } else {
+            showGradeSelectionView();
+        }
+
+    } catch (error) {
+        console.error("Erreur lors de la création du compte :", error);
+        authError.textContent = error.message || "Une erreur est survenue lors de la création du compte.";
+    } finally {
+        // On baisse le drapeau pour que onAuthStateChanged reprenne son fonctionnement normal
+        isNewUserFlow = false;
+    }
+});
 }
+
+// Nouvelle fonction principale qui affiche l'écran de choix
+function showSignupView() {
+    const floatingBackBtn = document.getElementById('floatingBackBtn');
+    if (floatingBackBtn) {
+        floatingBackBtn.style.display = 'none';
+    }
+
+    authContainer.innerHTML = `
+        <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in">
+            <img src="logo.png" alt="Logo OrIAntation" class="mx-auto h-auto w-auto">
+            <h2 class="text-2xl font-bold text-center text-OrIAntation-darkblue mt-4 mb-2">Créer un compte</h2>
+            <p class="text-center text-slate-500 mb-8">Qui êtes-vous ?</p>
+            
+            <div class="space-y-4">
+                <button id="signup-as-student-btn" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700 transition flex items-center justify-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
+                    <span>Je suis un élève</span>
+                </button>
+                <button id="signup-as-teacher-btn" class="w-full bg-orange-500 text-white font-semibold py-3 rounded-lg hover:bg-orange-600 transition flex items-center justify-center gap-3">
+                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.627 48.627 0 0 1 12 20.904a48.627 48.627 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.57 50.57 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" /></svg>
+                    <span>Je suis un enseignant</span>
+                </button>
+            </div>
+            
+            <p class="text-center text-sm text-slate-500 mt-8">Déjà un compte ? 
+                <button id="showLoginButton" class="font-semibold text-primary-action hover:underline">Connectez-vous</button>
+            </p>
+        </div>
+    `;
+
+    // On attache les événements aux boutons de choix du profil
+    document.getElementById('signup-as-student-btn').addEventListener('click', () => renderSignupForm('eleve'));
+    document.getElementById('signup-as-teacher-btn').addEventListener('click', () => renderSignupForm('enseignant'));
+    document.getElementById('showLoginButton').addEventListener('click', showLoginView);
+}
+
+// ==================== FIN DU BLOC COMPLET À REMPLACER ====================
 
 // 🔹 Rendre la fonction showView accessible globalement
 window.showView = showView;
@@ -2996,7 +3041,7 @@ function createTeacherDashboardView() {
     div.innerHTML = `
         <img src="logo.png" alt="Logo OrIAntation" class="mx-auto h-60 w-auto mb-4">
         <h1 class="text-2xl font-bold text-OrIAntation-darkblue mb-1 text-center">Tableau de Bord de ${currentUserInfo.firstName} ${currentUserInfo.lastName}</h1>
-<p class="text-center text-slate-500 mb-4">${currentUserInfo.gender === 'femme' ? 'Enseignante' : 'Enseignant'} au ${currentUserInfo.schoolName}</p>        
+<p class="text-center text-slate-500 mb-4">${currentUserInfo.gender === 'femme' ? 'Enseignante' : 'Enseignant'} au ${capitalizeWords(currentUserInfo.schoolName)}</p>        
 <div class="text-center mb-6">
     <button onclick="signOut(auth)" class="text-sm text-slate-500 hover:text-red-600 hover:underline transition">Se déconnecter</button>
 </div>
@@ -5790,13 +5835,6 @@ const partie4FonctionnalitesHTML_enseignants = `
     return div;
 }
 
-// ▼▼▼ REMPLACEZ L'INTÉGRALITÉ DE VOTRE FONCTION createStep4View PAR CE BLOC FINAL ▼▼▼
-
-// ▼▼▼ REMPLACEZ L'INTÉGRALITÉ DE VOTRE FONCTION createStep4View PAR CE BLOC FINAL ET COMPLET ▼▼▼
-
-// ▼▼▼ REMPLACEZ L'INTÉGRALITÉ DE VOTRE FONCTION createStep4View PAR CE BLOC FINAL ET COMPLET ▼▼▼
-
-// ▼▼▼ REMPLACEZ L'INTÉGRALITÉ DE VOTRE FONCTION createStep4View PAR CE BLOC FINAL ET COMPLET ▼▼▼
 
 function createStep4View() {
     const config = stepsConfig.step4;
