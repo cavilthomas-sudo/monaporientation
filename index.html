@@ -672,13 +672,12 @@ const allSteps = [
         levels: ['terminale'] 
     },
     { 
-
-        id: 'step13', category: 'build',
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-cyan-700"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.07a2.25 2.25 0 0 1-2.25 2.25h-13.5a2.25 2.25 0 0 1-2.25-2.25v-4.07m18-4.32-7.5-5.25a2.25 2.25 0 0 0-2.013.003L2.25 9.83m18 4.32V9.83" /></svg>`, 
-        title: 'Mon Stage de Seconde', 
-        site: 'Recherche & Bilan', 
-        levels: ['seconde'] 
-    },
+    id: 'step13', category: 'build',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-cyan-700"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" /></svg>`, 
+    title: 'Mon Stage de Seconde', 
+    site: 'Recherche & Bilan', 
+    levels: ['seconde'] 
+},
 
 ];
 
@@ -820,14 +819,15 @@ step5: {
         fields: []
     },
 
-    step13: { 
-        stepKey: 'step13', 
-        title: 'Mon Stage de Seconde',     
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.07a2.25 2.25 0 0 1-2.25 2.25h-13.5a2.25 2.25 0 0 1-2.25-2.25v-4.07m18-4.32-7.5-5.25a2.25 2.25 0 0 0-2.013.003L2.25 9.83m18 4.32V9.83" /></svg>`,
-        description: `Le stage d'observation de fin de Seconde est une occasion en or de découvrir le monde professionnel. Cette étape est là pour t'accompagner à chaque moment clé : de la recherche de ton stage à la rédaction de ton bilan.`,
-        action: `<b>Ta mission :</b> Utilise le premier atelier pour trouver des pistes et des idées. Une fois ton stage terminé, reviens ici et utilise le second atelier pour rédiger ton rapport et, surtout, pour transformer cette expérience en compétences concrètes pour ton Portfolio.`,
-        fields: []
-    },
+    // ... dans la constante stepsConfig
+step13: { 
+    stepKey: 'step13', 
+    title: 'Mon Stage de Seconde',     
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" /></svg>`,
+    description: `Le stage d'observation de fin de Seconde est bien plus qu'une simple semaine de découverte : c'est souvent ton tout premier pas dans le monde professionnel. C'est une occasion unique de mener ta propre enquête de terrain pour confirmer une piste, en invalider une autre, ou découvrir un univers auquel tu n'avais jamais pensé. Chaque observation est une information précieuse que tu pourras ensuite transformer en un atout majeur pour ton Portfolio de Compétences et tes futures candidatures.`,  
+    action: `<b>Ta mission :</b> Utilise le premier atelier pour trouver des pistes et des idées. Une fois ton stage terminé, reviens ici et utilise le second atelier pour rédiger ton rapport et, surtout, pour transformer cette expérience en compétences concrètes pour ton Portfolio.`,
+    fields: []
+},
 };
 
 
@@ -3030,7 +3030,7 @@ loader.style.display = 'none';
 
     Structure ta réponse avec les titres suivants :
 
-    **[SUR LA PREMIÈRE LIGNE, INVENTE ET ÉCRIS UNIQUEMENT UN TITRE CRÉATIF ET INSPIRANT, SANS AUCUN LABEL COMME "Titre :"]**
+    **[SUR LA PREMIÈRE LIGNE, INVENTE ET ÉCRIS UNIQUEMENT UN TITRE PRECIS ET INSPIRANT, SANS AUCUN LABEL COMME "Titre :"]**
 
     **Piste Suggérée : [Nom du métier]**
     (Rédige une accroche en une phrase pour susciter la curiosité.)
@@ -7639,7 +7639,7 @@ function createStep11View() {
                 <input type="text" id="pro_metier_aide" class="w-full p-2 border border-slate-300 rounded-lg mb-2" placeholder="Rappelle le métier concerné">
                 <button type="button" id="openaiBtn_contact_pro" class="w-full bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 transition">✉️ Générer une stratégie</button>
                 <div id="openaiLoader_pro_contact" class="hidden"><div class="loader"></div></div>
-                <textarea id="pro_strategie" name="pro_strategie" rows="8" class="w-full mt-2 p-2 border border-slate-300 rounded-lg bg-slate-100" readonly></textarea>
+                <div id="pro_strategie" name="pro_strategie" class="w-full mt-2 p-4 border border-slate-300 rounded-lg bg-slate-100 min-h-[16rem]"></div>
             </div>
         </div>
     `;
@@ -7891,26 +7891,74 @@ function createStep11View() {
         await saveData();
     });
 
-    div.querySelector('#openaiBtn_contact_pro').addEventListener('click', async () => {
-        const metier = div.querySelector('#pro_metier_aide').value.trim();
-        const loader = div.querySelector('#openaiLoader_pro_contact');
-        const resultDiv = div.querySelector('#pro_strategie');
-        if (!metier) { resultDiv.value = "Veuillez indiquer un métier pour générer une stratégie."; return; }
-        loader.style.display = 'block'; resultDiv.value = '';
-        const prompt = `Agis comme un coach d'orientation qui aide un(e) lycéen(ne) à préparer un contact professionnel pour le métier de "${metier}". Rédige une réponse en deux parties : 1. Un modèle de mail court et poli pour demander un échange de 15 minutes. 2. Une liste de 3 questions pertinentes pour briser la glace.`;
-        const result = await callOpenAI_API({ promptText: prompt, withPersona: true });
-        loader.style.display = 'none'; 
-        resultDiv.value = result;
-        if (!journalData.step8) journalData.step8 = {};
-        journalData.step8.pro_strategie = result;
-        await saveData();
-    });
+   // REMPLACEZ L'ÉVÉNEMENT DU BOUTON EXISTANT PAR CE BLOC COMPLET
+
+div.querySelector('#openaiBtn_contact_pro').addEventListener('click', async () => {
+    const metier = div.querySelector('#pro_metier_aide').value.trim();
+    const loader = div.querySelector('#openaiLoader_pro_contact');
+    const resultDiv = div.querySelector('#pro_strategie');
+
+    if (!metier) {
+        showInfoModal("Veuillez indiquer un métier pour générer une stratégie de contact.");
+        return;
+    }
+
+    loader.style.display = 'block';
+    resultDiv.value = '';
+
+    const profileSummary = getProfileSummary();
+
+    const prompt = `
+Agis comme un coach carrière expert qui aide un(e) lycéen(ne) à rédiger un e-mail de prise de contact avec un professionnel.
+
+# Contexte
+- **Profil de l'élève :** ${profileSummary}
+- **Métier ou secteur visé :** "${metier}"
+
+# Ta Mission
+Rédige un modèle d'e-mail court, poli et qui se démarque, montrant une démarche sérieuse et réfléchie.
+
+## Règle Absolue de Ton
+Le ton de l'e-mail doit rester professionnel. **N'utilise JAMAIS les termes issus du jargon de l'application** comme "Archétype", "Exploratrice", "Architecte", etc. Tu dois traduire les **traits de caractère** du profil (curiosité, logique, créativité...) en qualités humaines, sans jamais nommer les profils.
+
+# Structure de l'e-mail (Impératif)
+1.  **Objet :** Propose un objet de mail clair et respectueux (ex: "Demande d'échange sur le métier de [métier]").
+2.  **Introduction :** Une introduction simple (qui il/elle est, sa classe).
+3.  **Paragraphe "Pourquoi je vous contacte ?" (Le plus important) :** Un paragraphe expliquant son intérêt pour le métier. **Fais un lien subtil entre les qualités issues du profil de l'élève et les compétences requises pour le métier visé.**
+4.  **La Demande :** Une phrase claire pour demander un court échange (15-20 minutes).
+5.  **Formule de Politesse :** Une formule de politesse professionnelle.
+6.  **Placeholders :** Utilise des placeholders clairs comme [Nom du professionnel], [Nom de l'entreprise], etc.
+
+# Conseil final
+À la toute fin, après la signature, ajoute une section distincte intitulée "--- Conseil du Coach ---" avec un conseil très court.
+    `;
+    
+    const result = await callOpenAI_API({ promptText: prompt, withPersona: true });
+    
+    loader.style.display = 'none';
+    
+    // On sépare le conseil du corps du mail pour un affichage distinct
+    const parts = result.split("--- Conseil du Coach ---");
+    const emailBody = parts[0];
+    const coachTip = parts[1] || '';
+
+    // On vide la div de résultat
+    resultDiv.innerHTML = '';
+
+    // On y insère directement le contenu HTML riche et stylisé
+    resultDiv.innerHTML = `
+        <div class="whitespace-pre-wrap text-sm p-4 bg-white border rounded-lg">${emailBody.trim()}</div>
+        ${coachTip ? `<div class="mt-4 p-3 bg-amber-50 border-l-4 border-amber-400 text-sm text-amber-800 font-semibold">${coachTip.trim()}</div>` : ''}
+    `;
+
+    if (!journalData.step8) journalData.step8 = {};
+    journalData.step8.pro_strategie = result;
+    await saveData();
+});
     
     return div;
 }
 
-
-// ==================== REMPLACEZ INTÉGRALEMENT VOTRE FONCTION createStep13View ====================
 function createStep13View() {
     const config = stepsConfig.step13;
     const div = createStepView(config);
@@ -7932,81 +7980,96 @@ function createStep13View() {
     let currentBilan = { titre: '', missions: '', apprentissages: '', ressenti: '', plan_rapport: '', competences_extraites: '' };
 
     form.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            <button type="button" data-workshop="recherche" class="workshop-choice-btn bg-white p-6 rounded-lg border-2 border-slate-300 hover:border-cyan-500 hover:bg-cyan-50 transition flex flex-col items-center text-center">
-                <span class="text-3xl mb-2">🔍</span>
-                <span class="font-bold text-OrIAntation-darkblue">Atelier 1 : Trouver un stage</span>
-                <span class="text-sm text-slate-500 mt-1">Explorer des pistes et préparer ses candidatures.</span>
-            </button>
-            <button type="button" data-workshop="bilan" class="workshop-choice-btn bg-white p-6 rounded-lg border-2 border-slate-300 hover:border-cyan-500 hover:bg-cyan-50 transition flex flex-col items-center text-center">
-                <span class="text-3xl mb-2">✍️</span>
-                <span class="font-bold text-OrIAntation-darkblue">Atelier 2 : Faire le bilan d'une expérience</span>
-                <span class="text-sm text-slate-500 mt-1">Analyser une expérience pour en tirer des compétences.</span>
-            </button>
-        </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <button type="button" data-workshop="recherche" class="workshop-choice-btn bg-white p-6 rounded-lg border-2 border-slate-300 hover:border-cyan-500 hover:bg-cyan-50 transition flex flex-col items-center text-center">
+            <span class="text-3xl mb-2">🔍</span>
+            <span class="font-bold text-OrIAntation-darkblue">Atelier 1 : Trouver un stage</span>
+            <span class="text-sm text-slate-500 mt-1">Explorer des pistes et préparer ses candidatures.</span>
+        </button>
+        <button type="button" data-workshop="bilan" class="workshop-choice-btn bg-white p-6 rounded-lg border-2 border-slate-300 hover:border-cyan-500 hover:bg-cyan-50 transition flex flex-col items-center text-center">
+            <span class="text-3xl mb-2">✍️</span>
+            <span class="font-bold text-OrIAntation-darkblue">Atelier 2 : Faire le bilan d'une expérience</span>
+            <span class="text-sm text-slate-500 mt-1">Analyser une expérience pour en tirer des compétences.</span>
+        </button>
+    </div>
 
-        <div id="recherche-workshop" class="hidden workshop-container space-y-6">
-            <div id="hypothese-workspace" class="bg-white p-6 rounded-2xl shadow-lg border-2 border-dashed border-cyan-300 mb-8">
-                <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-3 text-center">Nouvelle hypothèse de stage</h2>
+    <div id="recherche-workshop" class="hidden workshop-container space-y-6">
+        <div id="hypothese-workspace" class="bg-white p-6 rounded-2xl shadow-lg border-2 border-dashed border-cyan-300 mb-8 space-y-8">
+
+            <div>
+                <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-3 text-center">1. Besoin d'inspiration ?</h2>
+                <p class="text-center text-sm text-slate-600 mb-4">Laisse OrIA te proposer des idées de stage personnalisées en fonction de ton profil.</p>
+                <div class="text-center">
+                    <button type="button" id="suggest-ideas-btn" class="ai-btn bg-orange-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-orange-600">💡 Suggérer des idées</button>
+                </div>
+            </div>
+
+            <hr class="border-slate-200">
+
+            <div>
+                <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-3 text-center">2. Tu as déjà une idée ?</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                         <label for="hypothese-secteur" class="block text-md font-medium text-slate-700 mb-1">Secteur ou idée de stage</label>
-                        <input type="text" id="hypothese-secteur" class="w-full p-2 border border-slate-300 rounded-lg">
+                        <input type="text" id="hypothese-secteur" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Ex: vétérinaire">
                     </div>
                     <div>
                         <label for="hypothese-ville" class="block text-md font-medium text-slate-700 mb-1">Ville ou département</label>
-                        <input type="text" id="hypothese-ville" class="w-full p-2 border border-slate-300 rounded-lg">
+                        <input type="text" id="hypothese-ville" class="w-full p-2 border border-slate-300 rounded-lg" placeholder="Ex: Auray">
                     </div>
                 </div>
                 <div class="mb-4">
-                     <label for="hypothese-notes" class="block text-md font-medium text-slate-700 mb-1">Mes questions / ce qui m'attire</label>
-                     <textarea id="hypothese-notes" rows="2" class="w-full p-2 border rounded-lg"></textarea>
+                        <label for="hypothese-notes" class="block text-md font-medium text-slate-700 mb-1">Mes questions / ce qui m'attire</label>
+                        <textarea id="hypothese-notes" rows="2" class="w-full p-2 border rounded-lg" placeholder="Ex: le contact avec les animaux"></textarea>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <button type="button" id="suggest-lieux-btn" class="ai-btn w-full bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700">💡 Suggérer des types de lieux</button>
-                    <button type="button" id="prepare-email-btn" class="ai-btn w-full bg-sky-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-600">✉️ Préparer le contact</button>
+                    <button type="button" id="find-places-btn" class="ai-btn w-full bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700">🏢 Trouver des structures</button>
+                    <button type="button" id="prepare-contact-btn" class="ai-btn w-full bg-sky-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-600">✉️ Préparer le contact</button>
                 </div>
-                <div id="loader-hypothese" class="hidden my-4"><div class="loader"></div></div>
-                <div id="result-hypothese" class="mt-4 p-4 bg-background-light border rounded-lg min-h-[100px] prose prose-sm max-w-none"></div>
-                <button type="button" id="save-hypothese-btn" class="w-full mt-6 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700">💾 Enregistrer cette hypothèse de stage</button>
             </div>
-            <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Mes hypothèses de stage sauvegardées</h2>
-            <div id="hypotheses-list-container" class="space-y-3"></div>
-        </div>
+            
+            <div id="loader-hypothese" class="hidden my-4"><div class="loader"></div></div>
+            <div id="result-hypothese" class="mt-4 p-4 bg-background-light border rounded-lg min-h-[100px] prose prose-sm max-w-none"></div>
 
-        <div id="bilan-workshop" class="hidden workshop-container space-y-6">
-            <div id="bilan-workspace" class="bg-white p-6 rounded-2xl shadow-lg border-2 border-dashed border-cyan-300 mb-8">
-                <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-3 text-center">Nouveau bilan d'expérience</h2>
-                <div class="mb-4">
-                    <label for="bilan-titre" class="block text-md font-medium text-slate-700 mb-1">Nom de l'expérience</label>
-                    <input type="text" id="bilan-titre" class="w-full p-2 border rounded-lg">
-                </div>
-                <div class="space-y-4 mb-4">
-                    <div>
-                        <label for="bilan-missions" class="block text-md font-medium text-slate-700 mb-1">Tes missions et observations</label>
-                        <textarea id="bilan-missions" rows="3" class="w-full p-2 border rounded-lg"></textarea>
-                    </div>
-                    <div>
-                        <label for="bilan-apprentissages" class="block text-md font-medium text-slate-700 mb-1">Ce que tu as appris</label>
-                        <textarea id="bilan-apprentissages" rows="2" class="w-full p-2 border rounded-lg"></textarea>
-                    </div>
-                    <div>
-                         <label for="bilan-ressenti" class="block text-md font-medium text-slate-700 mb-1">Ton ressenti</label>
-                         <textarea id="bilan-ressenti" rows="2" class="w-full p-2 border rounded-lg"></textarea>
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <button type="button" id="get-plan-btn" class="ai-btn w-full bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700">📋 Obtenir un plan de rapport</button>
-                    <button type="button" id="extract-skills-btn" class="ai-btn w-full bg-teal-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-600">🛠️ Analyser les compétences</button>
-                </div>
-                <div id="loader-bilan" class="hidden my-4"><div class="loader"></div></div>
-                <div id="result-bilan" class="mt-4 p-4 bg-background-light border rounded-lg min-h-[100px] prose prose-sm max-w-none"></div>
-                <button type="button" id="save-bilan-btn" class="w-full mt-6 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700">💾 Enregistrer ce bilan d'expérience</button>
-            </div>
-            <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Mes bilans d'expérience sauvegardés</h2>
-            <div id="bilans-list-container" class="space-y-3"></div>
+            <button type="button" id="save-hypothese-btn" class="w-full mt-6 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700">💾 Enregistrer cette hypothèse de stage</button>
         </div>
-    `;
+        <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Mes hypothèses de stage sauvegardées</h2>
+        <div id="hypotheses-list-container" class="space-y-3"></div>
+    </div>
+
+    <div id="bilan-workshop" class="hidden workshop-container space-y-6">
+        <div id="bilan-workspace" class="bg-white p-6 rounded-2xl shadow-lg border-2 border-dashed border-cyan-300 mb-8">
+            <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-3 text-center">Nouveau bilan d'expérience</h2>
+            <div class="mb-4">
+                <label for="bilan-titre" class="block text-md font-medium text-slate-700 mb-1">Nom de l'expérience</label>
+                <input type="text" id="bilan-titre" class="w-full p-2 border rounded-lg" placeholder="Ex: Mon stage chez le vétérinaire">
+            </div>
+            <div class="space-y-4 mb-4">
+                <div>
+                    <label for="bilan-missions" class="block text-md font-medium text-slate-700 mb-1">Tes missions et observations</label>
+                    <textarea id="bilan-missions" rows="3" class="w-full p-2 border rounded-lg" placeholder="J'ai observé les consultations, aidé à nettoyer le matériel..."></textarea>
+                </div>
+                <div>
+                    <label for="bilan-apprentissages" class="block text-md font-medium text-slate-700 mb-1">Ce que tu as appris</label>
+                    <textarea id="bilan-apprentissages" rows="2" class="w-full p-2 border rounded-lg" placeholder="J'ai appris comment on établit un diagnostic, l'importance de l'hygiène..."></textarea>
+                </div>
+                <div>
+                    <label for="bilan-ressenti" class="block text-md font-medium text-slate-700 mb-1">Ton ressenti</label>
+                    <textarea id="bilan-ressenti" rows="2" class="w-full p-2 border rounded-lg" placeholder="J'ai adoré le contact avec les animaux, mais j'ai trouvé la partie administrative moins intéressante..."></textarea>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button type="button" id="get-plan-btn" class="ai-btn w-full bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700">📋 Obtenir un plan de rapport</button>
+                <button type="button" id="extract-skills-btn" class="ai-btn w-full bg-teal-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-600">🛠️ Analyser les compétences</button>
+            </div>
+            <div id="loader-bilan" class="hidden my-4"><div class="loader"></div></div>
+            <div id="result-bilan" class="mt-4 p-4 bg-background-light border rounded-lg min-h-[100px] prose prose-sm max-w-none"></div>
+            <button type="button" id="save-bilan-btn" class="w-full mt-6 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700">💾 Enregistrer ce bilan d'expérience</button>
+        </div>
+        <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Mes bilans d'expérience sauvegardés</h2>
+        <div id="bilans-list-container" class="space-y-3"></div>
+    </div>
+`;
 
     // --- LOGIQUE COMMUNE D'AFFICHAGE DES ATELIERS ---
     const workshopContainers = div.querySelectorAll('.workshop-container');
@@ -8021,43 +8084,55 @@ function createStep13View() {
     });
 
   
-// REMPLACEZ CETTE FONCTION DANS createStep13View
-    const renderSavedHypotheses = () => {
-        const container = div.querySelector('#hypotheses-list-container');
-        const hypotheses = journalData.step13.hypotheses || [];
-        if (hypotheses.length === 0) {
-            container.innerHTML = `<p class="text-center text-slate-500 p-4 bg-background-light rounded-lg">Aucune hypothèse de stage sauvegardée.</p>`;
-            return;
-        }
-        container.innerHTML = hypotheses.map((hyp, index) => {
-            let content = `<p><strong>Notes:</strong> ${hyp.notes || '...'}</p>`;
-            if(hyp.lieux_suggeres) {
-                try {
-                    const lieux = JSON.parse(hyp.lieux_suggeres);
-                    if (Array.isArray(lieux)) {
-                        const lieuxHTML = lieux.map(lieu => `
-                            <div class="p-2 bg-white rounded border mt-1">
-                                <p class="font-semibold text-OrIAntation-darkblue">${lieu.nom}</p>
-                                <p class="text-xs mt-1">${lieu.description}</p>
-                                <a href="${lieu.lien_recherche}" target="_blank" class="text-xs text-primary-action font-semibold hover:underline mt-1 inline-block">Rechercher ↗</a>
-                            </div>`).join('');
-                        content += `<div><strong>Lieux suggérés:</strong><div class="space-y-2">${lieuxHTML}</div></div>`;
-                    } else { throw new Error('JSON is not an array'); }
-                } catch(e) {
-                    content += `<div><strong>Lieux suggérés:</strong><div class="prose prose-sm max-w-none">${marked.parse(hyp.lieux_suggeres)}</div></div>`;
-                }
-            }
-            if(hyp.modele_contact) content += `<div class="mt-2"><strong>Modèle de contact:</strong><div class="whitespace-pre-wrap text-sm p-2 bg-white border rounded">${hyp.modele_contact}</div></div>`;
-            return `<details class="bg-background-light rounded-lg border">
-                        <summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center">
-                            <span>${hyp.titre} à ${hyp.ville}</span>
-                            <button type="button" data-index="${index}" class="delete-hypothese-btn text-red-500 hover:text-red-700 p-1">🗑️</button>
-                        </summary>
-                        <div class="p-3 border-t space-y-2">${content}</div>
-                    </details>`;
-        }).join('');
-    };
 
+const renderSavedHypotheses = () => {
+    const container = div.querySelector('#hypotheses-list-container');
+    const hypotheses = journalData.step13.hypotheses || [];
+    if (hypotheses.length === 0) {
+        container.innerHTML = `<p class="text-center text-slate-500 p-4 bg-background-light rounded-lg">Aucune hypothèse de stage sauvegardée.</p>`;
+        return;
+    }
+    container.innerHTML = hypotheses.map((hyp, index) => {
+        let content = `<p><strong>Notes:</strong> ${hyp.notes || '...'}</p>`;
+        
+        if(hyp.lieux_suggeres) {
+            try {
+                // ▼▼▼ LA CORRECTION FINALE EST ICI ▼▼▼
+                // On utilise la fonction intelligente qui sait retirer les balises de code
+                const data = extractJsonFromString(hyp.lieux_suggeres);
+                const lieux = data.lieux;
+                // ▲▲▲ FIN DE LA CORRECTION ▲▲▲
+
+                if (Array.isArray(lieux)) {
+                    const lieuxHTML = lieux.map(lieu => `
+                        <div class="p-2 bg-white rounded border mt-1">
+                            <p class="font-semibold text-OrIAntation-darkblue">${lieu.nom}</p>
+                            <p class="text-xs mt-1">${lieu.description}</p>
+                            <a href="${lieu.lien_recherche}" target="_blank" class="text-xs text-primary-action font-semibold hover:underline mt-1 inline-block">Rechercher ↗</a>
+                        </div>`).join('');
+                    content += `<div><strong>Lieux suggérés:</strong><div class="space-y-2">${lieuxHTML}</div></div>`;
+                } else { 
+                    throw new Error('Le JSON ne contient pas de tableau "lieux".');
+                }
+            } catch(e) {
+                // Ce bloc s'exécute si le JSON est mal formaté, affichant le texte brut
+                content += `<div><strong>Lieux suggérés:</strong><div class="whitespace-pre-wrap p-2 bg-red-50 border rounded">${hyp.lieux_suggeres}</div></div>`;
+            }
+        }
+
+        if(hyp.modele_contact) {
+            content += `<div class="mt-2"><strong>Modèle de contact:</strong><div class="whitespace-pre-wrap text-sm p-2 bg-white border rounded">${hyp.modele_contact}</div></div>`;
+        }
+
+        return `<details class="bg-background-light rounded-lg border">
+                    <summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center">
+                        <span>${hyp.titre} à ${hyp.ville}</span>
+                        <button type="button" data-index="${index}" class="delete-hypothese-btn text-red-500 hover:text-red-700 p-1">🗑️</button>
+                    </summary>
+                    <div class="p-3 border-t space-y-2">${content}</div>
+                </details>`;
+    }).join('');
+};
     const resetHypotheseWorkspace = () => {
         currentHypothese = { titre: '', ville: '', notes: '', lieux_suggeres: '', modele_contact: '' };
         div.querySelector('#hypothese-secteur').value = '';
@@ -8066,14 +8141,13 @@ function createStep13View() {
         div.querySelector('#result-hypothese').innerHTML = '';
     };
 
-    div.querySelector('#suggest-lieux-btn').addEventListener('click', async () => {
-        const secteur = div.querySelector('#hypothese-secteur').value.trim();
+div.querySelector('#find-places-btn').addEventListener('click', async () => {        const secteur = div.querySelector('#hypothese-secteur').value.trim();
         const ville = div.querySelector('#hypothese-ville').value.trim();
         if (!secteur || !ville) { showInfoModal("Veuillez renseigner un secteur et une ville."); return; }
         const loader = div.querySelector('#loader-hypothese');
         const resultDiv = div.querySelector('#result-hypothese');
         loader.style.display = 'block'; resultDiv.innerHTML = '';
-        const prompt = `Agis comme un conseiller d'orientation. Pour un élève de Seconde, trouve 5 types de lieux (entreprises, associations...) où il pourrait faire un stage d'observation dans le secteur "${secteur}" à "${ville}". Ta réponse doit être **uniquement un objet JSON valide** contenant un tableau nommé "lieux". Chaque objet doit avoir trois clés : "nom", "description", et "lien_recherche" (une URL de recherche Google valide pour trouver ce type de lieu dans la ville spécifiée).`;
+        const prompt = `Agis comme un conseiller d'orientation. Pour un élève de Seconde, trouve 5 types de lieux (entreprises, associations...) où il pourrait faire un stage d'observation dans le secteur "${secteur}" de "${ville}" à 30 kilomètres. Ta réponse doit être **uniquement un objet JSON valide** contenant un tableau nommé "lieux". Chaque objet doit avoir trois clés : "nom", "description", et "lien_recherche" (une URL de recherche Google valide pour trouver ce type de lieu dans la ville spécifiée).`;
         const result = await callOpenAI_API({ promptText: prompt, isJson: true });
         loader.style.display = 'none';
         try {
@@ -8092,18 +8166,86 @@ function createStep13View() {
         }
     });
 
-    div.querySelector('#prepare-email-btn').addEventListener('click', async () => {
-        const secteur = div.querySelector('#hypothese-secteur').value.trim();
-        if (!secteur) { showInfoModal("Veuillez renseigner un secteur."); return; }
-        const loader = div.querySelector('#loader-hypothese');
-        const resultDiv = div.querySelector('#result-hypothese');
-        loader.style.display = 'block'; resultDiv.innerHTML = '';
-        const prompt = `Rédige un modèle d'e-mail court, poli et efficace pour un élève de Seconde, ${currentUserInfo.firstName}, qui postule pour son stage d'observation dans le secteur : "${secteur}". L'e-mail doit être facilement adaptable avec des champs clairs à remplir comme [Nom de l'entreprise].`;
-        const result = await callOpenAI_API({ promptText: prompt, withPersona: true });
+    // AJOUTEZ CE BLOC DE CODE
+div.querySelector('#suggest-ideas-btn').addEventListener('click', async () => {
+    const loader = div.querySelector('#loader-hypothese');
+    const resultDiv = div.querySelector('#result-hypothese');
+    loader.style.display = 'block'; 
+    resultDiv.innerHTML = '';
+    
+    const profileSummary = getProfileSummary();
+    if (profileSummary.includes("L'élève n'a pas encore rempli")) {
+        showInfoModal("Action requise", "Pour obtenir des suggestions, veuillez d'abord compléter l'étape 'Mieux se connaître'.");
         loader.style.display = 'none';
-        resultDiv.textContent = result;
-        currentHypothese.modele_contact = result;
-    });
+        return;
+    }
+
+    const prompt = `Agis comme un conseiller d'orientation créatif. En te basant sur le profil suivant d'un élève de Seconde : "${profileSummary}", suggère-lui 6 idées originales de secteurs ou de types de stage d'observation. Pour chaque idée, explique en une phrase pourquoi elle correspond à son profil. Formate ta réponse en Markdown.`;
+
+    const result = await callOpenAI_API({ promptText: prompt, withPersona: true });
+    
+    loader.style.display = 'none';
+    resultDiv.innerHTML = marked.parse(result);
+});
+
+// REMPLACEZ VOTRE ÉVÉNEMENT DE CLIC POUR LE BOUTON "PRÉPARER LE CONTACT" PAR CE BLOC COMPLET :
+
+div.querySelector('#prepare-contact-btn').addEventListener('click', async () => {
+    const secteur = div.querySelector('#hypothese-secteur').value.trim();
+    const notes = div.querySelector('#hypothese-notes').value.trim(); // <-- CETTE LIGNE EST ESSENTIELLE
+    
+    if (!secteur) {
+        showInfoModal("Veuillez renseigner un secteur ou une idée de stage.");
+        return;
+    }
+
+    const loader = div.querySelector('#loader-hypothese');
+    const resultDiv = div.querySelector('#result-hypothese');
+    loader.style.display = 'block';
+    resultDiv.innerHTML = '';
+
+    const profileSummary = getProfileSummary();
+
+    const prompt = `
+Agis comme un coach carrière expert qui aide un(e) lycéen(ne) à rédiger une candidature percutante pour son stage de Seconde.
+
+# Contexte
+- **Profil de l'élève :** ${profileSummary}
+- **Secteur de stage visé :** "${secteur}"
+- **Ce qui l'attire (notes personnelles) :** "${notes}"
+
+# Ta Mission
+Rédige un modèle d'e-mail de candidature qui soit à la fois professionnel et personnalisé, montrant une véritable réflexion.
+
+## Règle Absolue de Ton
+Le ton de l'e-mail doit rester professionnel. **N'utilise JAMAIS les termes issus du jargon de l'application** comme "Archétype", "Exploratrice", "Architecte", etc. Tu dois traduire les **traits de caractère** du profil (curiosité, logique, créativité...) en qualités humaines, sans jamais nommer les profils.
+
+# Structure de l'e-mail (Impératif)
+1.  **Objet :** Propose un objet de mail clair et professionnel.
+2.  **Introduction :** Une introduction simple (qui il/elle est, ce qu'il/elle cherche).
+3.  **Paragraphe "Pourquoi vous ?" (Le plus important) :** Un paragraphe expliquant son intérêt pour le secteur. **Fais un lien subtil entre les qualités issues du profil de l'élève ET/OU ses notes personnelles, et le secteur visé.**
+4.  **Paragraphe "Ce que j'espère apprendre" :** Un court paragraphe sur ce qu'il/elle espère découvrir durant le stage.
+5.  **Logistique et Clôture :** Les informations pratiques et une formule de politesse.
+6.  **Placeholders :** Utilise des placeholders clairs comme [Nom de l'entreprise], [Nom du destinataire], [Date de début], etc.
+
+# Conseil final
+À la toute fin, après la signature, ajoute une section distincte intitulée "--- Conseil du Coach ---" avec un conseil très court.
+    `;
+
+    const result = await callOpenAI_API({ promptText: prompt, withPersona: true });
+    
+    loader.style.display = 'none';
+    
+    const parts = result.split("--- Conseil du Coach ---");
+    const emailBody = parts[0];
+    const coachTip = parts[1] || '';
+
+    resultDiv.innerHTML = `
+        <div class="whitespace-pre-wrap text-sm p-4 bg-white border rounded-lg">${emailBody.trim()}</div>
+        ${coachTip ? `<div class="mt-4 p-3 bg-amber-50 border-l-4 border-amber-400 text-sm text-amber-800 font-semibold">${coachTip.trim()}</div>` : ''}
+    `;
+    currentHypothese.modele_contact = result;
+});
     
     div.querySelector('#save-hypothese-btn').addEventListener('click', async () => {
         currentHypothese.titre = div.querySelector('#hypothese-secteur').value.trim();
@@ -8804,67 +8946,82 @@ async function createUnifiedJournalView(userInfo, journalDataToDisplay, context)
         }
 
   // ========= REMPLACEZ CE BLOC DANS createUnifiedJournalView =========
-        else if (stepKey === 'step13' && isStepStarted(stepKey)) {
-            hasContentInSection = true;
-            let content = [];
+       // REMPLACEZ CE BLOC DANS LA FONCTION createUnifiedJournalView
 
-            if (Array.isArray(stepData.hypotheses) && stepData.hypotheses.length > 0) {
-                const hypothesesHTML = stepData.hypotheses.map(hyp => {
-                    let hypContent = `<p><strong>Notes:</strong> ${hyp.notes || '...'}</p>`;
-                    if (hyp.lieux_suggeres) {
-                        try {
-                            const lieux = JSON.parse(hyp.lieux_suggeres);
-                            if (Array.isArray(lieux)) {
-                                const lieuxHTML = lieux.map(lieu => `
-                                    <div class="p-2 bg-white rounded border mt-1">
-                                        <p class="font-semibold text-OrIAntation-darkblue">${lieu.nom}</p>
-                                        <p class="text-xs mt-1">${lieu.description}</p>
-                                        <a href="${lieu.lien_recherche}" target="_blank" class="text-xs text-primary-action font-semibold hover:underline mt-1 inline-block">Rechercher ↗</a>
-                                    </div>`).join('');
-                                hypContent += `<div><strong>Lieux suggérés:</strong><div class="space-y-2">${lieuxHTML}</div></div>`;
-                            } else { throw new Error('JSON is not an array'); }
-                        } catch(e) {
-                            hypContent += `<div><strong>Lieux suggérés:</strong><div class="prose prose-sm max-w-none">${marked.parse(hyp.lieux_suggeres)}</div></div>`;
-                        }
-                    }
-                    if (hyp.modele_contact) {
-                        hypContent += `<div class="mt-2"><strong>Modèle de contact:</strong><div class="whitespace-pre-wrap text-sm p-2 bg-white border rounded">${hyp.modele_contact}</div></div>`;
-                    }
-                    return `<details class="bg-white rounded-lg border mt-2">
-                                <summary class="p-2 font-semibold text-OrIAntation-darkblue">${hyp.titre} à ${hyp.ville}</summary>
-                                <div class="p-3 border-t">${hypContent}</div>
-                            </details>`;
-                }).join('');
-                content.push(`<div><h3 class="text-lg font-bold text-cyan-700 mb-2">Atelier 1 : Mes hypothèses de stage</h3><div class="space-y-3">${hypothesesHTML}</div></div>`);
-            }
+else if (stepKey === 'step13' && isStepStarted(stepKey)) {
+    hasContentInSection = true;
+    hasSubEntries = true; // On indique qu'il y a des sous-entrées pour gérer la suppression
+    let content = [];
 
-            const bilanFields = [
-                { key: 'bilan_missions', label: 'Missions et observations' },
-                { key: 'bilan_apprentissages', label: 'Ce que j\'ai appris' },
-                { key: 'bilan_ressenti', label: 'Mon ressenti' },
-                { key: 'plan_rapport', label: 'Plan de rapport suggéré' },
-                { key: 'competences_extraites', label: 'Compétences analysées' }
-            ];
-            let bilanContent = [];
-            bilanFields.forEach(field => {
-                if (stepData[field.key] && stepData[field.key].trim() !== '') {
-                    const formattedContent = (field.key === 'competences_extraites') ? marked.parse(stepData[field.key]) : `<p class="whitespace-pre-wrap">${stepData[field.key]}</p>`;
-                    bilanContent.push(`<div class="p-3 bg-white rounded-lg border mt-2">
-                                        <h4 class="font-semibold text-OrIAntation-darkblue">${field.label}</h4>
-                                        <div class="prose prose-sm max-w-none text-slate-600 mt-1">${formattedContent}</div>
-                                       </div>`);
+    if (Array.isArray(stepData.hypotheses) && stepData.hypotheses.length > 0) {
+        const hypothesesHTML = stepData.hypotheses.map((hyp, index) => {
+            let hypContent = `<p><strong>Notes:</strong> ${hyp.notes || '...'}</p>`;
+            
+            if (hyp.lieux_suggeres) {
+                try {
+                    // ▼▼▼ FIX 1 : On utilise la fonction intelligente pour lire le JSON ▼▼▼
+                    const data = extractJsonFromString(hyp.lieux_suggeres);
+                    const lieux = data.lieux;
+
+                    if (Array.isArray(lieux)) {
+                        const lieuxHTML = lieux.map(lieu => `
+                            <div class="p-2 bg-white rounded border mt-1">
+                                <p class="font-semibold text-OrIAntation-darkblue">${lieu.nom}</p>
+                                <p class="text-xs mt-1">${lieu.description}</p>
+                                <a href="${lieu.lien_recherche}" target="_blank" class="text-xs text-primary-action font-semibold hover:underline mt-1 inline-block">Rechercher ↗</a>
+                            </div>`).join('');
+                        hypContent += `<div><strong>Lieux suggérés:</strong><div class="space-y-2">${lieuxHTML}</div></div>`;
+                    } else { throw new Error('JSON is not an array'); }
+                } catch(e) {
+                    hypContent += `<div><strong>Lieux suggérés:</strong><div class="prose prose-sm max-w-none">${marked.parse(hyp.lieux_suggeres)}</div></div>`;
                 }
-            });
-
-            if (bilanContent.length > 0) {
-                content.push(`<div><h3 class="text-lg font-bold text-cyan-700 mt-4 mb-2">Atelier 2 : Mon bilan de stage</h3><div class="space-y-3">${bilanContent.join('')}</div></div>`);
+            }
+            if (hyp.modele_contact) {
+                hypContent += `<div class="mt-2"><strong>Modèle de contact:</strong><div class="whitespace-pre-wrap text-sm p-2 bg-white border rounded">${hyp.modele_contact}</div></div>`;
             }
 
-            if (content.length > 0) {
-                sectionContentHTML = `<div class="space-y-6">${content.join('<hr class="my-4 border-slate-200">')}</div>`;
-            } else {
-                hasContentInSection = false; 
-            }
+            // ▼▼▼ FIX 2 : On ajoute un bouton de suppression pour CHAQUE hypothèse ▼▼▼
+            const deleteButtonHTML = context === 'student' ? `<button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step13" data-array-key="hypotheses" data-entry-index="${index}">🗑️</button>` : '';
+
+            return `<details class="bg-background-light rounded-lg border mt-2">
+                        <summary class="p-2 font-semibold text-OrIAntation-darkblue cursor-pointer flex justify-between items-center">
+                            <span>${hyp.titre} à ${hyp.ville}</span>
+                            ${deleteButtonHTML}
+                        </summary>
+                        <div class="p-3 border-t">${hypContent}</div>
+                    </details>`;
+        }).join('');
+        content.push(`<div><h3 class="text-lg font-bold text-cyan-700 mb-2">Atelier 1 : Mes hypothèses de stage</h3><div class="space-y-3">${hypothesesHTML}</div></div>`);
+    }
+
+    // Le reste de la logique pour l'atelier 2 (bilans) reste inchangé...
+    const bilanFields = [
+        { key: 'bilan_missions', label: 'Missions et observations' },
+        { key: 'bilan_apprentissages', label: 'Ce que j\'ai appris' },
+        { key: 'bilan_ressenti', label: 'Mon ressenti' },
+        { key: 'plan_rapport', label: 'Plan de rapport suggéré' },
+        { key: 'competences_extraites', label: 'Compétences analysées' }
+    ];
+    let bilanContent = [];
+    bilanFields.forEach(field => {
+        if (stepData[field.key] && stepData[field.key].trim() !== '') {
+            const formattedContent = (field.key === 'competences_extraites') ? marked.parse(stepData[field.key]) : `<p class="whitespace-pre-wrap">${stepData[field.key]}</p>`;
+            bilanContent.push(`<div class="p-3 bg-white rounded-lg border mt-2">
+                                <h4 class="font-semibold text-OrIAntation-darkblue">${field.label}</h4>
+                                <div class="prose prose-sm max-w-none text-slate-600 mt-1">${formattedContent}</div>
+                               </div>`);
+        }
+    });
+
+    if (bilanContent.length > 0) {
+        content.push(`<div><h3 class="text-lg font-bold text-cyan-700 mt-4 mb-2">Atelier 2 : Mon bilan de stage</h3><div class="space-y-3">${bilanContent.join('')}</div></div>`);
+    }
+
+    if (content.length > 0) {
+        sectionContentHTML = `<div class="space-y-6">${content.join('<hr class="my-4 border-slate-200">')}</div>`;
+    } else {
+        hasContentInSection = false; 
+    }
         
         } else {
             const staticContent = [];

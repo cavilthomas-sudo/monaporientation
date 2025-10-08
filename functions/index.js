@@ -20,7 +20,34 @@ webpush.setVapidDetails(
   VAPID_PUBLIC_KEY,
   VAPID_PRIVATE_KEY
 );
+// AJOUTEZ CETTE FONCTION DANS LA SECTION DES HELPERS DE VOTRE index.js
+function extractJsonFromString(str) {
+    if (!str) return null;
 
+    let cleanedStr = str.trim();
+    if (cleanedStr.startsWith("```json")) {
+        cleanedStr = cleanedStr.substring(7);
+    }
+    if (cleanedStr.endsWith("```")) {
+        cleanedStr = cleanedStr.substring(0, cleanedStr.length - 3);
+    }
+    cleanedStr = cleanedStr.trim();
+
+    const jsonStart = cleanedStr.indexOf('{');
+    const jsonEnd = cleanedStr.lastIndexOf('}') + 1;
+
+    if (jsonStart === -1 || jsonEnd === 0) {
+        return null;
+    }
+
+    const jsonString = cleanedStr.substring(jsonStart, jsonEnd);
+    try {
+        return JSON.parse(jsonString);
+    } catch (error) {
+        console.error("Impossible d'analyser le JSON extrait:", error);
+        return null;
+    }
+}
 /**
  * Envoie une notification push à un utilisateur via ses abonnements enregistrés.
  * C'est la version finale, robuste et fonctionnelle.
@@ -165,9 +192,42 @@ async function sendEmailWithBrevo({ templateId, toEmail, params }) {
     await apiInstance.sendTransacEmail(sendSmtpEmail);
 }
 
+// REMPLACEZ VOTRE PROMPT DE RAPPEL PAR CELUI-CI
+const TUTORIAL_REMINDER_PROMPT_TEMPLATE = `
+# Rôle et Identité
+Tu es "OrIA", le coach IA bienveillant de l'application "OrIAntation".
+
+# Règle de Ton (NON NÉGOCIABLE)
+Tu dois **impérativement et exclusivement utiliser le tutoiement ("tu")**. N'utilise JAMAIS le vouvoiement ("vous"). C'est une règle absolue.
+
+# Contexte de l'Élève
+- Son Prénom : {firstName}
+- Les étapes du tutoriel qu'il lui reste à faire sont : {remainingStepsList}
+
+# Ta Mission
+Rédige un e-mail pour l'encourager à se reconnecter et à terminer son initiation.
+
+# Logique de Contenu
+1.  Commence par une phrase d'accueil personnalisée et encourageante.
+2.  Présente clairement la liste des étapes restantes pour terminer le tutoriel.
+3.  Mets en évidence la **toute première étape de cette liste** comme sa prochaine mission concrète.
+4.  Termine par une note positive et une formule de politesse amicale.
+
+# Format de Sortie OBLIGATOIRE
+Ta réponse doit être **UNIQUEMENT un objet JSON valide**.
+{
+  "subject": "OrIAntation : On finalise ton lancement ?",
+  "body": "Le corps de l'e-mail en HTML. Utilise des paragraphes <p> pour chaque idée. N'utilise PAS de <br>. La réponse doit être un bloc de texte cohérent commençant par 'Salut {firstName},' et se terminant par 'À bientôt ! OrIA'."
+}
+`;
+
+// REMPLACEZ VOTRE PROMPT HEBDOMADAIRE PAR CELUI-CI
 const WEEKLY_EMAIL_PROMPT_TEMPLATE = `
 # Rôle et Identité
-Tu es "OrIA", le coach IA bienveillant de l'application d'orientation "OrIAntation". Tu rédiges un e-mail hebdomadaire personnalisé pour encourager un lycéen nommé {firstName}.
+Tu es "OrIA", le coach IA bienveillant de l'application "OrIAntation".
+
+# Règle de Ton (NON NÉGOCIABLE)
+Tu dois **impérativement et exclusivement utiliser le tutoiement ("tu")**. N'utilise JAMAIS le vouvoiement ("vous"). C'est une règle absolue.
 
 # Contexte de l'Élève
 - Son Prénom : {firstName}
@@ -175,59 +235,22 @@ Tu es "OrIA", le coach IA bienveillant de l'application d'orientation "OrIAntati
 - Sa progression générale dans l'application : {completionSummary}
 - Son planning pour le mois en cours : {retroplanningSummary}
 
-# Ta Mission (Mise à Jour)
-Rédige un e-mail court, encourageant et actionnable. L'objectif est de lui montrer que son travail est suivi, de valoriser sa progression et de lui suggérer UNE SEULE prochaine étape claire et pertinente.
-
-# Logique de Coaching (MISE À JOUR - SUIS CET ORDRE DE PRIORITÉ)
-
-1.  **Priorité 1 : Le Rétroplanning.**
-    - Si l'élève a des tâches **non terminées** dans son rétroplanning pour le mois en cours, ton message doit **impérativement** lui en rappeler une de manière encourageante. Fais le lien entre cette tâche et une étape de l'application.
-
-2.  **Priorité 2 : Suggérer une nouvelle exploration (si le rétroplanning est à jour).**
-    - Si l'élève n'a pas de tâche en retard, ou si son profil d'exploration est vide ('Aucun' métier/formation), ta mission est de lui proposer **une piste de métier ou de domaine à explorer**.
-    - La suggestion doit être **pertinente** par rapport à son profil (Archétype).
-    - Tu dois l'inviter à utiliser l'étape "Les Fondations" ou le "Radar à Opportunités" pour explorer cette nouvelle piste.
-
-3.  **Priorité 3 : Approfondir le projet (si les points 1 et 2 ne s'appliquent pas).**
-    - Si l'élève est à jour dans son planning et a déjà exploré des pistes, félicite-le.
-    - Suggère une action d'approfondissement qui fait le lien entre ses explorations (ex: "J'ai vu que tu avais exploré le métier de [métier] et la formation [formation]. Et si tu utilisais le 'Comparateur' pour voir comment ils se connectent ?").
-
-4.  **Cas spécial : Si l'élève est en Terminale entre Janvier et Mars.**
-    - Ton message doit IMPÉRATIVEMENT être en lien avec Parcoursup, en plus des autres logiques.
-
-# Format de Sortie OBLIGATOIRE
-Ta réponse doit être **UNIQUEMENT un objet JSON valide**, sans aucun texte avant ou après.
-{
-  "subject": "Un titre d'e-mail court et accrocheur (ex: 'OrIAntation : Ta mission de la semaine !')",
-  "body": "Le corps de l'e-mail en HTML simple. Utilise des <p> pour les paragraphes et des <strong> pour mettre en valeur les points importants. N'inclus PAS de salutation (Bonjour...). Le texte doit commencer directement."
-}
-`;
-
-const TUTORIAL_REMINDER_PROMPT_TEMPLATE = `
-# Rôle et Identité
-Tu es "OrIA", le coach IA bienveillant de l'application "OrIAntation". Tu rédiges un e-mail de rappel amical et motivant pour {firstName}, qui n'a pas terminé le tutoriel d'initiation.
-
-# Contexte de l'Élève
-- Son Prénom : {firstName}
-- La liste des étapes du tutoriel qu'il lui reste à faire est : {remainingStepsList}
-
 # Ta Mission
-Rédige un e-mail pour l'encourager à se reconnecter et à terminer son initiation. Le ton doit être positif et non culpabilisant.
+Rédige un e-mail hebdomadaire personnalisé, encourageant et actionnable.
 
-# Logique de Contenu
-1.  Commence par une phrase d'encouragement (ex: "J'ai vu que tu avais bien démarré ton exploration...").
-2.  Présente clairement la liste des étapes restantes pour terminer le tutoriel. Tu peux utiliser une liste numérotée en HTML (<ol><li>...).
-3.  Mets en évidence la **toute première étape de cette liste** comme sa prochaine mission concrète et explique brièvement en quoi elle consiste.
-4.  Termine par une note positive sur les bénéfices de la finalisation du tutoriel (ex: "Une fois ces étapes terminées, tu auras une excellente vision de départ pour ton projet !").
+# Logique de Coaching (SUIS CET ORDRE DE PRIORITÉ)
+1.  **Le Rétroplanning :** Si l'élève a des tâches non terminées, rappelle-lui en une de manière encourageante.
+2.  **Nouvelle exploration :** Sinon, propose-lui une nouvelle piste de métier pertinente par rapport à son profil.
+3.  **Approfondissement :** Si tout est à jour, suggère une action pour approfondir son projet.
+4.  **Parcoursup (Spécial Terminale Jan-Mars) :** Si pertinent, fais le lien avec Parcoursup.
 
 # Format de Sortie OBLIGATOIRE
-Ta réponse doit être **UNIQUEMENT un objet JSON valide**, sans aucun texte avant ou après.
+Ta réponse doit être **UNIQUEMENT un objet JSON valide**.
 {
-  "subject": "OrIAntation : On finalise ton lancement ?",
-  "body": "Le corps de l'e-mail en HTML simple. Utilise des <p> pour les paragraphes, <strong> pour les points importants, et une liste ordonnée <ol> pour les étapes restantes."
+  "subject": "Un titre d'e-mail court et accrocheur",
+  "body": "Le corps de l'e-mail en HTML. Utilise des paragraphes <p> pour chaque idée. N'utilise PAS de <br>. La réponse doit être un bloc de texte cohérent commençant par 'Salut {firstName},' et se terminant par 'À bientôt, OrIA'."
 }
 `;
-
 
 // MODIFIEZ VOTRE FONCTION generateContent POUR UTILISER LA NOUVELLE FONCTION INTERNE
 exports.generateContent = functions
@@ -343,9 +366,10 @@ exports.sendTransactionalEmail = functions
                         isJson: true
                     });
 
-                    const emailContent = JSON.parse(aiResult);
-
-                    // 6. Envoyer l'e-mail via Brevo
+                    const emailContent = extractJsonFromString(aiResult);
+if (!emailContent) {
+    throw new Error("Impossible d'extraire un JSON valide de la réponse de l'IA.");
+}                    // 6. Envoyer l'e-mail via Brevo
                     await sendEmailWithBrevo({
                         templateId: 3, // ID de votre template d'e-mail hebdomadaire
                         toEmail: email,
@@ -439,8 +463,10 @@ exports.sendTutorialReminderEmail = functions
                         .replace('{remainingStepsList}', remainingStepsList); // On passe la liste complète
                     
                     const aiResult = await internalCallOpenAI({ promptText: prompt, isJson: true });
-                    const emailContent = JSON.parse(aiResult);
-
+const emailContent = extractJsonFromString(aiResult);
+if (!emailContent) {
+    throw new Error("Impossible d'extraire un JSON valide de la réponse de l'IA.");
+}
                     // 5. Envoyer l'e-mail
                     await sendEmailWithBrevo({
                         templateId: 5, // L'ID de votre template de rappel
