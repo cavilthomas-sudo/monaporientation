@@ -867,3 +867,52 @@ exports.getSchoolFromCode = functions
 
         return { success: true };
     });
+
+    // Importez les modules nécessaires en haut de votre fichier functions/index.js
+const { onCall } = require("firebase-functions/v2/https");
+const { OpenAI } = require("openai");
+
+// Configurez OpenAI avec votre clé API (idéalement via les variables d'environnement)
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+exports.generateSpeech = onCall(async (request) => {
+  // On s'assure que l'utilisateur est bien authentifié
+  if (!request.auth) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "Vous devez être connecté pour utiliser cette fonctionnalité."
+    );
+  }
+
+  const textToSpeak = request.data.text;
+  if (!textToSpeak) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Le texte à synthétiser est manquant."
+    );
+  }
+
+  try {
+    // Appel à l'API Text-to-Speech d'OpenAI
+    const mp3 = await openai.audio.speech.create({
+      model: "tts-1", // Modèle rapide et de haute qualité
+      voice: "nova",  // Voix naturelle et claire (autres options: alloy, echo, fable, onyx, shimmer)
+      input: textToSpeak,
+    });
+
+    // On convertit le flux audio en buffer, puis en chaîne Base64
+    const buffer = Buffer.from(await mp3.arrayBuffer());
+    const audioContent = buffer.toString("base64");
+
+    // On renvoie le contenu audio au client
+    return { audioContent: audioContent };
+  } catch (error) {
+    console.error("Erreur lors de l'appel à l'API OpenAI TTS:", error);
+    throw new functions.https.HttpsError(
+      "internal",
+      "Une erreur est survenue lors de la génération de l'audio."
+    );
+  }
+});
