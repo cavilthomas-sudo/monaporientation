@@ -1907,82 +1907,107 @@ const signupForm = document.getElementById('signupForm');
 // =======================================================================
 
 signupForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
+            e.preventDefault();
+            const authError = document.getElementById('authError');
+            authError.textContent = '';
 
-    // ▼▼▼ CORRECTION MAJEURE : ON RÉCUPÈRE TOUTES LES DONNÉES AVANT TOUT CHANGEMENT VISUEL ▼▼▼
-    const role = e.target.dataset.role;
-    const isStudent = role === 'eleve';
+            const role = e.target.dataset.role;
+            const isStudent = role === 'eleve';
 
-    // Données communes
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const firstName = capitalizeWords(document.getElementById('firstName').value);
-    const lastName = capitalizeWords(document.getElementById('lastName').value);
-    const gender = document.getElementById('gender').value;
+            // 1. Récupération des données du formulaire
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const firstName = capitalizeWords(document.getElementById('firstName').value);
+            const lastName = capitalizeWords(document.getElementById('lastName').value);
+            const gender = document.getElementById('gender').value;
 
-    // Données spécifiques (initialisées)
-    let schoolInfo = {};
-    
-    // On sauvegarde les données pour un éventuel "Réessayer"
-    signupFormData = { firstName, lastName, gender, email };
+            // Logique pour valider l'email académique pour les enseignants
+            if (!isStudent) {
+                const emailDomain = email.split('@')[1];
+                if (!approvedTeacherDomains.includes(emailDomain)) {
+                    authError.textContent = "Pour les enseignants, une adresse e-mail académique est requise.";
+                    return;
+                }
+            }
 
-    if (isStudent) {
-        const schoolMethod = document.querySelector('input[name="school_method"]:checked').value;
-        schoolInfo.method = schoolMethod;
-        if (schoolMethod === 'code') {
-            schoolInfo.code = document.getElementById('schoolCode').value.toUpperCase().trim();
-            signupFormData.schoolCode = schoolInfo.code;
-        } else {
-            schoolInfo.schoolName = capitalizeWords(document.getElementById('schoolNameStudent').value.trim());
-            schoolInfo.schoolCity = capitalizeWords(document.getElementById('schoolCityStudent').value.trim());
-            signupFormData.schoolName = schoolInfo.schoolName;
-            signupFormData.schoolCity = schoolInfo.schoolCity;
-        }
-    } else { // Enseignant
-        schoolInfo.schoolName = capitalizeWords(document.getElementById('schoolNameTeacher').value.trim());
-        schoolInfo.className = document.getElementById('className').value.trim();
-        schoolInfo.schoolCity = capitalizeWords(document.getElementById('schoolCityTeacher').value.trim());
-        signupFormData.schoolName = schoolInfo.schoolName;
-        signupFormData.className = schoolInfo.className;
-        signupFormData.schoolCity = schoolInfo.schoolCity;
-    }
-    // ▲▲▲ FIN DE LA RÉCUPÉRATION DES DONNÉES ▲▲▲
+            // Affichage de la fenêtre d'attente
+            authContainer.innerHTML = `
+                <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in text-center">
+                    <img src="logo_surprises.PNG" alt="Logo OrIAntation" class="mx-auto h-32 w-32 mb-4">
+                    <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Finalisation de l'inscription...</h2>
+                    <div class="loader mx-auto"></div>
+                </div>
+            `;
+            
+            try {
+                // 2. Création de l'utilisateur avec le SDK client (l'ancienne méthode qui fonctionne)
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
 
-    // Maintenant que TOUT est sauvegardé, on peut afficher la fenêtre d'attente
-    authContainer.innerHTML = `
-        <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in text-center">
-            <img src="logo_surprises.PNG" alt="Logo OrIAntation" class="mx-auto h-32 w-32 mb-4">
-            <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Finalisation de l'inscription...</h2>
-            <p class="text-slate-600 mb-6">Envoi de l'e-mail de vérification à <strong>${email}</strong>...</p>
-            <div class="loader mx-auto"></div>
-        </div>
-    `;
+                // 3. Préparation des données pour Firestore
+                const userData = {
+                    firstName,
+                    lastName,
+                    email,
+                    role,
+                    gender,
+                    createdAt: new Date(),
+                    lastActivity: new Date(),
+                    journal: defaultData // Initialise avec un journal par défaut
+                };
+                
+                // Logique pour l'établissement (simplifiée, car la logique complexe est gérée côté serveur)
+                if (isStudent) {
+                    const schoolMethod = document.querySelector('input[name="school_method"]:checked').value;
+                    if (schoolMethod === 'code') {
+                         const getSchool = httpsCallable(functions, 'getSchoolFromCode');
+                         const result = await getSchool({ code: document.getElementById('schoolCode').value });
+                         userData.schoolId = result.data.schoolId;
+                         userData.schoolName = result.data.schoolName;
+                         userData.classId = result.data.classId;
+                    } else {
+                        userData.schoolName = capitalizeWords(document.getElementById('schoolNameStudent').value);
+                    }
+                } else { // Enseignant
+                    // Pour les enseignants, la configuration de la classe se fait après
+                    userData.schoolName = capitalizeWords(document.getElementById('schoolNameTeacher').value);
+                    userData.className = document.getElementById('className').value;
+                }
 
-    try {
-        // On construit l'objet à envoyer au serveur avec les variables déjà récupérées
-        const formData = {
-            email: email,
-            password: password,
-            firstName: firstName,
-            lastName: lastName,
-            gender: gender,
-            role: role,
-            schoolInfo: schoolInfo
-        };
+                // 4. Enregistrement des données dans Firestore
+                await setDoc(doc(db, "users", user.uid), userData);
+                
+                // Si c'est un enseignant, on appelle la fonction pour créer sa classe
+                if (role === 'enseignant') {
+                    const setupClass = httpsCallable(functions, 'setupTeacherClass');
+                    await setupClass({
+                        schoolName: userData.schoolName,
+                        className: userData.className,
+                        schoolCity: capitalizeWords(document.getElementById('schoolCityTeacher').value)
+                    });
+                }
 
-        // On appelle la fonction serveur (cette partie est correcte)
-        const createUser = httpsCallable(functions, 'createUserAndProfile');
-        await createUser(formData);
-        
-        // Si ça réussit, on connecte l'utilisateur
-        await signInWithEmailAndPassword(auth, email, password);
+                // 5. Appel de VOTRE fonction Cloud pour envoyer l'email via Brevo
+                const templateId = (role === 'eleve') ? 1 : 2;
+                const sendEmailFunction = httpsCallable(functions, 'sendTransactionalEmail');
+                await sendEmailFunction({ templateId, toEmail: email, params: { firstName } });
 
-    } catch (error) {
-        // En cas d'échec, on réaffiche le formulaire avec les données pré-remplies et l'erreur
-        console.error("Erreur lors de l'inscription :", error);
-        renderSignupForm(role, error.message);
-    } 
-});
+                // La suite est gérée automatiquement par onAuthStateChanged qui affichera la vue de vérification.
+                // Pas besoin de faire signIn manuellement ici.
+
+            } catch (error) {
+                console.error("Erreur d'inscription:", error);
+                // On réaffiche le formulaire avec un message d'erreur clair
+                let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = "Cette adresse e-mail est déjà utilisée.";
+                } else if (error.code === 'functions/not-found' || error.message.includes('INVALID_ARGUMENT')) {
+                    errorMessage = "Le code d'établissement est invalide. Veuillez vérifier et réessayer.";
+                }
+                // On réaffiche le formulaire avec les données et l'erreur
+                renderSignupForm(role, errorMessage);
+            }
+        });
     addVoiceDictationToInputs();
 }
 
