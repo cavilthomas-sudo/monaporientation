@@ -7,6 +7,12 @@ const axios = require("axios");
 const SibApiV3Sdk = require('@getbrevo/brevo');
 const cors = require('cors')({origin: true});
 const webpush = require('web-push');
+const puppeteer = require("puppeteer");
+const runtimeOpts = {
+  timeoutSeconds: 120,
+  memory: "1GB",
+};
+
 
 
 // Initialisation de Firebase Admin
@@ -48,6 +54,63 @@ function extractJsonFromString(str) {
         return null;
     }
 }
+
+exports.generatePdf = functions
+  .runWith(runtimeOpts)
+  .https.onCall(async (data, context) => {
+    // 1. Récupération des données envoyées par le frontend
+    const journalHtml = data.html;
+    const printCss = data.css;
+
+    if (!journalHtml || !printCss) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "La fonction doit être appelée avec du contenu HTML et CSS."
+      );
+    }
+
+    let browser = null;
+    try {
+      // 2. Lancement de Puppeteer
+      browser = await puppeteer.launch({
+        headless: true,
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      });
+
+      const page = await browser.newPage();
+
+      // 3. Injection du HTML et du CSS dans la page virtuelle
+      await page.setContent(journalHtml, { waitUntil: "networkidle0" });
+      await page.addStyleTag({ content: printCss });
+
+      // 4. Génération du PDF
+      const pdfBuffer = await page.pdf({
+        format: "A4",
+        printBackground: true,
+        margin: {
+          top: "15mm",
+          right: "15mm",
+          bottom: "15mm",
+          left: "15mm",
+        },
+      });
+
+      // 5. Envoi du PDF au format Base64 (facile à gérer côté client)
+      return { pdf: pdfBuffer.toString("base64") };
+
+    } catch (error) {
+      console.error("Erreur Puppeteer:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Erreur lors de la génération du PDF.",
+        error.message
+      );
+    } finally {
+      if (browser) {
+        await browser.close();
+      }
+    }
+  });
 /**
  * Envoie une notification push à un utilisateur via ses abonnements enregistrés.
  * C'est la version finale, robuste et fonctionnelle.
@@ -103,8 +166,8 @@ async function sendPushNotification(userId, title, body) {
 }
 
 async function internalCallOpenAI({ promptText, model = 'gpt-4o', isJson = false, promptId = null, variables = {} }) {
-    const openaiApiKey = functions.config().openai.key;
-    if (!openaiApiKey) {
+const openaiApiKey = functions.config().openai.key;
+     if (!openaiApiKey) {
         throw new Error("Clé API OpenAI non configurée.");
     }
     const headers = { 'Authorization': `Bearer ${openaiApiKey}`, 'Content-Type': 'application/json' };
@@ -521,40 +584,46 @@ const allSteps = [
     { id: 'step9', category: 'build', levels: ['terminale'] }
 ];
 
-// Fonction corrigée
-// REMPLACER L'ANCIENNE FONCTION calculateProgress PAR CELLE-CI dans functions/index.js
 
 function calculateProgress(journal, gradeLevel) {
     if (!journal || !gradeLevel) return 0;
 
-    // Filtre les étapes disponibles pour le niveau de l'élève
-    const stepsForLevel = allSteps.filter(step => step.levels.includes(gradeLevel));
+    // On exclut uniquement les "non-étapes" du menu.
+    const nonTrackableStepIds = ['journal', 'retroplanning']; 
+    
+    // On récupère toutes les étapes pertinentes pour le niveau de l'élève.
+    const stepsForLevel = allSteps.filter(step => step.levels.includes(gradeLevel) && !nonTrackableStepIds.includes(step.id));
+    
+    if (stepsForLevel.length === 0) return 0;
 
-    // Exclut les étapes qui ne comptent pas pour la barre de progression
-    const nonTrackableStepIds = ['journal', 'retroplanning', 'step12'];
-    const trackableSteps = stepsForLevel.filter(step => !nonTrackableStepIds.includes(step.id));
+    let score = 0;
+    stepsForLevel.forEach(step => {
+        const stepKey = step.id;
+        const stepData = journal[stepKey];
 
-    // Compte combien de ces étapes ont été commencées
-    const startedCount = trackableSteps.filter(step => {
-    const stepData = journal[step.id];
-    if (!stepData) return false;
-    // On utilise ici la même logique que la fonction isStepStarted() du front-end
-    return Object.values(stepData).some(value => {
-        if (value === null || value === undefined) {
-            return false;
+        // Condition spéciale pour l'étape 0 : elle doit être "complète" (verte) pour compter 1 point.
+        if (stepKey === 'step0') {
+            const hasMainAnalysis = stepData?.analysis && stepData.analysis.trim() !== '';
+            const hasCrossAnalysis = stepData?.analyse_tests_croisee && stepData.analyse_tests_croisee.trim() !== '';
+            if (hasMainAnalysis && hasCrossAnalysis) {
+                score++;
+            }
+        } else {
+            // Pour toutes les autres étapes, on vérifie simplement si elles sont "commencées" (orange).
+            // On réplique la logique de la fonction `isStepStarted`.
+            if (stepData && Object.values(stepData).some(value => {
+                if (value === null || value === undefined) return false;
+                if (Array.isArray(value)) return value.length > 0;
+                if (typeof value === 'object' && !Array.isArray(value)) return Object.keys(value).length > 0;
+                return value.toString().trim() !== '';
+            })) {
+                score++;
+            }
         }
-        // Gère correctement les objets vides {}
-        if (typeof value === 'object' && !Array.isArray(value)) {
-            return Object.keys(value).length > 0;
-        }
-        // Gère les chaînes de caractères et les tableaux
-        return value.toString().trim() !== '';
     });
-}).length;
 
-    if (trackableSteps.length === 0) return 0;
-
-    return Math.round((startedCount / trackableSteps.length) * 100);
+    // Le score final est le nombre d'étapes validées sur le total des étapes disponibles.
+    return Math.round((score / stepsForLevel.length) * 100);
 }
 
 // Fonction pour le tableau de bord
@@ -869,50 +938,45 @@ exports.getSchoolFromCode = functions
     });
 
     // Importez les modules nécessaires en haut de votre fichier functions/index.js
-const { onCall } = require("firebase-functions/v2/https");
 const { OpenAI } = require("openai");
 
 // Configurez OpenAI avec votre clé API (idéalement via les variables d'environnement)
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+   apiKey: functions.config().openai.key,
 });
 
-exports.generateSpeech = onCall(async (request) => {
-  // On s'assure que l'utilisateur est bien authentifié
-  if (!request.auth) {
-    throw new functions.https.HttpsError(
-      "unauthenticated",
-      "Vous devez être connecté pour utiliser cette fonctionnalité."
-    );
+// ==========================================================
+// FONCTION generateSpeech (MISE À JOUR AVEC CHOIX DE VOIX)
+// ==========================================================
+
+exports.generateSpeech = functions.region("europe-west3").https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Vous devez être connecté.");
   }
 
-  const textToSpeak = request.data.text;
+  const textToSpeak = data.text;
+  // ▼▼▼ MODIFICATION 1 : On récupère la voix depuis la requête, avec 'nova' comme valeur par défaut ▼▼▼
+  const voice = data.voice || 'nova'; 
+
   if (!textToSpeak) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "Le texte à synthétiser est manquant."
-    );
+    throw new functions.https.HttpsError("invalid-argument", "Le texte à synthétiser est manquant.");
   }
 
   try {
-    // Appel à l'API Text-to-Speech d'OpenAI
     const mp3 = await openai.audio.speech.create({
-      model: "tts-1", // Modèle rapide et de haute qualité
-      voice: "nova",  // Voix naturelle et claire (autres options: alloy, echo, fable, onyx, shimmer)
+      model: "tts-1",
+      // ▼▼▼ MODIFICATION 2 : On utilise la variable 'voice' ici ▼▼▼
+      voice: voice,
       input: textToSpeak,
     });
 
-    // On convertit le flux audio en buffer, puis en chaîne Base64
     const buffer = Buffer.from(await mp3.arrayBuffer());
     const audioContent = buffer.toString("base64");
 
-    // On renvoie le contenu audio au client
     return { audioContent: audioContent };
+
   } catch (error) {
     console.error("Erreur lors de l'appel à l'API OpenAI TTS:", error);
-    throw new functions.https.HttpsError(
-      "internal",
-      "Une erreur est survenue lors de la génération de l'audio."
-    );
+    throw new functions.https.HttpsError("internal", "Erreur lors de la génération de l'audio.");
   }
 });

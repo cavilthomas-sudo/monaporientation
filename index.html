@@ -337,32 +337,63 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 
 let recognition;
 let activeDictationInput = null;
+let isConversationModeActive = false;
 
 if (SpeechRecognition) {
     recognition = new SpeechRecognition();
     recognition.lang = 'fr-FR';
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = true;  // L'écoute ne s'arrête pas après une phrase.
+    recognition.interimResults = true; // Affiche les résultats au fur et à mesure.
 
     recognition.onresult = (event) => {
-        if (activeDictationInput) {
-            const transcript = event.results[0][0].transcript;
-            activeDictationInput.value = transcript;
-            activeDictationInput.dispatchEvent(new Event('input', { bubbles: true }));
+        let final_transcript = '';
+        let interim_transcript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+                final_transcript += event.results[i][0].transcript;
+            } else {
+                interim_transcript += event.results[i][0].transcript;
+            }
+        }
+        
+        // Affiche la transcription en temps réel dans le champ
+        if (activeDictationInput && interim_transcript) {
+            activeDictationInput.value = final_transcript + interim_transcript;
+        }
+
+        // Une fois que l'utilisateur a fini de parler, on envoie la question
+        if (activeDictationInput && final_transcript) {
+            activeDictationInput.value = final_transcript.trim();
+            // Simule l'envoi du formulaire de chat si c'est bien ce champ qui est actif
+            if (activeDictationInput.id === 'simulation-input') {
+                const form = activeDictationInput.closest('form');
+                if (form) {
+                    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                }
+            }
         }
     };
 
     recognition.onerror = (event) => {
         console.error("Erreur de reconnaissance vocale : ", event.error);
+        isConversationModeActive = false; // Stoppe le mode en cas d'erreur
         document.querySelectorAll('.mic-dictation-btn.is-listening').forEach(btn => btn.classList.remove('is-listening'));
     };
 
     recognition.onend = () => {
-        document.querySelectorAll('.mic-dictation-btn.is-listening').forEach(btn => btn.classList.remove('is-listening'));
-        activeDictationInput = null;
-    };
+    // La relance se fait maintenant UNIQUEMENT via audioPlayer.onended
+    console.log("Reconnaissance vocale terminée.");
+    
+    // On s'assure simplement que l'icône est bien désactivée si le mode n'est plus actif
+    if (!isConversationModeActive) {
+         document.querySelectorAll('.mic-dictation-btn.is-listening').forEach(btn => btn.classList.remove('is-listening'));
+    }
+};
 }
 
+
+// DANS LA BALISE <script type="module"> de index.html
 
 function addVoiceDictationToInputs() {
     if (!SpeechRecognition) return;
@@ -370,44 +401,29 @@ function addVoiceDictationToInputs() {
     const inputs = document.querySelectorAll('input[type="text"]:not([readonly]), textarea:not([readonly])');
 
     inputs.forEach(input => {
-        if (input.parentElement.classList.contains('voice-input-wrapper')) {
-            return;
-        }
+        if (input.parentElement.classList.contains('voice-input-wrapper')) return;
 
         const micBtn = document.createElement('button');
         micBtn.type = 'button';
         micBtn.className = 'mic-dictation-btn';
-        micBtn.title = "Dicter la réponse";
-        micBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-            </svg>
-        `;
+        micBtn.title = "Activer/Désactiver le mode conversation";
+        micBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>`;
 
         const wrapper = document.createElement('div');
-        wrapper.className = 'relative voice-input-wrapper';
-
-        // ▼▼▼ AMÉLIORATION FINALE ICI ▼▼▼
-        // On copie les classes de mise en page importantes de l'input vers son conteneur.
-        if (input.classList.contains('flex-1')) {
-            wrapper.classList.add('flex-1');
-        }
-        if (input.classList.contains('w-full')) {
-            wrapper.classList.add('w-full');
-        }
-        // ▲▲▲ FIN DE L'AMÉLIORATION ▲▲▲
-
+        wrapper.className = 'relative voice-input-wrapper flex-1';
         input.parentNode.insertBefore(wrapper, input);
         wrapper.appendChild(input);
         wrapper.appendChild(micBtn);
 
         micBtn.addEventListener('click', () => {
-            const isListening = micBtn.classList.contains('is-listening');
-            
-            recognition.stop();
-            document.querySelectorAll('.mic-dictation-btn.is-listening').forEach(btn => btn.classList.remove('is-listening'));
-
-            if (!isListening) {
+            if (isConversationModeActive) {
+                // Si on clique alors que c'est actif, on arrête tout.
+                isConversationModeActive = false;
+                recognition.stop();
+                micBtn.classList.remove('is-listening');
+            } else {
+                // Si on clique alors que c'est inactif, on démarre.
+                isConversationModeActive = true;
                 activeDictationInput = input;
                 recognition.start();
                 micBtn.classList.add('is-listening');
@@ -866,8 +882,8 @@ step5: {
     stepKey: 'step6', title: 'Préparer sa candidature',     
     icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-OrIAntation-darkblue"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>`,
     description: `La rédaction du "projet de formation motivé" sur Parcoursup est une étape cruciale. Cet outil ne va pas écrire la lettre à ta place, mais t'aider à la structurer de manière claire et percutante.`,
-    action: `<b>Ta mission :</b> Utilise l'<b>Atelier de rédaction</b> pour préparer tes projets de formation motivés, un par un. Pour chaque projet, renseigne la formation et tes motivations, puis génère une structure avec l'aide de l'IA. Tu peux ensuite utiliser l'<b>Optimiseur de Paragraphe</b> pour affiner ton brouillon. Une fois que tu es satisfait, n'oublie pas de cliquer sur <b>"💾 Enregistrer ce projet de candidature"</b> pour l'ajouter à ta liste. Tu peux préparer autant de projets que tu le souhaites !`
-    // Note : la propriété "fields" a été supprimée car elle n'est plus utile.
+    action: `<b>Ta mission :</b> Utilise le nouvel <b>Atelier du Réviseur de Projet</b>. Pour chaque formation que tu vises, écris ou colle un premier brouillon complet de ton texte. Clique ensuite sur le bouton <b>"🔍 Lancer la relecture critique"</b>. OrIA ne réécrira pas ton texte, mais te fournira des annotations et des conseils ciblés pour que tu puisses l'améliorer toi-même. Une fois que tu es satisfait, n'oublie pas de cliquer sur <b>"💾 Enregistrer ce projet de candidature"</b> pour conserver ton travail dans ton journal.`
+    
  },
    step7: {
     stepKey: 'step7', 
@@ -3924,6 +3940,162 @@ function renderJournalPageView(userInfo, journalDataToDisplay) {
 
     return pageContainer;
 }
+
+
+async function generateProfessionalPDF() {
+    // 1. Initialisation du document PDF avec jsPDF
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4'
+    });
+
+    // 2. Définition des constantes pour la mise en page
+    const MARGIN = 15;
+    const PAGE_WIDTH = doc.internal.pageSize.getWidth();
+    const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
+    const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+    let yPos = MARGIN;
+
+    // 3. Polices et couleurs
+    const FONT_TITLE = 'Helvetica';
+    const FONT_BODY = 'Times';
+    const COLOR_TITLE = '#1A3263';
+    const COLOR_SUBTITLE = '#0891b2';
+    const COLOR_BODY = '#333333';
+
+    // 4. Fonctions utilitaires
+    const checkPageBreak = (heightNeeded) => {
+        if (yPos + heightNeeded > PAGE_HEIGHT - MARGIN) {
+            doc.addPage();
+            yPos = MARGIN;
+            addHeaderAndFooter();
+        }
+    };
+
+    const addHeaderAndFooter = () => {
+        const logoImg = new Image();
+        logoImg.src = 'logo.png';
+        doc.addImage(logoImg, 'PNG', MARGIN, 5, 15, 15);
+        
+        doc.setFont(FONT_TITLE, 'bold');
+        doc.setFontSize(18);
+        doc.setTextColor(COLOR_TITLE);
+        doc.text("OrIAntation - Journal de Bord", PAGE_WIDTH / 2, 15, { align: 'center' });
+
+        const pageCount = doc.internal.getNumberOfPages();
+        const dateStr = `Généré le ${new Date().toLocaleDateString('fr-FR')}`;
+        
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFont(FONT_BODY, 'italic');
+            doc.setFontSize(8);
+            doc.setTextColor(COLOR_BODY);
+            doc.text(dateStr, MARGIN, PAGE_HEIGHT - 8);
+            doc.text(`Page ${i} / ${pageCount}`, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 8, { align: 'right' });
+        }
+    };
+
+    const addSectionTitle = (title) => {
+        checkPageBreak(15);
+        doc.setFont(FONT_TITLE, 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(COLOR_SUBTITLE);
+        doc.text(title, MARGIN, yPos);
+        yPos += 8;
+        doc.setDrawColor(COLOR_SUBTITLE);
+        doc.line(MARGIN, yPos, MARGIN + CONTENT_WIDTH, yPos);
+        yPos += 8;
+    };
+    
+    const addBodyText = (text, options = {}) => {
+        // --- LA CORRECTION EST ICI ---
+        // On vérifie que le texte n'est pas vide, null ou undefined avant de l'écrire.
+        if (!text || text.trim() === '') {
+            return; // On ne fait rien et on passe à la suite.
+        }
+        // --- FIN DE LA CORRECTION ---
+
+        doc.setFont(FONT_BODY, options.style || 'normal');
+        doc.setFontSize(options.size || 11);
+        doc.setTextColor(options.color || COLOR_BODY);
+
+        const lines = doc.splitTextToSize(text, CONTENT_WIDTH);
+        checkPageBreak(lines.length * 5);
+        doc.text(lines, MARGIN, yPos);
+        yPos += lines.length * 5 + 4;
+    };
+    
+    // --- DÉBUT DE LA CONSTRUCTION DU CONTENU DU PDF ---
+
+    // -- Section 1 : Synthèse du Profil --
+    addSectionTitle("Synthèse du Profil");
+
+    if (journalData.step0 && journalData.step0.archetype) {
+        const archetype = journalData.step0.archetype;
+        addBodyText(`Archétype : ${archetype.titre}`, { style: 'bold', size: 12 });
+        addBodyText(archetype.description);
+
+        const chartCanvas = document.getElementById('profileBarChart');
+        if (chartCanvas) {
+            const chartImgData = await html2canvas(chartCanvas, { scale: 3, backgroundColor: null }).then(canvas => canvas.toDataURL('image/png'));
+            checkPageBreak(60);
+            doc.addImage(chartImgData, 'PNG', MARGIN, yPos, CONTENT_WIDTH, 60);
+            yPos += 65;
+        }
+    } else {
+        addBodyText("Le profil n'a pas encore été généré.");
+    }
+    yPos += 5;
+
+    // -- Section 2 : Fil Rouge --
+    if (journalData.fil_rouge) {
+        addSectionTitle("Mon Fil Rouge");
+        addBodyText(journalData.fil_rouge.replace(/\*\*/g, ''));
+    }
+
+    // -- Section 3 : Portfolio de Compétences --
+    if (journalData.step10 && (journalData.step10.experiences?.length > 0 || journalData.step10.skills_synthesis)) {
+        addSectionTitle("Portfolio de Compétences");
+        if(journalData.step10.experiences?.length > 0) {
+            addBodyText("Expériences valorisées :", { style: 'bold' });
+            journalData.step10.experiences.forEach(exp => {
+                addBodyText(`- ${exp.analysis}`);
+            });
+        }
+        if (journalData.step10.skills_synthesis) {
+            addBodyText("Synthèse des compétences :", { style: 'bold', size: 12 });
+            addBodyText(journalData.step10.skills_synthesis);
+        }
+    }
+    
+    // -- Section 4 : Sections du Journal --
+    const sectionsToExport = {
+        step1: 'Mes Fondations (Métiers)',
+        step3: 'Mon Catalogue (Formations)',
+        step2: 'Mes simulations de spécialités',
+    };
+
+    for(const [stepKey, title] of Object.entries(sectionsToExport)) {
+        if (isStepStarted(stepKey)) {
+            addSectionTitle(title);
+            if(stepKey === 'step1' && journalData.step1.metiers) {
+                 journalData.step1.metiers.forEach(metier => addBodyText(`- ${metier.nom}`));
+            }
+            if(stepKey === 'step3' && journalData.step3.formations) {
+                 journalData.step3.formations.forEach(f => addBodyText(`- ${f.nom}`));
+            }
+            if(stepKey === 'step2' && journalData.step2.combinations) {
+                 journalData.step2.combinations.forEach(c => addBodyText(`- ${c.name}`));
+            }
+        }
+    }
+
+    // --- FINALISATION ---
+    addHeaderAndFooter();
+    doc.save(`Journal_OrIAntation_${currentUserInfo.firstName}.pdf`);
+}
         
 function createHomeView() {
     return createMenuView();
@@ -4015,27 +4187,27 @@ function createProfileInfographic(step0Data, context = 'user') {
         <div id="riasec-legend" class="mt-6 text-sm text-slate-600 space-y-4 text-left">
             <div class="flex items-center gap-4">
                 <span class="text-2xl w-8">${'🛠️'}</span>
-                <div><strong class="font-semibold text-OrIAntation-darkblue">L'Artisan(e) Stellaire (Réaliste) :</strong> Aime le travail concret, physique, avec des outils ou en plein air.</div>
+                <div><strong class="font-semibold text-OrIAntation-darkblue">Le Profil Bâtisseur (Réaliste) :</strong> Aime le travail concret, physique, avec des outils ou en plein air.</div>
             </div>
             <div class="flex items-center gap-4">
                 <span class="text-2xl w-8">${'🔬'}</span>
-                <div><strong class="font-semibold text-OrIAntation-darkblue">L'Architecte de la Connaissance (Investigateur) :</strong> Aime analyser, comprendre, résoudre des problèmes complexes.</div>
+                <div><strong class="font-semibold text-OrIAntation-darkblue">Le Profil Analyste (Investigateur) :</strong> Aime analyser, comprendre, résoudre des problèmes complexes.</div>
             </div>
             <div class="flex items-center gap-4">
                 <span class="text-2xl w-8">${'🎨'}</span>
-                <div><strong class="font-semibold text-OrIAntation-darkblue">Le/La Visionnaire (Artistique) :</strong> Aime créer, imaginer, s'exprimer de manière non conventionnelle.</div>
+                <div><strong class="font-semibold text-OrIAntation-darkblue">Le Profil Créatif (Artistique) :</strong> Aime créer, imaginer, s'exprimer de manière non conventionnelle.</div>
             </div>
             <div class="flex items-center gap-4">
                 <span class="text-2xl w-8">${'🤝'}</span>
-                <div><strong class="font-semibold text-OrIAntation-darkblue">Le/La Tisserand(e) de Liens (Social) :</strong> Aime aider, former, soigner, être en contact avec les autres.</div>
+                <div><strong class="font-semibold text-OrIAntation-darkblue">Le Profil Relationnel (Social) :</strong> Aime aider, former, soigner, être en contact avec les autres.</div>
             </div>
             <div class="flex items-center gap-4">
                 <span class="text-2xl w-8">${'🚀'}</span>
-                <div><strong class="font-semibold text-OrIAntation-darkblue">Le/La Capitaine d'Expédition (Entreprenant) :</strong> Aime diriger, convaincre, mener des projets, prendre des décisions.</div>
+                <div><strong class="font-semibold text-OrIAntation-darkblue">Le Profil Initiateur (Entreprenant) :</strong> Aime diriger, convaincre, mener des projets, prendre des décisions.</div>
             </div>
             <div class="flex items-center gap-4">
                 <span class="text-2xl w-8">${'🏛️'}</span>
-                <div><strong class="font-semibold text-OrIAntation-darkblue">Le/La Gardien(ne) des Structures (Conventionnel) :</strong> Aime organiser, gérer, respecter les règles, travailler avec des données.</div>
+                <div><strong class="font-semibold text-OrIAntation-darkblue">Le Profil Organisateur (Conventionnel) :</strong> Aime organiser, gérer, respecter les règles, travailler avec des données.</div>
             </div>
         </div>
     `;
@@ -4055,7 +4227,14 @@ function createProfileInfographic(step0Data, context = 'user') {
             }
         }
         
-        const archetypeLabels = { R:"L'Artisan(e) Stellaire (Réaliste)", I:"L'Architecte de la Connaissance (Investigateur)", A:"Le/La Visionnaire (Artistique)", S:"Le/La Tisserand(e) de Liens (Social)", E:"Le/La Capitaine d'Expédition (Entreprenant)", C:"Le/La Gardien(ne) des Structures (Conventionnel)" };
+        const archetypeLabels = { 
+            R: "Le Profil Bâtisseur (Réaliste)",
+            I: "Le Profil Analyste (Investigateur)",
+            A: "Le Profil Créatif (Artistique)",
+            S: "Le Profil Relationnel (Social)",
+            E: "Le Profil Initiateur (Entreprenant)",
+            C: "Le Profil Organisateur (Conventionnel)"
+        };
         const labels = ['🛠️', '🔬', '🎨', '🤝', '🚀', '🏛️'];
         const dataKeys = ['R', 'I', 'A', 'S', 'E', 'C'];
         const dataPoints = dataKeys.map(key => riasecScores[key]);
@@ -4099,11 +4278,12 @@ function createProfileInfographic(step0Data, context = 'user') {
 
     return container;
 }
-        function createQuestionHTML(id, label, options, selectedValue) {
-            let optionsHTML = '<option value="">Choisir...</option>';
-            for (const [value, data] of Object.entries(options)) {
-                optionsHTML += `<option value="${value}" ${selectedValue === value ? 'selected' : ''} title="${data.description}">${data.text}</option>`;
-            }
+
+function createQuestionHTML(id, label, options, selectedValue) {
+    let optionsHTML = '<option value="">Choisir...</option>';
+    for (const [value, data] of Object.entries(options)) {
+        optionsHTML += `<option value="${value}" ${selectedValue === value ? 'selected' : ''} title="${data.description}">${data.text}</option>`;
+    }
             return `
                 <div class="mb-4">
                     <label class="block text-md font-medium text-slate-700 mb-2">${id}. ${label}</label>
@@ -4312,12 +4492,21 @@ const analysisPrompt = `
             # Ta Mission
             Rédige une analyse complète, bienveillante et structurée. Tu dois **impérativement prendre en compte son auto-évaluation** pour personnaliser ton introduction et tes conclusions. Si l'élève a mentionné des pistes, commente-les à la lumière de son profil. S'il est perdu, rassure-le et montre-lui comment son profil peut être un point de départ solide.
 
-            # Format de Sortie
-            La réponse doit être structurée exactement comme suit :
-            1.  **Synthèse de ton profil :** Un paragraphe de résumé global et positif.
-            2.  **Tes atouts et Pistes de Réflexion :** Analyse son mode de fonctionnement et ses forces. Suggère une piste de développement.
-            3.  **Les Environnements Faits pour toi :** Décris le type d'environnement et suggère 2-3 grands domaines/secteurs.
-            4.  **Actions concrètes dans l'app OrIAntation :** Une liste de 2 suggestions d'actions basées sur le mode d'emploi.
+            # Format de Sortie (TRÈS IMPORTANT)
+            Ta réponse doit être fluide et naturelle. Il est **impératif** de ne JAMAIS utiliser de listes numérotées (1., 2.) ou de listes à puces (*, -).
+            Structure ta réponse en utilisant uniquement les titres suivants, en gras (avec **). Chaque section doit être un paragraphe entièrement rédigé.
+
+            **Synthèse de ton profil**
+            (Rédige ici le paragraphe de résumé global et positif.)
+
+            **Tes atouts et Pistes de Réflexion**
+            (Rédige ici l'analyse de son mode de fonctionnement et de ses forces.)
+
+            **Les Environnements Faits pour toi**
+            (Rédige ici la description du type d'environnement et les suggestions de domaines.)
+
+            **Actions concrètes dans l'app OrIAntation**
+            (Rédige ici les 2 suggestions d'actions, intégrées dans un paragraphe fluide.)
         `;
     
         profileAnalysis = await callOpenAI_API({
@@ -4343,7 +4532,7 @@ const analysisPrompt = `
 
         const archetypePrompt = `
     # Ton Rôle
-    Tu es un psychologue expert en orientation, maître dans l'art de créer des profils synthétiques et inspirants.
+    Tu es un psychologue expert en orientation, chargé de créer des profils synthétiques et clairs.
 
     # Contexte Fourni
     - Genre de l'élève : ${userGender}
@@ -4355,21 +4544,23 @@ const analysisPrompt = `
 
     # Ta Mission en 2 étapes
     1.  **Identifier l'Archétype Principal :** En te basant sur le profil RIASEC Majeur, choisis l'archétype correspondant dans cette liste :
-        - Réaliste (R) : L'Artisan Stellaire / L'Artisane Stellaire (Icône : 🛠️)
-        - Investigateur (I) : L'Architecte de la Connaissance (Icône : 🔬)
-        - Artistique (A) : Le Visionnaire / La Visionnaire (Icône : 🎨)
-        - Social (S) : Le Tisserand de Liens / La Tisserande de Liens (Icône : 🤝)
-        - Entreprenant (E) : Le Capitaine d'Expédition (Icône : 🚀)
-        - Conventionnel (C) : Le Gardien des Structures / La Gardienne des Structures (Icône : 🏛️)
+        - Réaliste (R) : Le Profil Bâtisseur / La Bâtisseuse (Icône : 🛠️)
+        - Investigateur (I) : Le Profil Analyste (Icône : 🔬)
+        - Artistique (A) : Le Profil Créatif / La Créative (Icône : 🎨)
+        - Social (S) : Le Profil Relationnel (Icône : 🤝)
+        - Entreprenant (E) : Le Profil Initiateur / L'Initiatrice (Icône : 🚀)
+        - Conventionnel (C) : Le Profil Organisateur / L'Organisatrice (Icône : 🏛️)
     
-    2.  **Créer la Variante Personnalisée :** Invente un nom de variante unique et épique en fusionnant les traits des profils RIASEC Majeur, Secondaire et Tertiaire. Rédige ensuite une description qui combine ces trois traits, en t'inspirant de l'analyse de personnalité brute.
+    2.  **Créer le Titre Descriptif :** Crée un titre descriptif en combinant les noms des profils RIASEC Majeur, Secondaire et Tertiaire.
+        Le format doit être : "Profil [Majeur], à dominante [Secondaire] et [Tertiaire]".
+        Par exemple, pour un profil I-A-S, le titre sera "Profil Analyste, à dominante Créative et Relationnelle".
 
     # Format de Sortie OBLIGATOIRE
     La réponse DOIT être un unique objet JSON valide, sans aucun texte avant ou après.
     {
       "icone": "L'icône de l'archétype principal.",
-      "titre": "Le nom de la variante personnalisée, accordé au genre de l'élève.",
-      "description": "La description personnalisée en 2 ou 3 phrases qui fusionne les trois traits RIASEC."
+      "titre": "Le titre descriptif combiné, accordé au genre de l'élève.",
+      "description": "Une description personnalisée en 2 ou 3 phrases qui fusionne les trois traits RIASEC, en s'inspirant de l'analyse de personnalité brute."
     }
 `;
         rawArchetypeResponse = await callOpenAI_API({
@@ -6155,28 +6346,88 @@ const partie4FonctionnalitesHTML_enseignants = `
 }
 
 
+
+// ==============================================================================
+// BLOC FINAL ET COMPLET POUR L'ÉTAPE 4 (SANS PLACEHOLDER)
+// ==============================================================================
+
 function createStep4View() {
     const config = stepsConfig.step4;
     const div = document.createElement('div');
     div.className = 'fade-in';
 
+    const audioPlayer = document.getElementById('tts-audio-player');
+    const silentMp3 = 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU2LjM2LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV6urq6urq6urq6urq6urq6urq6urq6urq6v////////////////////////////////8AAAAATGF2YzU2LjQxAAAAAAAAAAAAAAAAJAAAAAAAAAAAASDs90hvAAAAAAAAAAAAAAAAAAAA//MUZAAAAAGkAAAAAAAAA0gAAAAATEFN//MUZAMAAAGkAAAAAAAAA0gAAAAARTMu//MUZAYAAAGkAAAAAAAAA0gAAAAA';
+
+    // La fonction speakText est locale pour être autonome.
+    // C'est une copie exacte de la logique fonctionnelle de l'Étape 8.
+    async function speakText(text, voice, messageWrapper) {
+        try {
+            if (isConversationModeActive) {
+                recognition.stop();
+            }
+            const generateSpeech = httpsCallable(functions, 'generateSpeech');
+            const result = await generateSpeech({ text: text, voice: voice });
+            
+            if (result.data && result.data.audioContent) {
+                const audioSrc = `data:audio/mpeg;base64,${result.data.audioContent}`;
+                audioPlayer.src = audioSrc;
+
+                audioPlayer.onloadedmetadata = () => {
+                    const duration = audioPlayer.duration;
+                    const words = text.split(/\s+/);
+                    const wordCount = words.length;
+                    const delay = (duration * 1000) / (wordCount || 1);
+
+                    const textContainer = document.createElement('p');
+                    messageWrapper.innerHTML = '';
+                    messageWrapper.className = 'bg-cyan-100 text-cyan-800 p-3 rounded-lg max-w-xs';
+                    messageWrapper.appendChild(textContainer);
+
+                    let wordIndex = 0;
+                    audioPlayer.play();
+
+                    audioPlayer.onended = () => {
+                        if (isConversationModeActive) {
+                            recognition.start();
+                        }
+                        audioPlayer.onended = null;
+                    };
+
+                    const interval = setInterval(() => {
+                        if (wordIndex < words.length) {
+                            textContainer.textContent += words[wordIndex] + ' ';
+                            wordIndex++;
+                        } else {
+                            clearInterval(interval);
+                        }
+                    }, delay);
+                };
+                audioPlayer.load();
+            } else {
+                throw new Error("La réponse de la fonction est vide.");
+            }
+        } catch (error) {
+            messageWrapper.innerHTML = `<div class="bg-red-100 text-red-800 p-3 rounded-lg max-w-xs"><p>Erreur audio. Voici le message : ${text}</p></div>`;
+            console.error("Erreur de la voix OpenAI :", error);
+        }
+    }
+    
     // Initialisation de la structure de données
     if (!journalData.step4.themes || !Array.isArray(journalData.step4.themes)) {
         journalData.step4.themes = [];
     }
 
-    // Variables locales pour la simulation et l'atelier
-    let currentSimTheme = '';
     let conversationHistory = [];
+    let currentSimTheme = '';
     let currentExploration = { theme: '', question: '', suggestions: '' };
 
-    // --- STRUCTURE HTML COMPLÈTE (AVEC LA MODALE RÉINTÉGRÉE) ---
+    // --- Structure HTML complète ---
     div.innerHTML = `
         <h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 md:whitespace-nowrap text-OrIAntation-darkblue mb-6">${config.icon} <span>${config.title}</span></h1>
         <div class="text-slate-600 mb-4 whitespace-pre-wrap">${config.description}</div>
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6"><div class="font-semibold text-cyan-900">${config.action}</div></div>
         <div class="mb-8"><a href="${config.url}" target="_blank" class="inline-block bg-cyan-100 text-cyan-800 font-semibold py-2 px-4 rounded-lg hover:bg-cyan-200 transition">Visiter ${config.site} ↗</a></div>
-
         <div id="workspace" class="bg-white p-6 rounded-2xl shadow-lg border-2 border-dashed border-cyan-300 mb-8">
             <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-3 text-center">Atelier de Préparation d'Échange</h2>
             <div class="mb-4"><label for="current-theme" class="block text-md font-medium">Thème ou formation</label><input type="text" id="current-theme" class="w-full mt-1 p-3 border rounded-lg" placeholder="Ex: Écoles d'ingénieurs"></div>
@@ -6191,34 +6442,35 @@ function createStep4View() {
         </div>
         <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Mes Préparations Enregistrées</h2>
         <div id="saved-themes-container" class="space-y-3 mb-8"></div>
-
         <div id="simulation-modal" class="simulation-modal hidden fixed inset-0 z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col h-[80vh]">
-                <div class="flex items-center justify-between p-4 border-b bg-background-light rounded-t-2xl">
-                    <h3 class="font-bold text-OrIAntation-darkblue">🤖 Simulation d'entretien</h3>
-                    <button id="simulation-close" class="text-slate-500 hover:text-OrIAntation-darkblue text-2xl">&times;</button>
-                </div>
+                <div class="flex items-center justify-between p-4 border-b bg-background-light rounded-t-2xl"><h3 class="font-bold text-OrIAntation-darkblue">🎓 Discussion avec un éclaireur</h3><button id="simulation-close" class="text-slate-500 hover:text-OrIAntation-darkblue text-2xl">&times;</button></div>
                 <div id="simulation-messages" class="flex-1 p-4 overflow-y-auto simulation-message-container"></div>
-                <form id="simulation-form" class="p-4 border-t flex items-center gap-2">
-                    <input type="text" id="simulation-input" placeholder="Écris ta réponse..." class="flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none">
-                    <button type="submit" class="bg-cyan-600 text-white p-2 rounded-lg font-semibold hover:bg-cyan-700">Envoyer</button>
-                </form>
+                <form id="simulation-form" class="p-4 border-t flex items-center gap-2"><input type="text" id="simulation-input" placeholder="Écris ou dis ta réponse..." class="flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none"><button type="submit" class="bg-cyan-600 text-white p-2 rounded-lg font-semibold hover:bg-cyan-700">Envoyer</button></form>
             </div>
         </div>
     `;
     
-    // --- SÉLECTION DES ÉLÉMENTS ---
-    const generateBtn = div.querySelector('#generate-questions-btn');
-    const launchSimBtn = div.querySelector('#launch-sim-btn');
-    const saveBtn = div.querySelector('#save-theme-btn');
     const savedContainer = div.querySelector('#saved-themes-container');
     const simulationModal = div.querySelector('#simulation-modal');
-    const simulationForm = div.querySelector('#simulation-form');
-    const simulationInput = div.querySelector('#simulation-input');
     const simulationMessages = div.querySelector('#simulation-messages');
-    const simulationCloseBtn = div.querySelector('#simulation-close');
+
+    const addSimMessage = (sender) => {
+        const messageWrapper = document.createElement('div');
+        messageWrapper.className = 'flex mb-4';
+        const messageBubble = document.createElement('div');
+        if (sender === 'user') {
+            messageWrapper.classList.add('justify-end');
+        } else {
+            messageBubble.className = 'bg-cyan-100 p-3 rounded-lg';
+            messageBubble.innerHTML = `<div class="chatbot-loader"></div>`;
+        }
+        messageWrapper.appendChild(messageBubble);
+        simulationMessages.appendChild(messageWrapper);
+        simulationMessages.scrollTop = simulationMessages.scrollHeight;
+        return messageBubble;
+    };
     
-    // --- FONCTIONS HELPERS COMPLÈTES ---
     const renderSavedThemes = () => {
         if (!savedContainer) return;
         const themes = journalData.step4.themes || [];
@@ -6248,22 +6500,8 @@ function createStep4View() {
         div.querySelector('#result').innerHTML = '';
     };
 
-    const addSimMessage = (text, sender) => {
-        const messageWrapper = document.createElement('div');
-        messageWrapper.className = 'flex mb-4';
-        let messageContent = '';
-        if (sender === 'user') { messageWrapper.classList.add('justify-end'); messageContent = `<div class="bg-blue-500 text-white p-3 rounded-lg max-w-xs"><p>${text}</p></div>`; } 
-        else if (sender === 'ai') { messageContent = `<div class="bg-cyan-100 text-cyan-800 p-3 rounded-lg max-w-xs"><p>${text}</p></div>`; } 
-        else { messageContent = `<div class="bg-cyan-100 p-3 rounded-lg"><div class="chatbot-loader"></div></div>`; }
-        messageWrapper.innerHTML = messageContent;
-        simulationMessages.appendChild(messageWrapper);
-        simulationMessages.scrollTop = simulationMessages.scrollHeight;
-        return messageWrapper;
-    };
-
-    // --- LOGIQUE DES ÉVÉNEMENTS COMPLÈTE ---
-    
-    generateBtn.addEventListener('click', async () => {
+    // --- Logique des événements d'origine de l'étape 4 ---
+    div.querySelector('#generate-questions-btn').addEventListener('click', async () => {
         const theme = div.querySelector('#current-theme').value.trim();
         const questionBase = div.querySelector('#current-question').value.trim();
         if (!theme || !questionBase || !journalData.step0.analysis) {
@@ -6279,27 +6517,8 @@ function createStep4View() {
         resultDiv.innerHTML = marked.parse(result);
         currentExploration.suggestions = result;
     });
-    
-    launchSimBtn.addEventListener('click', async () => {
-        const theme = div.querySelector('#current-theme').value.trim();
-        if (!theme) { showInfoModal("Veuillez d'abord renseigner un thème."); return; }
-        
-        currentSimTheme = theme;
-        conversationHistory = [];
-        simulationMessages.innerHTML = '';
-        simulationModal.classList.remove('hidden');
-        simulationModal.classList.add('flex');
-        
-        const loaderMsg = addSimMessage('', 'loader');
-        const startPrompt = `Tu es un étudiant "éclaireur" sympathique qui étudie en : "${currentSimTheme}". Un lycéen démarre la conversation. Envoie-lui un message de bienvenue pour l'inviter à poser sa première question.`;
-        const firstMessage = await callOpenAI_API({ promptText: startPrompt });
-        
-        loaderMsg.remove();
-        addSimMessage(firstMessage, 'ai');
-        conversationHistory.push({ role: 'model', parts: [{ text: firstMessage }] });
-    });
 
-    saveBtn.addEventListener('click', async () => {
+    div.querySelector('#save-theme-btn').addEventListener('click', async () => {
         currentExploration.theme = div.querySelector('#current-theme').value.trim();
         currentExploration.question = div.querySelector('#current-question').value.trim();
         if (!currentExploration.theme) { showInfoModal("Veuillez renseigner un thème."); return; }
@@ -6310,7 +6529,7 @@ function createStep4View() {
         resetWorkspace();
         showSurpriseModal("Préparation sauvegardée !", "Elle est maintenant dans ton journal.", 3000);
     });
-    
+
     savedContainer.addEventListener('click', async (e) => {
         if (e.target.closest('.delete-theme-btn')) {
             const index = e.target.closest('.delete-theme-btn').dataset.index;
@@ -6321,31 +6540,51 @@ function createStep4View() {
             }
         }
     });
-
-    simulationCloseBtn.addEventListener('click', () => {
-        simulationModal.classList.add('hidden');
-        simulationModal.classList.remove('flex');
-    });
-
-    simulationForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const userInput = simulationInput.value.trim();
-        if (!userInput) return;
-
-        addSimMessage(userInput, 'user');
-        simulationInput.value = '';
-        conversationHistory.push({ role: 'user', parts: [{ text: userInput }] });
-
-        const loaderMsg = addSimMessage('', 'loader');
-        const conversationPrompt = `Tu es un étudiant éclaireur qui étudie en "${currentSimTheme}". Continue la conversation en te basant sur l'historique : ${JSON.stringify(conversationHistory)}. Réponds à la dernière question.`;
-        const aiResponse = await callOpenAI_API({ promptText: conversationPrompt });
+    
+    // --- Logique de la simulation orale (copiée de l'étape 8 et adaptée) ---
+    div.querySelector('#launch-sim-btn').addEventListener('click', async () => {
+        if (audioPlayer.paused) { audioPlayer.src = silentMp3; audioPlayer.play().catch(() => {}); }
         
-        loaderMsg.remove();
-        addSimMessage(aiResponse, 'ai');
-        conversationHistory.push({ role: 'model', parts: [{ text: aiResponse }] });
+        currentSimTheme = div.querySelector('#current-theme').value.trim();
+        if (!currentSimTheme) { showInfoModal("Veuillez d'abord renseigner un thème."); return; }
+        
+        conversationHistory = [];
+        simulationMessages.innerHTML = '';
+        simulationModal.classList.remove('hidden');
+        simulationModal.classList.add('flex');
+        
+        const loaderBubble = addSimMessage('ai');
+        
+        const startPrompt = `Tu incarnes un 'étudiant éclaireur' en fin de cursus dans le domaine de "${currentSimTheme}". Tu es un spécialiste passionné qui maîtrise parfaitement ta formation. Ta mission est de donner des conseils concrets et des retours d'expérience authentiques à un lycéen. Évite les généralités. Ton ton est celui d'un grand frère ou d'une grande sœur : accessible, direct, mais très compétent. Commence par une brève salutation, puis pose une question ouverte et précise pour lancer la discussion sur les aspects concrets de la formation.`;
+        const firstMessage = await callOpenAI_API({ promptText: startPrompt, withPersona: false });
+        
+        speakText(firstMessage, 'alloy', loaderBubble);
+        conversationHistory.push({ role: 'model', parts: [{ text: firstMessage }] });
     });
 
-    renderSavedThemes();
+   div.querySelector('#simulation-close').addEventListener('click', () => {
+    simulationModal.classList.add('hidden');
+    simulationModal.classList.remove('flex');
+
+    // 1. On coupe le son de l'IA si elle est en train de parler
+    if (audioPlayer) {
+        audioPlayer.pause();
+        audioPlayer.src = '';
+        // Très important : on supprime l'événement pour éviter qu'il ne relance le micro plus tard
+        audioPlayer.onended = null; 
+    }
+    
+    // 2. On coupe le micro de l'élève s'il est actif
+    if (recognition && isConversationModeActive) {
+        recognition.stop();
+    }
+
+    // 3. On réinitialise les états pour dire que la conversation est bien terminée
+    isConversationModeActive = false;
+    isAISpeaking = false; 
+});
+    
+    renderSavedThemes(); // Affichage initial
     return div;
 }
 
@@ -6466,18 +6705,18 @@ function createStep5View() {
         
         // REMPLACEZ VOTRE FONCTION createStep6View EXISTANTE PAR CELLE-CI :
 // ==================== REMPLACEZ TOUTE LA FONCTION createStep6View ====================
+// ==================== REMPLACEZ VOTRE FONCTION createStep6View PAR CELLE-CI (VERSION CORRIGÉE) ====================
 function createStep6View() {
     const config = stepsConfig.step6;
     const div = document.createElement('div');
     div.className = 'fade-in bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-border-subtle';
 
-    // 1. Initialisation de la structure de données en tableau
     if (!journalData.step6.projets || !Array.isArray(journalData.step6.projets)) {
         journalData.step6.projets = [];
     }
     
     // Objet temporaire pour l'atelier en cours
-    let currentExploration = { formation: '', motivations: '', structure: '', optimisation: '' };
+    let currentExploration = { formation: '', brouillon: '', analyse: '' };
 
     div.innerHTML = `
         <h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 md:whitespace-nowrap text-OrIAntation-darkblue mb-6">${config.icon} <span>${config.title}</span></h1>
@@ -6485,35 +6724,22 @@ function createStep6View() {
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6"><div class="font-semibold text-cyan-900">${config.action}</div></div>
 
         <div id="workspace" class="bg-white p-6 rounded-2xl shadow-lg border-2 border-dashed border-cyan-300 mb-8">
-            <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-3 text-center">✍️ Atelier de rédaction</h2>
+            <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-3 text-center">✍️ Atelier du Réviseur de Projet</h2>
             <div class="mb-4">
-                <label for="current-formation" class="block text-md font-medium text-slate-700 mb-2">Formation visée</label>
+                <label for="current-formation" class="block text-md font-medium text-slate-700 mb-2">Formation visée (pour donner du contexte à l'IA)</label>
                 <input type="text" id="current-formation" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Ex: BUT Informatique - IUT de Villetaneuse">
             </div>
              <div class="mb-4">
-                <label for="current-motivations" class="block text-md font-medium text-slate-700 mb-2">Mes motivations, compétences, expériences (en vrac)</label>
-                <textarea id="current-motivations" rows="5" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Ex: J'aime résoudre des problèmes logiques..."></textarea>
+                <label for="current-brouillon" class="block text-md font-medium text-slate-700 mb-2">Colle ici ton brouillon de projet de formation motivé</label>
+                <textarea id="current-brouillon" rows="12" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Écris ou colle ici ton texte complet..."></textarea>
             </div>
             <div class="text-center mb-4">
-                <button type="button" id="generate-structure-btn" class="bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">✨ Générer une structure de lettre</button>
+                <button type="button" id="review-draft-btn" class="bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition">🔍 Lancer la relecture critique</button>
             </div>
-            <div id="loader-structure" class="hidden"><div class="loader"></div></div>
-             <div class="mb-4">
-                <label for="current-structure" class="block text-md font-medium text-slate-700 mb-2">Proposition de structure</label>
-                <textarea id="current-structure" rows="8" class="w-full p-3 border border-slate-300 rounded-lg bg-background-light" readonly></textarea>
-            </div>
-
-            <div class="mt-8 border-t pt-6">
-                <h3 class="text-lg font-bold text-OrIAntation-darkblue mb-2">💡 Optimiseur de Paragraphe</h3>
-                <div class="mb-4">
-                     <label for="current-brouillon" class="block text-md font-medium text-slate-700 mb-2">Mon brouillon</label>
-                    <textarea id="current-brouillon" rows="6" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Écris ici le paragraphe que tu souhaites améliorer..."></textarea>
-                </div>
-                <div class="text-center">
-                    <button type="button" id="optimize-paragraph-btn" class="w-full bg-teal-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-600 transition">Améliorer mon paragraphe</button>
-                </div>
-                <div id="loader-optimize" class="hidden"><div class="loader"></div></div>
-                <div id="optimization-result" class="mt-4 p-4 bg-teal-50 border border-teal-200 rounded-lg text-slate-700 whitespace-pre-wrap"></div>
+            <div id="loader-review" class="hidden my-4"><div class="loader"></div></div>
+            <div id="review-result-container" class="hidden">
+                 <h3 class="text-lg font-bold text-OrIAntation-darkblue mb-2">Annotations et conseils ciblés :</h3>
+                 <div id="review-result" class="p-4 bg-background-light border rounded-lg prose prose-sm max-w-none"></div>
             </div>
             <button type="button" id="save-projet-btn" class="w-full mt-6 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700 transition">💾 Enregistrer ce projet de candidature</button>
         </div>
@@ -6522,72 +6748,96 @@ function createStep6View() {
         <div id="saved-projets-container" class="space-y-3"></div>
     `;
 
-    // 4. Les fonctions JavaScript pour gérer la dynamique
+    // --- Fonctions de l'atelier ---
+
     const renderSavedProjets = () => {
         const container = div.querySelector('#saved-projets-container');
         const projets = journalData.step6.projets || [];
         if (projets.length === 0) {
-            container.innerHTML = `<p class="text-center text-slate-500 p-4 bg-background-light rounded-lg">Tu n'as pas encore de projet de candidature enregistré.</p>`;
+            container.innerHTML = `<p class="text-center text-slate-500 p-4 bg-background-light rounded-lg">Aucun projet enregistré.</p>`;
             return;
         }
         container.innerHTML = projets.map((projet, index) => {
-            let contentHTML = `
-                <div class="mb-2"><p class="font-semibold">Motivations :</p><p class="whitespace-pre-wrap text-sm">${projet.motivations || ''}</p></div>
-                <div class="mb-2"><p class="font-semibold">Structure proposée :</p><p class="whitespace-pre-wrap text-sm">${projet.structure || ''}</p></div>
-                ${projet.optimisation ? `<div class="mb-2"><p class="font-semibold">Conseils d'optimisation :</p><p class="whitespace-pre-wrap text-sm">${projet.optimisation}</p></div>` : ''}
-            `;
-            return `
-                <details class="bg-background-light rounded-lg border border-border-subtle">
-                    <summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center">
-                        <span>${projet.formation}</span>
-                        <button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step6" data-entry-index="${index}">🗑️</button>
-                    </summary>
-                    <div class="p-3 border-t">${contentHTML}</div>
-                </details>`;
+            const deleteButtonHTML = `<button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step6" data-entry-index="${index}">🗑️</button>`;
+            return `<details class="bg-background-light rounded-lg border border-border-subtle">
+                        <summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center">
+                            <span>${projet.formation}</span>
+                            ${deleteButtonHTML}
+                        </summary>
+                        <div class="p-3 border-t">
+                            <h4 class="font-semibold mb-1">Brouillon :</h4>
+                            <p class="whitespace-pre-wrap text-sm mb-3 p-2 bg-white rounded border">${projet.brouillon}</p>
+                            <h4 class="font-semibold mb-1">Analyse de l'IA :</h4>
+                            <div class="prose prose-sm max-w-none">${marked.parse(projet.analyse || '')}</div>
+                        </div>
+                    </details>`;
         }).join('');
     };
 
     const resetWorkspace = () => {
-        currentExploration = { formation: '', motivations: '', structure: '', optimisation: '' };
+        currentExploration = { formation: '', brouillon: '', analyse: '' };
         div.querySelector('#current-formation').value = '';
-        div.querySelector('#current-motivations').value = '';
-        div.querySelector('#current-structure').value = '';
         div.querySelector('#current-brouillon').value = '';
-        div.querySelector('#optimization-result').innerHTML = '';
+        div.querySelector('#review-result-container').classList.add('hidden');
+        div.querySelector('#review-result').innerHTML = '';
     };
 
-    // 5. Les écouteurs d'événements pour les boutons de l'atelier
-    div.querySelector('#generate-structure-btn').addEventListener('click', async () => {
-        const formation = div.querySelector('#current-formation').value;
-        const motivations = div.querySelector('#current-motivations').value;
-        const loader = div.querySelector('#loader-structure');
-        const resultDiv = div.querySelector('#current-structure');
-        if (!formation.trim() || !motivations.trim()) { resultDiv.value = "Veuillez renseigner la formation et vos motivations."; return; }
-        loader.style.display = 'block'; resultDiv.value = '';
-        const prompt = `Agis comme un coach expert de Parcoursup. Formation visée: "${formation}". Motivations brutes: "${motivations}". Dossier de l'élève: "${getProfileSummary()}". Propose un plan détaillé en 3 paragraphes pour son projet de formation motivé. Pour chaque paragraphe, donne une phrase d'accroche et 2-3 points clés à développer.`;
-        const result = await callOpenAI_API({ promptText: prompt, withPersona: true });
-        loader.style.display = 'none';
-        resultDiv.value = result;
-        currentExploration.structure = result;
-    });
+    // --- Écouteurs d'événements ---
 
-    div.querySelector('#optimize-paragraph-btn').addEventListener('click', async () => {
-        const brouillon = div.querySelector('#current-brouillon').value;
-        const loader = div.querySelector('#loader-optimize');
-        const resultDiv = div.querySelector('#optimization-result');
-        if (!brouillon.trim()) { resultDiv.innerHTML = "<p>Veuillez écrire un brouillon.</p>"; return; }
-        loader.style.display = 'block'; resultDiv.innerHTML = '';
-        const prompt = `Agis comme un coach en écriture pour un lycéen. Son brouillon de paragraphe est : "${brouillon}". Donne 3 à 4 conseils ciblés pour qu'il l'améliore lui-même, sans le réécrire à sa place. Le ton doit être bienveillant. Fournis une liste à puces.`;
+    div.querySelector('#review-draft-btn').addEventListener('click', async () => {
+        const formation = div.querySelector('#current-formation').value.trim();
+        const brouillon = div.querySelector('#current-brouillon').value.trim();
+        const loader = div.querySelector('#loader-review');
+        const resultContainer = div.querySelector('#review-result-container');
+        const resultDiv = div.querySelector('#review-result');
+        
+        if (!formation || !brouillon) {
+            showInfoModal("Veuillez renseigner la formation visée ET votre brouillon.");
+            return;
+        }
+
+        loader.style.display = 'block';
+        resultContainer.classList.add('hidden');
+        
+        const prompt = `
+            Agis comme un conseiller d'orientation expert et un coach en écriture bienveillant, chargé de relire le "projet de formation motivé" d'un(e) lycéen(ne).
+
+            # Contexte
+            - **Profil de l'élève :** \${getProfileSummary()}
+            - **Compétences identifiées :** \${journalData.step10.skills_synthesis || 'Non renseignées'}
+            - **Formation visée :** "\${formation}"
+            - **Brouillon de l'élève :** """\${brouillon}"""
+
+            # Ta Mission (RÈGLE ABSOLUE)
+            Tu ne dois **JAMAIS réécrire** le texte à la place de l'élève. Ton unique mission est de fournir des **annotations et des conseils ciblés** pour l'aider à améliorer LUI-MÊME son texte.
+
+            # Format de Sortie OBLIGATOIRE
+            Ta réponse doit être une liste à puces au format Markdown. Chaque point doit suivre cette structure :
+            1.  **Citation Courte :** Cite une phrase ou un passage précis du brouillon entre guillemets.
+            2.  **Analyse Critique :** Fais une remarque constructive sur ce passage (ex: "un peu vague", "excellent point", "ton familier").
+            3.  **Suggestion d'Action :** Pose une question ou donne un conseil concret pour que l'élève améliore ce point précis. Fais le lien avec son portfolio, les "attendus" de la formation ou son profil quand c'est pertinent.
+
+            # Exemples de retours attendus :
+            - > **"J'ai toujours été passionné par l'informatique"** : Cette phrase est un peu vague. Pourrais-tu donner un exemple concret tiré de ton portfolio qui montre cette passion ? (un projet personnel, un cours que tu as aimé...).
+            - > **"Je suis très motivé pour rejoindre votre formation"** : Excellent point ! Essaie de lier cette motivation directement à un des 'attendus' de la formation ou à une spécificité du programme qui t'intéresse particulièrement.
+            - > **"Franchement, j'ai trop envie d'apprendre à coder"** : Le ton est un peu trop familier ici. Essaie de reformuler de manière plus formelle, par exemple : "Je suis particulièrement désireux d'acquérir de solides compétences en développement...".
+        `;
+
         const result = await callOpenAI_API({ promptText: prompt, withPersona: true });
+
         loader.style.display = 'none';
+        resultContainer.classList.remove('hidden');
         resultDiv.innerHTML = marked.parse(result);
-        currentExploration.optimisation = result;
+        currentExploration.analyse = result;
     });
 
     div.querySelector('#save-projet-btn').addEventListener('click', async () => {
         currentExploration.formation = div.querySelector('#current-formation').value.trim();
-        currentExploration.motivations = div.querySelector('#current-motivations').value.trim();
-        if (!currentExploration.formation) { showInfoModal("Veuillez renseigner un nom de formation."); return; }
+        currentExploration.brouillon = div.querySelector('#current-brouillon').value.trim();
+        if (!currentExploration.formation || !currentExploration.brouillon) {
+            showInfoModal("Veuillez renseigner la formation et le brouillon avant d'enregistrer.");
+            return;
+        }
         journalData.step6.projets.push(JSON.parse(JSON.stringify(currentExploration)));
         await saveData();
         await grantXp(40);
@@ -6596,12 +6846,22 @@ function createStep6View() {
         showSurpriseModal("Projet sauvegardé !", "Cette préparation est maintenant dans ton journal.", 3000);
     });
 
-    // 6. Affichage initial et retour au menu
-    renderSavedProjets();
-    
+    div.addEventListener('click', async (e) => {
+        const deleteBtn = e.target.closest('.delete-journal-entry');
+        if (deleteBtn) {
+            const index = parseInt(deleteBtn.dataset.entryIndex, 10);
+            if (await showConfirmationModal("Es-tu sûr de vouloir supprimer ce projet de candidature ?")) {
+                journalData.step6.projets.splice(index, 1);
+                await saveData();
+                renderSavedProjets();
+            }
+        }
+    });
 
+    renderSavedProjets();
     return div;
 }
+
 
 function createStep7View() {
     const config = stepsConfig.step7;
@@ -6845,71 +7105,147 @@ const result = await callOpenAI_API({
     return div;
 }
 
+
+// ==============================================================================
+// BLOC FINAL (V2) POUR L'ÉTAPE 8 : CORRECTION DU PROBLÈME DE LECTURE AUDIO
+// ==============================================================================
+
 function createStep8View() {
     const config = stepsConfig.step8;
     const div = document.createElement('div');
     div.className = 'fade-in';
 
-    // Initialisation de la nouvelle structure de données pour cette étape
+    // Référence au lecteur audio global
+    const audioPlayer = document.getElementById('tts-audio-player');
+
+
+async function speakText(text, messageWrapper) {
+    try {
+        // --- NOUVELLE LOGIQUE DE CONTRÔLE ---
+        // 1. On s'assure que le micro est bien coupé AVANT de faire quoi que ce soit.
+        if (isConversationModeActive) {
+            recognition.stop(); 
+        }
+
+        const generateSpeech = httpsCallable(functions, 'generateSpeech');
+        const result = await generateSpeech({ text: text });
+        
+        if (result.data && result.data.audioContent) {
+            const audioSrc = `data:audio/mpeg;base64,${result.data.audioContent}`;
+            audioPlayer.src = audioSrc;
+
+            audioPlayer.onloadedmetadata = () => {
+                const duration = audioPlayer.duration;
+                const words = text.split(/\s+/);
+                const wordCount = words.length;
+                const delay = (duration * 1000) / wordCount;
+
+                const textContainer = document.createElement('p');
+                messageWrapper.innerHTML = '';
+                messageWrapper.className = 'bg-cyan-100 text-cyan-800 p-3 rounded-lg max-w-xs';
+                messageWrapper.appendChild(textContainer);
+
+                let wordIndex = 0;
+                audioPlayer.play();
+
+                // 2. On réactive le micro SEULEMENT quand l'IA a fini de parler.
+                audioPlayer.onended = () => {
+                    if (isConversationModeActive) {
+                        console.log("IA a fini de parler, réactivation de l'écoute...");
+                        recognition.start(); // On relance l'écoute pour le tour de l'élève.
+                    }
+                    audioPlayer.onended = null; // On nettoie l'événement.
+                };
+
+                const interval = setInterval(() => {
+                    if (wordIndex < wordCount) {
+                        textContainer.textContent += words[wordIndex] + ' ';
+                        wordIndex++;
+                    } else {
+                        clearInterval(interval);
+                    }
+                }, delay);
+            };
+        } else {
+            throw new Error("La réponse de la fonction est vide.");
+        }
+    } catch (error) {
+        messageWrapper.innerHTML = `<div class="bg-red-100 text-red-800 p-3 rounded-lg max-w-xs"><p>Erreur audio. Voici le message : ${text}</p></div>`;
+        console.error("Erreur de la voix OpenAI :", error);
+    }
+}
+
+    // Initialisation de la structure de données
     if (!journalData.step8.preparations || !Array.isArray(journalData.step8.preparations)) {
         journalData.step8.preparations = [];
     }
 
-    // Variables locales pour la simulation et l'atelier
-    let currentSimPro = '';
+    // Variables de state pour la simulation
     let conversationHistory = [];
+    let currentSimPro = '';
     let currentExploration = { pro: '', question: '', suggestions: '' };
 
-    // --- STRUCTURE HTML COMPLÈTE DE LA NOUVELLE PAGE ---
+    // --- Structure HTML complète de la page ---
     div.innerHTML = `
         <h1 class="text-2xl font-bold text-center flex justify-center items-center gap-2 md:whitespace-nowrap text-OrIAntation-darkblue mb-6">${config.icon} <span>${config.title}</span></h1>
         <div class="text-slate-600 mb-4 whitespace-pre-wrap">${config.description}</div>
         <div class="bg-cyan-50 border-l-4 border-cyan-400 p-4 rounded-r-lg my-6"><div class="font-semibold text-cyan-900">${config.action}</div></div>
-        <div class="mb-8"><a href="https://www.myjobglasses.com/" target="_blank" class="inline-block bg-cyan-100 text-cyan-800 font-semibold py-2 px-4 rounded-lg hover:bg-cyan-200 transition">Visiter MyJobGlasses.com ↗</a></div>
+        
+        <div class="mb-8">
+            <a href="https://www.myjobglasses.com/" target="_blank" class="inline-block bg-cyan-100 text-cyan-800 font-semibold py-2 px-4 rounded-lg hover:bg-cyan-200 transition">Visiter MyJobGlasses ↗</a>
+        </div>
 
         <div id="workspace" class="bg-white p-6 rounded-2xl shadow-lg border-2 border-dashed border-cyan-300 mb-8">
             <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-3 text-center">Atelier de Préparation d'Entretien</h2>
-            <div class="mb-4"><label for="current-pro" class="block text-md font-medium">Professionnel ou secteur visé</label><input type="text" id="current-pro" class="w-full mt-1 p-3 border rounded-lg" placeholder="Ex: Ingénieur en cybersécurité, le secteur du jeu vidéo..."></div>
-            <div class="mb-4"><label for="current-question" class="block text-md font-medium">Ma question principale</label><textarea id="current-question" rows="2" class="w-full mt-1 p-3 border rounded-lg" placeholder="Quelles sont les compétences les plus importantes pour débuter ?"></textarea></div>
+            <div class="mb-4"><label for="current-pro" class="block text-md font-medium">Professionnel ou secteur visé</label><input type="text" id="current-pro" class="w-full mt-1 p-3 border rounded-lg" placeholder="Ex: Avocat, Ingénieur..."></div>
+            <div class="mb-4"><label for="current-question" class="block text-md font-medium">Ma question principale</label><textarea id="current-question" rows="2" class="w-full mt-1 p-3 border rounded-lg" placeholder="Quelle est la plus grande difficulté de votre métier ?"></textarea></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <button type="button" id="generate-questions-btn" class="w-full bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700">✨ Obtenir des questions pertinentes</button>
+                <button type="button" id="generate-questions-btn" class="w-full bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700">✨ Obtenir des questions</button>
                 <button type="button" id="launch-sim-btn" class="w-full bg-teal-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-600">🚀 Lancer la simulation</button>
             </div>
             <div id="loader" class="hidden"><div class="loader"></div></div>
             <div id="result" class="mt-4 p-4 bg-background-light border rounded-lg min-h-[100px] prose prose-sm max-w-none"></div>
-            <button type="button" id="save-prep-btn" class="w-full mt-6 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700">💾 Enregistrer cette préparation</button>
+            <button type="button" id="save-preparation-btn" class="w-full mt-6 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700">💾 Enregistrer cette préparation</button>
         </div>
-        <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Mes Préparations d'Entretiens</h2>
-        <div id="saved-preps-container" class="space-y-3 mb-8"></div>
+        <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Mes Préparations Enregistrées</h2>
+        <div id="saved-preparations-container" class="space-y-3 mb-8"></div>
 
         <div id="simulation-modal" class="simulation-modal hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col h-[80vh]">
-                <div class="flex items-center justify-between p-4 border-b bg-background-light rounded-t-2xl">
-                    <h3 class="font-bold text-OrIAntation-darkblue">🤖 Simulation d'entretien professionnel</h3>
-                    <button id="simulation-close" class="text-slate-500 hover:text-OrIAntation-darkblue text-2xl">×</button>
-                </div>
+             <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col h-[80vh]">
+                <div class="flex items-center justify-between p-4 border-b bg-background-light rounded-t-2xl"><h3 class="font-bold text-OrIAntation-darkblue">🤖 Simulation d'entretien</h3><button id="simulation-close" class="text-slate-500 hover:text-OrIAntation-darkblue text-2xl">&times;</button></div>
                 <div id="simulation-messages" class="flex-1 p-4 overflow-y-auto simulation-message-container"></div>
-                <form id="simulation-form" class="p-4 border-t flex items-center gap-2">
-                    <input type="text" id="simulation-input" placeholder="Écris ta réponse..." class="flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none">
-                    <button type="submit" class="bg-cyan-600 text-white p-2 rounded-lg font-semibold hover:bg-cyan-700">Envoyer</button>
-                </form>
+                <form id="simulation-form" class="p-4 border-t flex items-center gap-2"><input type="text" id="simulation-input" placeholder="Écris ta réponse..." class="flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none"><button type="submit" class="bg-cyan-600 text-white p-2 rounded-lg font-semibold hover:bg-cyan-700">Envoyer</button></form>
             </div>
         </div>
     `;
     
-    // -- SÉLECTION DES ÉLÉMENTS --
-    const generateBtn = div.querySelector('#generate-questions-btn');
-    const launchSimBtn = div.querySelector('#launch-sim-btn');
-    const saveBtn = div.querySelector('#save-prep-btn');
-    const savedContainer = div.querySelector('#saved-preps-container');
+    // --- Sélection des éléments DOM ---
+    const savedContainer = div.querySelector('#saved-preparations-container');
     const simulationModal = div.querySelector('#simulation-modal');
-    const simulationForm = div.querySelector('#simulation-form');
-    const simulationInput = div.querySelector('#simulation-input');
     const simulationMessages = div.querySelector('#simulation-messages');
-    const simulationCloseBtn = div.querySelector('#simulation-close');
     
-    // -- FONCTIONS UTILITAIRES --
-    const renderSavedPreps = () => {
+    // --- Fonction d'affichage des messages ---
+    const addSimMessage = (sender) => {
+        const messageWrapper = document.createElement('div');
+        messageWrapper.className = 'flex mb-4';
+        const messageBubble = document.createElement('div');
+
+        if (sender === 'user') {
+            messageWrapper.classList.add('justify-end');
+        } else { // Pour 'ai'
+            // Affiche une bulle de chargement en attendant l'audio
+            messageBubble.className = 'bg-cyan-100 p-3 rounded-lg';
+            messageBubble.innerHTML = `<div class="chatbot-loader"></div>`;
+        }
+        
+        messageWrapper.appendChild(messageBubble);
+        simulationMessages.appendChild(messageWrapper);
+        simulationMessages.scrollTop = simulationMessages.scrollHeight;
+        return messageBubble; // Retourne la bulle pour la remplir plus tard
+    };
+    
+    // --- Fonctions utilitaires ---
+    const renderSavedPreparations = () => {
         const preparations = journalData.step8.preparations || [];
         if (preparations.length === 0) {
             savedContainer.innerHTML = `<p class="text-center text-slate-500 p-4 bg-background-light rounded-lg">Tu n'as pas encore de préparation enregistrée.</p>`;
@@ -6918,7 +7254,7 @@ function createStep8View() {
                 <details class="bg-background-light rounded-lg border border-border-subtle">
                     <summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center">
                         <span>${item.pro}</span>
-                        <button type="button" data-index="${index}" class="delete-prep-btn text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer">🗑️</button>
+                        <button type="button" data-index="${index}" class="delete-preparation-btn text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer">🗑️</button>
                     </summary>
                     <div class="p-3 border-t border-border-subtle prose prose-sm max-w-none">
                         <p><strong>Ma question :</strong> ${item.question}</p>
@@ -6937,107 +7273,94 @@ function createStep8View() {
         div.querySelector('#result').innerHTML = '';
     };
 
-    const addSimMessage = (text, sender) => {
-        const messageWrapper = document.createElement('div');
-        messageWrapper.className = 'flex mb-4';
-        let messageContent = '';
-        if (sender === 'user') { messageWrapper.classList.add('justify-end'); messageContent = `<div class="bg-blue-500 text-white p-3 rounded-lg max-w-xs"><p>${text}</p></div>`; } 
-        else if (sender === 'ai') { messageContent = `<div class="bg-cyan-100 text-cyan-800 p-3 rounded-lg max-w-xs"><p>${text}</p></div>`; } 
-        else { messageContent = `<div class="bg-cyan-100 p-3 rounded-lg"><div class="chatbot-loader"></div></div>`; }
-        messageWrapper.innerHTML = messageContent;
-        simulationMessages.appendChild(messageWrapper);
-        simulationMessages.scrollTop = simulationMessages.scrollHeight;
-        return messageWrapper;
-    };
-
-    // -- LOGIQUE DES ÉVÉNEMENTS --
-    
-    generateBtn.addEventListener('click', async () => {
-        const pro = div.querySelector('#current-pro').value.trim();
+    // --- Logique des événements ---
+    div.querySelector('#generate-questions-btn').addEventListener('click', async () => {
+        const theme = div.querySelector('#current-pro').value.trim();
         const questionBase = div.querySelector('#current-question').value.trim();
-        if (!pro || !questionBase || !journalData.step0.analysis) {
-            showInfoModal("Veuillez renseigner le professionnel visé, votre question et avoir complété l'étape 'Mieux se connaître'."); return;
+        if (!theme || !questionBase || !journalData.step0.analysis) {
+            showInfoModal("Veuillez renseigner le thème, votre question et avoir complété l'étape 'Mieux se connaître'."); return;
         }
         const loader = div.querySelector('#loader');
         const resultDiv = div.querySelector('#result');
         loader.style.display = 'block';
         resultDiv.innerHTML = '';
-        const prompt = `Agis comme un coach carrière. Le profil d'un lycéen est : "${journalData.step0.analysis}". Il veut préparer un entretien avec un professionnel du secteur : "${pro}" et sa question de base est : "${questionBase}". Suggère 5 questions stratégiques et pertinentes à poser pour comprendre le parcours, la réalité du métier et obtenir des conseils. Donne uniquement les 5 questions, chacune sur une nouvelle ligne. Les questions s'adressent à un profesionnel, le vouvoiment est de rigueur`;
+        const prompt = `Agis comme un coach. Le profil d'un lycéen est : "${journalData.step0.analysis}". Il veut interroger un professionnel du secteur : "${theme}" et sa question de base est : "${questionBase}". Suggère 5 questions pertinentes et percutantes à poser. Formate en liste Markdown.`;
         const result = await callOpenAI_API({ promptText: prompt, withPersona: true });
         loader.style.display = 'none';
         resultDiv.innerHTML = marked.parse(result);
         currentExploration.suggestions = result;
     });
     
-    launchSimBtn.addEventListener('click', async () => {
-        const pro = div.querySelector('#current-pro').value.trim();
-        if (!pro) { showInfoModal("Veuillez d'abord renseigner un professionnel ou un secteur."); return; }
+    div.querySelector('#launch-sim-btn').addEventListener('click', async () => {
+        const silentMp3 = 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU2LjM2LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV6urq6urq6urq6urq6urq6urq6urq6urq6v////////////////////////////////8AAAAATGF2YzU2LjQxAAAAAAAAAAAAAAAAJAAAAAAAAAAAASDs90hvAAAAAAAAAAAAAAAAAAAA//MUZAAAAAGkAAAAAAAAA0gAAAAATEFN//MUZAMAAAGkAAAAAAAAA0gAAAAARTMu//MUZAYAAAGkAAAAAAAAA0gAAAAA';
+        if (audioPlayer.paused) { audioPlayer.src = silentMp3; audioPlayer.play().catch(() => {}); }
         
-        currentSimPro = pro;
+        currentSimPro = div.querySelector('#current-pro').value.trim();
+        if (!currentSimPro) { showInfoModal("Veuillez d'abord renseigner un professionnel ou un secteur."); return; }
+        
         conversationHistory = [];
         simulationMessages.innerHTML = '';
         simulationModal.classList.remove('hidden');
         simulationModal.classList.add('flex');
         
-        const loaderMsg = addSimMessage('', 'loader');
-        const startPrompt = `Tu es un professionnel expérimenté et bienveillant du secteur "${currentSimPro}", disponible sur une plateforme comme MyJobGlasses. Un lycéen démarre la conversation. Envoie-lui un message de bienvenue pour le mettre à l'aise et l'inviter à poser sa première question sur ton métier.`;
-        const firstMessage = await callOpenAI_API({ promptText: startPrompt });
+        const loaderBubble = addSimMessage('ai');
+
+        const startPrompt = `Tu es un recruteur expérimenté du secteur "${currentSimPro}". Un lycéen démarre une simulation d'entretien avec toi. Ton ton doit être professionnel, direct et encourageant. Sois concis et va droit au but. Évite les phrases trop longues ou un style trop littéraire. Commence par une brève salutation, puis pose immédiatement ta première question d'entretien, qui doit être ouverte et pertinente.`;        
+        const firstMessage = await callOpenAI_API({ promptText: startPrompt, withPersona: false });
         
-        loaderMsg.remove();
-        addSimMessage(firstMessage, 'ai');
+        speakText(firstMessage, loaderBubble);
         conversationHistory.push({ role: 'model', parts: [{ text: firstMessage }] });
     });
 
-    saveBtn.addEventListener('click', async () => {
+    div.querySelector('#save-preparation-btn').addEventListener('click', async () => {
         currentExploration.pro = div.querySelector('#current-pro').value.trim();
         currentExploration.question = div.querySelector('#current-question').value.trim();
+        // La suggestion est déjà dans currentExploration via le bouton 'generate-questions'
         if (!currentExploration.pro) { showInfoModal("Veuillez renseigner un professionnel ou un secteur."); return; }
         journalData.step8.preparations.push(JSON.parse(JSON.stringify(currentExploration)));
         await saveData();
         await grantXp(20);
-        renderSavedPreps();
+        renderSavedPreparations();
         resetWorkspace();
         showSurpriseModal("Préparation sauvegardée !", "Elle est maintenant dans ton journal.", 3000);
     });
     
-    savedContainer.addEventListener('click', async (e) => {
-        if (e.target.closest('.delete-prep-btn')) {
-            const index = e.target.closest('.delete-prep-btn').dataset.index;
+    div.querySelector('#saved-preparations-container').addEventListener('click', async (e) => {
+        if (e.target.closest('.delete-preparation-btn')) {
+            const index = e.target.closest('.delete-preparation-btn').dataset.index;
             if (await showConfirmationModal("Sûr de vouloir supprimer cette préparation ?")) {
                 journalData.step8.preparations.splice(index, 1);
                 await saveData();
-                renderSavedPreps();
+                renderSavedPreparations();
             }
         }
     });
 
-    simulationCloseBtn.addEventListener('click', () => {
-        simulationModal.classList.add('hidden');
-        simulationModal.classList.remove('flex');
-    });
+    div.querySelector('#simulation-close').addEventListener('click', () => {
+    simulationModal.classList.add('hidden');
+    simulationModal.classList.remove('flex');
 
-    simulationForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const userInput = simulationInput.value.trim();
-        if (!userInput) return;
+    // 1. On coupe le son de l'IA si elle est en train de parler
+    if (audioPlayer) {
+        audioPlayer.pause();
+        audioPlayer.src = '';
+        // Très important : on supprime l'événement pour éviter qu'il ne relance le micro plus tard
+        audioPlayer.onended = null; 
+    }
+    
+    // 2. On coupe le micro de l'élève s'il est actif
+    if (recognition && isConversationModeActive) {
+        recognition.stop();
+    }
 
-        addSimMessage(userInput, 'user');
-        simulationInput.value = '';
-        conversationHistory.push({ role: 'user', parts: [{ text: userInput }] });
-
-        const loaderMsg = addSimMessage('', 'loader');
-        const conversationPrompt = `Tu es un professionnel du secteur "${currentSimPro}". Continue la conversation en te basant sur l'historique : ${JSON.stringify(conversationHistory)}. Réponds à la dernière question du lycéen avec bienveillance et en donnant des conseils concrets.`;
-        const aiResponse = await callOpenAI_API({ promptText: conversationPrompt });
-        
-        loaderMsg.remove();
-        addSimMessage(aiResponse, 'ai');
-        conversationHistory.push({ role: 'model', parts: [{ text: aiResponse }] });
-    });
-
-    renderSavedPreps();
+    // 3. On réinitialise les états pour dire que la conversation est bien terminée
+    isConversationModeActive = false;
+    isAISpeaking = false; 
+});
+    
+    renderSavedPreparations();
     return div;
 }
-
 
 function createStep9View() {
     const config = stepsConfig.step9;
@@ -7598,7 +7921,10 @@ const result = await callOpenAI_API({
 
 function createOrientationMapView(data, context = 'user') {
     const profileTitle = context === 'user' ? 'Mon Profil' : 'Son Profil';
-    let mapHTML = '<div class="mb-8"><h2 class="text-xl font-bold text-OrIAntation-darkblue text-center mb-4">🗺️ Carte d\'Orientation Personnelle</h2>';
+    
+    // LA SEULE MODIFICATION EST D'AJOUTER L'ID "orientation-map-container" ICI
+    let mapHTML = '<div id="orientation-map-container" class="mb-8"><h2 class="text-xl font-bold text-OrIAntation-darkblue text-center mb-4">🗺️ Carte d\'Orientation Personnelle</h2>';
+    
     mapHTML += '<div class="bg-white p-6 rounded-2xl shadow-lg border border-border-subtle grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">';
 
     const archetype = data.step0 ? data.step0.archetype : null;
@@ -7606,21 +7932,16 @@ function createOrientationMapView(data, context = 'user') {
 
     // --- Bloc "Mon Profil" ---
     if (archetype && archetype.titre) {
-        let oneSentenceDescription = archetype.description; // On prend la description par défaut
-
-        // On vérifie si la description contient un point
+        let oneSentenceDescription = archetype.description;
         if (archetype.description.includes('.')) {
-            // On coupe la chaîne au premier point et on garde la première partie, puis on rajoute un point.
             oneSentenceDescription = archetype.description.split('.')[0] + '.';
         }
-
         mapHTML += `
             <div class="lg:col-span-1 bg-cyan-50 p-4 rounded-lg border border-cyan-200 text-center">
                 <h3 class="font-bold text-cyan-800">👤 ${profileTitle}</h3>
                 <div class="mt-2">
                     <span class="text-4xl">${archetype.icone}</span>
                     <p class="font-semibold text-OrIAntation-darkblue mt-1">${archetype.titre}</p>
-                    
                     <p class="text-sm text-slate-600 mt-2">${oneSentenceDescription}</p>
                 </div>
             </div>`;
@@ -8102,8 +8423,7 @@ function createStep13View() {
     }
     
     let currentHypothese = { titre: '', ville: '', notes: '', lieux_suggeres: '', modele_contact: '' };
-    let currentBilan = { titre: '', missions: '', apprentissages: '', ressenti: '', plan_rapport: '', competences_extraites: '' };
-
+    let currentBilan = { titre: '', missions: '', apprentissages: '', ressenti: '', plan_rapport: '', competences_extraites: '', analyse_rapport: '' };  
     form.innerHTML = `
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         <button type="button" data-workshop="recherche" class="workshop-choice-btn bg-white p-6 rounded-lg border-2 border-slate-300 hover:border-cyan-500 hover:bg-cyan-50 transition flex flex-col items-center text-center">
@@ -8163,37 +8483,44 @@ function createStep13View() {
     </div>
 
     <div id="bilan-workshop" class="hidden workshop-container space-y-6">
-        <div id="bilan-workspace" class="bg-white p-6 rounded-2xl shadow-lg border-2 border-dashed border-cyan-300 mb-8">
-            <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-3 text-center">Nouveau bilan d'expérience</h2>
-            <div class="mb-4">
-                <label for="bilan-titre" class="block text-md font-medium text-slate-700 mb-1">Nom de l'expérience</label>
-                <input type="text" id="bilan-titre" class="w-full p-2 border rounded-lg" placeholder="Ex: Mon stage chez le vétérinaire">
-            </div>
-            <div class="space-y-4 mb-4">
-                <div>
-                    <label for="bilan-missions" class="block text-md font-medium text-slate-700 mb-1">Tes missions et observations</label>
-                    <textarea id="bilan-missions" rows="3" class="w-full p-2 border rounded-lg" placeholder="J'ai observé les consultations, aidé à nettoyer le matériel..."></textarea>
-                </div>
-                <div>
-                    <label for="bilan-apprentissages" class="block text-md font-medium text-slate-700 mb-1">Ce que tu as appris</label>
-                    <textarea id="bilan-apprentissages" rows="2" class="w-full p-2 border rounded-lg" placeholder="J'ai appris comment on établit un diagnostic, l'importance de l'hygiène..."></textarea>
-                </div>
-                <div>
-                    <label for="bilan-ressenti" class="block text-md font-medium text-slate-700 mb-1">Ton ressenti</label>
-                    <textarea id="bilan-ressenti" rows="2" class="w-full p-2 border rounded-lg" placeholder="J'ai adoré le contact avec les animaux, mais j'ai trouvé la partie administrative moins intéressante..."></textarea>
-                </div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button type="button" id="get-plan-btn" class="ai-btn w-full bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700">📋 Obtenir un plan de rapport</button>
-                <button type="button" id="extract-skills-btn" class="ai-btn w-full bg-teal-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-600">🛠️ Analyser les compétences</button>
-            </div>
-            <div id="loader-bilan" class="hidden my-4"><div class="loader"></div></div>
-            <div id="result-bilan" class="mt-4 p-4 bg-background-light border rounded-lg min-h-[100px] prose prose-sm max-w-none"></div>
-            <button type="button" id="save-bilan-btn" class="w-full mt-6 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700">💾 Enregistrer ce bilan d'expérience</button>
-        </div>
-        <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Mes bilans d'expérience sauvegardés</h2>
-        <div id="bilans-list-container" class="space-y-3"></div>
+    <div id="bilan-workspace" class="bg-white p-6 rounded-2xl shadow-lg border-2 border-dashed border-cyan-300 mb-8">
+        <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-3 text-center">Nouveau bilan d'expérience</h2>
+<div class="mb-4">
+    <label for="bilan-titre" class="block text-md font-medium text-slate-700 mb-1">Nom de l'expérience</label>
+    <input type="text" id="bilan-titre" class="w-full p-2 border rounded-lg" placeholder="Ex: Mon stage chez le vétérinaire">
+</div>
+
+<h3 class="text-lg font-bold text-OrIAntation-darkblue mb-2">Outils d'Analyse (optionnels)</h3>
+<p class="text-sm text-slate-600 mb-4">Tu peux utiliser ces outils pour t'aider à structurer tes idées avant ou après la rédaction.</p>
+<div class="space-y-4 mb-4 bg-background-light p-4 rounded-lg border">
+    <div><label class="block text-md font-medium text-slate-700 mb-1">Tes missions et observations</label><textarea id="bilan-missions" rows="3" class="w-full p-2 border rounded-lg"></textarea></div>
+    <div><label class="block text-md font-medium text-slate-700 mb-1">Ce que tu as appris</label><textarea id="bilan-apprentissages" rows="2" class="w-full p-2 border rounded-lg"></textarea></div>
+    <div><label class="block text-md font-medium text-slate-700 mb-1">Ton ressenti</label><textarea id="bilan-ressenti" rows="2" class="w-full p-2 border rounded-lg"></textarea></div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <button type="button" id="get-plan-btn" class="ai-btn w-full bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700">📋 Obtenir un plan</button>
+        <button type="button" id="extract-skills-btn" class="ai-btn w-full bg-teal-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-600">🛠️ Analyser les compétences</button>
     </div>
+</div>
+
+<hr class="my-8 border-slate-200">
+
+<div>
+    <h3 class="text-lg font-bold text-OrIAntation-darkblue mb-2">Réviseur de Rapport de Stage</h3>
+    <div class="mb-4">
+         <label for="bilan-brouillon" class="block text-md font-medium text-slate-700 mb-2">Colle ici ton brouillon de rapport de stage</label>
+        <textarea id="bilan-brouillon" rows="10" class="w-full p-3 border border-slate-300 rounded-lg" placeholder="Écris ou colle ici ton texte complet..."></textarea>
+    </div>
+    <div class="text-center">
+        <button type="button" id="review-report-btn" class="w-full bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-700 transition">🔍 Lancer la relecture du rapport</button>
+    </div>
+</div>
+
+<div id="loader-bilan" class="hidden my-4"><div class="loader"></div></div>
+<div id="result-bilan" class="mt-4 p-4 bg-background-light border rounded-lg min-h-[100px] prose prose-sm max-w-none"></div>
+<button type="button" id="save-bilan-btn" class="w-full mt-6 bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-cyan-700">💾 Enregistrer ce bilan</button>
+    <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Mes bilans d'expérience sauvegardés</h2>
+    <div id="bilans-list-container" class="space-y-3"></div>
+</div>
 `;
 
     // --- LOGIQUE COMMUNE D'AFFICHAGE DES ATELIERS ---
@@ -8385,32 +8712,70 @@ Le ton de l'e-mail doit rester professionnel. **N'utilise JAMAIS les termes issu
         showSurpriseModal("Hypothèse sauvegardée !", "<p>Cette piste de recherche est maintenant dans ton journal.</p>", 3000);
     });
 
+    // NOUVEAU : Événement pour le bouton de relecture du rapport
+div.querySelector('#review-report-btn').addEventListener('click', async () => {
+    const brouillon = div.querySelector('#bilan-brouillon').value.trim();
+    const loader = div.querySelector('#loader-bilan');
+    const resultDiv = div.querySelector('#result-bilan');
+    if (!brouillon) { showInfoModal("Veuillez coller le brouillon de votre rapport."); return; }
+    
+    loader.style.display = 'block';
+    resultDiv.innerHTML = '';
+
+    const prompt = `
+        Agis comme un tuteur bienveillant qui relit le rapport de stage d'un élève de Seconde.
+        Ton rôle n'est PAS de réécrire le texte, mais de l'aider à l'améliorer par lui-même.
+
+        # Brouillon de l'élève :
+        """\${brouillon}"""
+
+        # Ta Mission
+        Fournis une liste d'annotations constructives au format Markdown. Pour chaque point :
+        1.  **Cite** une phrase ou un passage clé entre guillemets.
+        2.  **Analyse** ce passage (ex: "C'est une bonne observation", "Essaie d'être plus précis", "Peux-tu lier ça à une compétence ?").
+        3.  **Suggère une action** sous forme de question pour guider l'élève.
+
+        # Exemple de retour :
+        - > **"J'ai observé le vétérinaire faire une consultation."** : C'est un bon début, mais peux-tu être plus spécifique ? Qu'as-tu observé exactement ? (les questions posées, les gestes techniques...).
+        - > **"J'ai appris à être organisé."** : Excellent ! Peux-tu donner un exemple concret où tu as dû faire preuve d'organisation pendant le stage ?
+    `;
+
+    const result = await callOpenAI_API({ promptText: prompt, withPersona: true });
+    loader.style.display = 'none';
+    resultDiv.innerHTML = marked.parse(result);
+    currentBilan.analyse_rapport = result; // On sauvegarde l'analyse
+});
+
+
     // --- LOGIQUE SPÉCIFIQUE À L'ATELIER 2 : BILANS D'EXPÉRIENCE ---
     const renderSavedBilans = () => {
-        const container = div.querySelector('#bilans-list-container');
-        const bilans = journalData.step13.bilans || [];
-        if (bilans.length === 0) {
-            container.innerHTML = `<p class="text-center text-slate-500 p-4 bg-background-light rounded-lg">Aucun bilan d'expérience sauvegardé.</p>`;
-            return;
+    const container = div.querySelector('#bilans-list-container');
+    const bilans = journalData.step13.bilans || [];
+    if (bilans.length === 0) {
+        container.innerHTML = `<p class="text-center text-slate-500 p-4 bg-background-light rounded-lg">Aucun bilan sauvegardé.</p>`;
+        return;
+    }
+    container.innerHTML = bilans.map((bilan, index) => {
+        let content = '';
+        
+        if (bilan.analyse_rapport) {
+            content += `<h4 class="font-semibold mb-1">Brouillon du rapport :</h4><p class="whitespace-pre-wrap text-sm mb-3 p-2 bg-white rounded border">${bilan.brouillon}</p>
+                        <h4 class="font-semibold mb-1">Analyse du Rapport :</h4><div class="prose prose-sm max-w-none">${marked.parse(bilan.analyse_rapport)}</div>`;
+        } else {
+            if (bilan.missions) content += `<p><strong>Missions :</strong> ${bilan.missions}</p>`;
+            if (bilan.apprentissages) content += `<p><strong>Apprentissages :</strong> ${bilan.apprentissages}</p>`;
+            if (bilan.ressenti) content += `<p><strong>Ressenti :</strong> ${bilan.ressenti}</p>`;
         }
-        container.innerHTML = bilans.map((bilan, index) => {
-            let content = `<p><strong>Missions :</strong> ${bilan.missions}</p>
-                           <p><strong>Apprentissages :</strong> ${bilan.apprentissages}</p>
-                           <p><strong>Ressenti :</strong> ${bilan.ressenti}</p>`;
-            if (bilan.plan_rapport) content += `<div class="mt-2"><strong>Plan de rapport :</strong><div class="whitespace-pre-wrap text-sm p-2 bg-white border rounded">${bilan.plan_rapport}</div></div>`;
-            if (bilan.competences_extraites) {
-                content += `<div class="mt-2"><strong>Compétences analysées :</strong><div class="prose prose-sm max-w-none">${marked.parse(bilan.competences_extraites)}</div>
-                            <button type="button" data-index="${index}" class="save-to-portfolio-btn w-full mt-2 bg-orange-500 text-white font-semibold py-1 px-3 rounded-lg hover:bg-orange-600 text-sm">Enregistrer ce bilan au Portfolio</button></div>`;
-            }
-            return `<details class="bg-background-light rounded-lg border">
-                        <summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center">
-                            <span>${bilan.titre}</span>
-                            <button type="button" data-index="${index}" class="delete-bilan-btn text-red-500 hover:text-red-700 p-1">🗑️</button>
-                        </summary>
-                        <div class="p-3 border-t space-y-2">${content}</div>
-                    </details>`;
-        }).join('');
-    };
+
+        const deleteButtonHTML = `<button type="button" data-index="${index}" class="delete-bilan-btn text-red-500 hover:text-red-700 p-1">🗑️</button>`;
+        return `<details class="bg-background-light rounded-lg border">
+                    <summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center">
+                        <span>${bilan.titre}</span>${deleteButtonHTML}
+                    </summary>
+                    <div class="p-3 border-t space-y-2">${content}</div>
+                </details>`;
+    }).join('');
+};
 
     const resetBilanWorkspace = () => {
         currentBilan = { titre: '', missions: '', apprentissages: '', ressenti: '', plan_rapport: '', competences_extraites: '' };
@@ -8456,18 +8821,22 @@ Le ton de l'e-mail doit rester professionnel. **N'utilise JAMAIS les termes issu
     });
 
     div.querySelector('#save-bilan-btn').addEventListener('click', async () => {
-        currentBilan.titre = div.querySelector('#bilan-titre').value.trim();
-        currentBilan.missions = div.querySelector('#bilan-missions').value.trim();
-        currentBilan.apprentissages = div.querySelector('#bilan-apprentissages').value.trim();
-        currentBilan.ressenti = div.querySelector('#bilan-ressenti').value.trim();
-        if (!currentBilan.titre) { showInfoModal("Veuillez donner un nom à cette expérience."); return; }
-        journalData.step13.bilans.push(JSON.parse(JSON.stringify(currentBilan)));
-        await saveData();
-        await grantXp(25);
-        renderSavedBilans();
-        resetBilanWorkspace();
-        showSurpriseModal("Bilan sauvegardé !", "<p>Ce bilan d'expérience est maintenant dans ton journal.</p>", 3000);
-    });
+    currentBilan.titre = div.querySelector('#bilan-titre').value.trim();
+    if (!currentBilan.titre) { showInfoModal("Veuillez donner un nom à cette expérience."); return; }
+    
+    // On récupère toutes les valeurs, y compris le nouveau brouillon
+    currentBilan.brouillon = div.querySelector('#bilan-brouillon').value.trim();
+    currentBilan.missions = div.querySelector('#bilan-missions').value.trim();
+    currentBilan.apprentissages = div.querySelector('#bilan-apprentissages').value.trim();
+    currentBilan.ressenti = div.querySelector('#bilan-ressenti').value.trim();
+    
+    journalData.step13.bilans.push(JSON.parse(JSON.stringify(currentBilan)));
+    await saveData();
+    await grantXp(25);
+    renderSavedBilans();
+    resetBilanWorkspace();
+    showSurpriseModal("Bilan sauvegardé !", "Ce bilan est maintenant dans ton journal.", 3000);
+});
     
     // --- GESTION DES SUPPRESSIONS ET INTERACTIONS DANS LES LISTES ---
     div.addEventListener('click', async (e) => {
@@ -8854,6 +9223,9 @@ async function createJournalView() {
 // =================================================================================
 // FONCTION UNIFIÉE FINALE ET COMPLÈTE POUR L'AFFICHAGE DU JOURNAL
 // =================================================================================
+// =================================================================================
+// REMPLACEZ VOTRE FONCTION createUnifiedJournalView EXISTANTE PAR CE BLOC COMPLET
+// =================================================================================
 async function createUnifiedJournalView(userInfo, journalDataToDisplay, context) {
     // 1. Création du conteneur principal de la page
     const div = document.createElement('div');
@@ -8885,14 +9257,20 @@ async function createUnifiedJournalView(userInfo, journalDataToDisplay, context)
         const shareLink = shareToken ? `${window.location.origin}${window.location.pathname}?share_id=${currentUserId}&token=${shareToken}` : '';
         const sharePanelEl = document.createElement('div');
         sharePanelEl.innerHTML = `
-            <div class="bg-background-light p-4 rounded-lg border border-border-subtle my-8">
+            <div class="bg-background-light p-6 rounded-lg border border-border-subtle my-8 text-center">
                 <h2 class="text-xl font-bold text-OrIAntation-darkblue mb-2 flex items-center justify-center gap-2">🤝 Espace Partage</h2>
-                <p class="text-slate-600 text-sm mb-4">Partage une version "lecture seule" de ton journal avec tes parents ou ton professeur principal pour faciliter la discussion.</p>
-                <div id="share-link-container" class="${shareToken ? '' : 'hidden'}">
-                    <label class="font-semibold text-slate-700">Ton lien de partage unique :</label>
-                    <div class="flex items-center gap-2 mt-1 bg-slate-100 border rounded-lg p-2 pl-4"><span class="text-sm truncate flex-1">${shareLink}</span><button id="copy-share-link" class="bg-cyan-600 text-white font-semibold py-1 px-3 rounded-md text-sm">Copier</button></div>
+                <p class="text-slate-600 text-sm mb-6 max-w-lg mx-auto">Partage une version "lecture seule" de ton journal avec tes parents ou ton professeur principal pour faciliter la discussion.</p>
+                <div class="max-w-md mx-auto space-y-4">
+                    <div id="share-link-container" class="${shareToken ? '' : 'hidden'}">
+                        <label class="font-semibold text-slate-700 text-sm">Ton lien de partage unique :</label>
+                        <div class="flex items-center gap-2 mt-1 bg-slate-100 border rounded-lg p-2 pl-4"><span class="text-sm truncate flex-1 text-left">${shareLink}</span><button id="copy-share-link" class="bg-slate-500 text-white font-semibold py-1 px-3 rounded-md text-sm hover:bg-slate-600">Copier</button></div>
+                    </div>
+                    <div class="pt-2">
+                        <button id="toggle-share-btn" class="text-sm font-semibold ${shareToken ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700'}">
+                            ${shareToken ? '❌ Désactiver le partage' : '✅ Activer le partage'}
+                        </button>
+                    </div>
                 </div>
-                <div class="mt-4 text-center"><button id="toggle-share-btn" class="text-sm font-semibold ${shareToken ? 'text-red-600' : 'text-green-600'}">${shareToken ? '❌ Désactiver le partage' : '✅ Activer le partage'}</button></div>
             </div>`;
         div.appendChild(sharePanelEl);
     }
@@ -8938,8 +9316,6 @@ async function createUnifiedJournalView(userInfo, journalDataToDisplay, context)
         let hasSubEntries = false;
         let hasContentInSection = false;
 
-        // --- DÉBUT DE LA LOGIQUE D'AFFICHAGE SPÉCIFIQUE À CHAQUE ÉTAPE ---
-
         if (stepKey === 'step11' && isStepStarted(stepKey)) {
             hasContentInSection = true;
             let content = [];
@@ -8965,8 +9341,6 @@ async function createUnifiedJournalView(userInfo, journalDataToDisplay, context)
                 hasContentInSection = false; 
             }
         }
-
-        
         else if (stepKey === 'retroplanning_saves' && Array.isArray(stepData) && stepData.length > 0) {
             hasSubEntries = true; hasContentInSection = true;
             sectionContentHTML = '<div class="space-y-3">' + [...stepData].reverse().map((item, index) => {
@@ -9070,12 +9444,10 @@ async function createUnifiedJournalView(userInfo, journalDataToDisplay, context)
             }).join('') + '</div>';
         }
 
-  // ========= REMPLACEZ CE BLOC DANS createUnifiedJournalView =========
-       // REMPLACEZ CE BLOC DANS LA FONCTION createUnifiedJournalView
 
 else if (stepKey === 'step13' && isStepStarted(stepKey)) {
     hasContentInSection = true;
-    hasSubEntries = true; // On indique qu'il y a des sous-entrées pour gérer la suppression
+    hasSubEntries = true; 
     let content = [];
 
     if (Array.isArray(stepData.hypotheses) && stepData.hypotheses.length > 0) {
@@ -9084,7 +9456,6 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
             
             if (hyp.lieux_suggeres) {
                 try {
-                    // ▼▼▼ FIX 1 : On utilise la fonction intelligente pour lire le JSON ▼▼▼
                     const data = extractJsonFromString(hyp.lieux_suggeres);
                     const lieux = data.lieux;
 
@@ -9105,7 +9476,6 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
                 hypContent += `<div class="mt-2"><strong>Modèle de contact:</strong><div class="whitespace-pre-wrap text-sm p-2 bg-white border rounded">${hyp.modele_contact}</div></div>`;
             }
 
-            // ▼▼▼ FIX 2 : On ajoute un bouton de suppression pour CHAQUE hypothèse ▼▼▼
             const deleteButtonHTML = context === 'student' ? `<button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step13" data-array-key="hypotheses" data-entry-index="${index}">🗑️</button>` : '';
 
             return `<details class="bg-background-light rounded-lg border mt-2">
@@ -9119,7 +9489,6 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
         content.push(`<div><h3 class="text-lg font-bold text-cyan-700 mb-2">Atelier 1 : Mes hypothèses de stage</h3><div class="space-y-3">${hypothesesHTML}</div></div>`);
     }
 
-    // Le reste de la logique pour l'atelier 2 (bilans) reste inchangé...
     const bilanFields = [
         { key: 'bilan_missions', label: 'Missions et observations' },
         { key: 'bilan_apprentissages', label: 'Ce que j\'ai appris' },
@@ -9162,9 +9531,8 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
             let content = [];
             let subEntriesForDeletion = false;
 
-            // Affiche les nouvelles "préparations d'entretien"
             if (Array.isArray(stepData.preparations) && stepData.preparations.length > 0) {
-                subEntriesForDeletion = true; // On a des sous-entrées supprimables
+                subEntriesForDeletion = true; 
                 const preparationsHTML = stepData.preparations.map((item, index) => {
                     let itemContent = `
                         <div class="mb-3">
@@ -9176,7 +9544,6 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
                             <div class="text-sm whitespace-pre-wrap prose prose-sm max-w-none">${marked.parse(item.suggestions || '')}</div>
                         </div>
                     `;
-                    // On ajoute un attribut data-array-key pour la suppression ciblée
                     const deleteButtonHTML = context === 'student' ? `<button class="delete-journal-entry text-red-500 hover:text-red-700 text-lg p-1" title="Supprimer" data-step-key="step8" data-array-key="preparations" data-entry-index="${index}">🗑️</button>` : '';
                     return `
                         <details class="bg-background-light rounded-lg border border-border-subtle">
@@ -9191,7 +9558,6 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
                 content.push(`<div class="space-y-3">${preparationsHTML}</div>`);
             }
 
-            // Affiche également la liste de suivi (gérée depuis l'étape 11) si elle existe
             if (Array.isArray(stepData.contacts) && stepData.contacts.length > 0) {
                  const contactsHTML = stepData.contacts.map(c => `<li>${c.nom} (Statut: ${statusOptions[c.statut] || 'À définir'})</li>`).join('');
                  content.push(`
@@ -9219,10 +9585,7 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
                         const value = stepData[field.id];
                         if (value) staticContent.push(`<p><strong>${field.label}:</strong><br>${value}</p>`);
                     });
-                 }// ... (après la logique pour step12)
-// ... à l'intérieur de la fonction createUnifiedJournalView, dans la boucle "for (const stepKey in stepTitles)"
-
-        e
+                 }
             }
             if (staticContent.length > 0) {
                 hasContentInSection = true;
@@ -9230,8 +9593,6 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
             }
         }
         
-        // -- FIN DE LA LOGIQUE SPÉCIFIQUE --
-
         if (hasContentInSection) {
             hasAnyContent = true;
             const sectionContainer = document.createElement('div');
@@ -9255,12 +9616,13 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
         }
     }
 
+
     if (!hasAnyContent) {
         journalContentDiv.innerHTML = '<p class="text-center text-slate-500">Le journal est encore vide. Explorez les étapes pour le remplir !</p>';
     }
     
     div.appendChild(journalContentDiv);
-
+    
     if (context === 'teacher') {
         const discussionSection = document.createElement('div');
         discussionSection.innerHTML = `
@@ -9307,6 +9669,7 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
                     }
                 });
             }
+            
             const copyShareLinkBtn = div.querySelector('#copy-share-link');
             if (copyShareLinkBtn) {
                 copyShareLinkBtn.addEventListener('click', () => {
@@ -9314,6 +9677,7 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
                     navigator.clipboard.writeText(shareLink).then(() => showSurpriseModal("C'est fait !", '<p>Le lien a été copié.</p>', 2000));
                 });
             }
+
             const updateFilRougeBtn = div.querySelector('#updateFilRougeBtn');
             if (updateFilRougeBtn) {
                 updateFilRougeBtn.addEventListener('click', async () => {
@@ -9383,20 +9747,18 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
                 const stepKey = deleteBtn.dataset.stepKey;
                 const action = deleteBtn.dataset.action;
                 const entryIndex = parseInt(deleteBtn.dataset.entryIndex, 10);
-                const arrayKey = deleteBtn.dataset.arrayKey; // Clé pour les tableaux imbriqués
+                const arrayKey = deleteBtn.dataset.arrayKey;
 
                 if (!await showConfirmationModal(action === 'clear-section' ? 'Vider toute cette section ?' : 'Supprimer cette entrée ?')) return;
 
                 if (action === 'clear-section') {
                     journalDataToDisplay[stepKey] = defaultData[stepKey];
                 } else if (!isNaN(entryIndex)) {
-                    // Logique pour les tableaux imbriqués (ex: step8.preparations)
                     if (arrayKey) {
                         if (journalDataToDisplay[stepKey]?.[arrayKey]?.[entryIndex]) {
                             journalDataToDisplay[stepKey][arrayKey].splice(entryIndex, 1);
                         }
                     } else {
-                        // Logique pour les tableaux de premier niveau
                         const arraysMap = { 'retroplanning_saves': journalDataToDisplay.retroplanning_saves, 'step1': journalDataToDisplay.step1?.metiers, 'step2': journalDataToDisplay.step2?.combinations, 'step3': journalDataToDisplay.step3?.formations, 'step4': journalDataToDisplay.step4?.themes, 'step5': journalDataToDisplay.step5?.articles, 'step6': journalDataToDisplay.step6?.projets, 'radar_history': journalDataToDisplay.radar_history, 'chatbot_saves': journalDataToDisplay.chatbot_saves };
                         if (arraysMap[stepKey]?.[entryIndex]) {
                             arraysMap[stepKey].splice(entryIndex, 1);
@@ -9426,133 +9788,32 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
     return div;
 }
 
-// REMPLACEZ la fonction createPublicShareView par cette version simplifiée
+// ==============================================================================
+// CORRECTION DE LA LOGIQUE DES COCHES DE VALIDATION
+// Remplacez votre fonction isStepComplete existante par celle-ci.
+// ==============================================================================
 
-async function createPublicShareView(userId, token) {
-    const mainApp = document.getElementById('mainApp');
-    mainApp.innerHTML = `<div class="loader"></div>`;
+// ==============================================================================
+// CORRECTION FINALE DE LA LOGIQUE DES COCHES (AVEC RÉTROPLANNING)
+// ==============================================================================
 
-    try {
-        // ... (la logique de récupération des données ne change pas)
-        const userDocRef = doc(db, "users", userId);
-        const docSnap = await getDoc(userDocRef);
-
-        if (!docSnap.exists()) throw new Error("Utilisateur non trouvé.");
-        
-        const data = docSnap.data();
-        if (!data.journal || data.journal.share_token !== token) {
-            throw new Error("Lien de partage invalide ou désactivé.");
-        }
-
-        const userInfo = {
-            firstName: data.firstName || 'L\'élève',
-            schoolName: data.schoolName || 'son lycée',
-            gradeLevel: data.gradeLevel || 'sa classe'
-        };
-        // --- FIN DE LA LOGIQUE INCHANGÉE ---
-
-        const pageElement = await createUnifiedJournalView(userInfo, data.journal, 'teacher');
-        
-        // ✅ ON MODIFIE ICI : on insère d'abord le logo, puis le journal
-        mainApp.innerHTML = `
-            <img src="logo.png" alt="Logo OrIAntation" class="mx-auto h-auto w-48 mb-8">
-        `;
-        mainApp.appendChild(pageElement);
-
-    } catch (error) { // ... (la gestion d'erreur ne change pas)
-        mainApp.innerHTML = `<div class="text-center p-8 bg-white rounded-lg shadow-md"><h2 class="text-xl font-bold text-red-600">Erreur</h2><p class="text-slate-600 mt-2">${error.message}</p></div>`;
-    }
-}
-
-
+// ==============================================================================
+// FONCTION isStepComplete (LOGIQUE FINALE ET DÉFINITIVE v2)
+// ==============================================================================
 function isStepComplete(stepKey) {
-    const config = Object.values(stepsConfig).find(s => s.stepKey === stepKey);
     const data = journalData[stepKey];
-    if (!config || !data) return false;
+    if (!data) return false;
 
-    // Règle stricte rétablie : les DEUX parties doivent être faites pour la coche VERTE.
+    // La seule et unique étape qui peut être "complète" (coche verte) est l'étape 0.
     if (stepKey === 'step0') {
+        // Pour être complète, l'analyse de base ET l'analyse croisée doivent être faites.
         const hasMainAnalysis = data.analysis && data.analysis.trim() !== '';
         const hasCrossAnalysis = data.analyse_tests_croisee && data.analyse_tests_croisee.trim() !== '';
         return hasMainAnalysis && hasCrossAnalysis;
     }
 
-    // Règle stricte pour "Les Fondations"
-    if (stepKey === 'step1') {
-        // L'étape est considérée comme "terminée" si au moins 2 métiers ont été enregistrés
-        // ET que le comparateur a été utilisé.
-        const metiersEnregistres = journalData.step1.metiers && journalData.step1.metiers.length >= 2;
-        const comparisonDone = journalData.step1.comparison && journalData.step1.comparison.trim() !== '';
-        return metiersEnregistres && comparisonDone;
-    }
-
-    if (stepKey === 'step3') {
-    const formationsEnregistrees = journalData.step3.formations && journalData.step3.formations.length >= 2;
-    const comparisonDone = journalData.step3.comparison && journalData.step3.comparison.trim() !== '';
-    return formationsEnregistrees && comparisonDone;
-}
-
-    
-    // NOUVELLE RÈGLE STRICTE POUR "Mon Rétroplanning"
-    if (stepKey === 'retroplanning') {
-    // NOUVELLE RÈGLE : L'étape est "complète" si au moins un conseil a été sauvegardé.
-    return journalData.retroplanning_saves && Array.isArray(journalData.retroplanning_saves) && journalData.retroplanning_saves.length > 0;
-}
-
-    // Règle assouplie : complète dès que 2 combinaisons sont nommées.
-    if (stepKey === 'step2') {
-    // L'étape est "complète" si au moins 2 combinaisons sont sauvegardées.
-    return journalData.step2.combinations && journalData.step2.combinations.length >= 2;
-}
-    
-    // Règle assouplie : complète dès qu'UNE seule info est analysée.
-    if (stepKey === 'step5') {
-    // L'étape est "complète" si au moins 2 articles sont sauvegardés.
-    return journalData.step5.articles && journalData.step5.articles.length >= 2;
-}
-    
-    // Règle assouplie : complète dès qu'UNE seule lettre est préparée.
-    if (stepKey === 'step6') {
-        const lettre1Done = data.lettre1 && data.lettre1.formation && data.lettre1.formation.trim() !== '';
-        return lettre1Done;
-    }
-
-    if (stepKey === 'step8') {
-        return data.preparations && Array.isArray(data.preparations) && data.preparations.length > 0;
-    }
-
-    if (stepKey === 'step9') {
-        const hasPlanB = data.planb_chat_history && data.planb_chat_history.length >= 4;
-        const hasReussite = data.reussite_conseils && data.reussite_conseils.trim() !== '';
-        return hasPlanB && hasReussite;
-    }
-    
-    if (stepKey === 'step10') {
-        const hasExperience = data.experiences && Array.isArray(data.experiences) && data.experiences.length > 0;
-        const hasProfile = data.soft_skills_profile && data.soft_skills_profile.trim() !== '';
-        return hasExperience && hasProfile;
-    }
-    if (stepKey === 'step13') {
-        // L'étape est complète si l'élève a sauvegardé au moins une recherche
-        // ET a réalisé l'atelier de bilan (plan + compétences)
-        const hasRecherche = data.recherches_sauvegardees && data.recherches_sauvegardees.length > 0;
-        const hasPlan = data.plan_rapport && data.plan_rapport.trim() !== '';
-        const hasSkills = data.competences_extraites && data.competences_extraites.trim() !== '';
-        return hasRecherche && hasPlan && hasSkills;
-    }
-
-    if (stepKey === 'step11') {
-        // L'étape est considérée comme terminée si au moins un des deux outils de coaching a été utilisé.
-        const hasJpoPrep = data.jpo_questions && data.jpo_questions.trim() !== '';
-        const hasSalonPrep = data.salon_preparation && data.salon_preparation.trim() !== '';
-        return hasJpoPrep || hasSalonPrep;
-    }
-
-    // Logique générale pour les autres étapes (inchangée)
-    if (!config.fields || config.fields.length === 0) return false;
-    const userFields = config.fields.filter(f => !f.isReadonly);
-    if (userFields.length === 0) return true;
-    return userFields.every(field => data[field.id] && data[field.id].toString().trim() !== '');
+    // TOUTES les autres étapes ne peuvent JAMAIS être considérées comme complètes.
+    return false;
 }
         function checkBadges() {
             if (!journalData.earned_badges) {
@@ -9567,32 +9828,51 @@ function isStepComplete(stepKey) {
             }
         }
 
-        function createProgressBarHTML() {
-    const allStepsForLevel = allSteps.filter(step => step.levels.includes(userGradeLevel));
+// ==============================================================================
+// FONCTION createProgressBarHTML (LOGIQUE FINALE ET DÉFINITIVE)
+// ==============================================================================
+function createProgressBarHTML() {
+    // On exclut les "non-étapes" du menu.
+    const nonTrackableStepIds = ['journal', 'retroplanning']; 
     
-    // On utilise la logique corrigée qui compte les étapes commencées (coches oranges et vertes)
-    const completedStepsCount = allStepsForLevel.filter(step => 
-        !['journal', 'retroplanning', 'step12'].includes(step.id) && isStepStarted(step.id)
-    ).length;
+    // On récupère toutes les étapes pertinentes pour le niveau de l'élève.
+    const stepsForLevel = allSteps.filter(step => step.levels.includes(userGradeLevel) && !nonTrackableStepIds.includes(step.id));
+    
+    if (stepsForLevel.length === 0) return '<div></div>'; // Retourne une div vide si pas d'étapes
 
-    const totalTrackableSteps = allStepsForLevel.filter(step => !['journal', 'retroplanning', 'step12'].includes(step.id)).length;
-    const progressPercentage = totalTrackableSteps > 0 ? (completedStepsCount / totalTrackableSteps) * 100 : 0;
+    let score = 0;
+    stepsForLevel.forEach(step => {
+        const stepKey = step.id;
+        
+        // Condition spéciale pour l'étape 0 : elle doit être "complète" (verte) pour compter 1 point.
+        if (stepKey === 'step0') {
+            if (isStepComplete(stepKey)) {
+                score++;
+            }
+        } else {
+            // Pour toutes les autres étapes, on vérifie simplement si elles sont "commencées" (orange).
+            if (isStepStarted(stepKey)) {
+                score++;
+            }
+        }
+    });
+
+    const progressPercentage = (score / stepsForLevel.length) * 100;
 
     return `
         <div class="flex justify-between items-center mb-1">
-    <span class="text-base font-medium text-cyan-700 flex items-center gap-2">
-        Progression des Étapes
-        <button id="progress-help-btn" class="text-slate-400 hover:text-cyan-600" title="À quoi correspondent les coches ?">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
-            </svg>
-        </button>
-    </span>
-    <span class="text-sm font-medium text-cyan-700">${Math.round(progressPercentage)}%</span>
-</div>
-            <div class="w-full bg-slate-200 rounded-full h-2.5">
-                <div class="bg-cyan-600 h-2.5 rounded-full" style="width: ${progressPercentage}%"></div>
-            </div>
+            <span class="text-base font-medium text-cyan-700 flex items-center gap-2">
+                Progression des Étapes
+                <button id="progress-help-btn" class="text-slate-400 hover:text-cyan-600" title="À quoi correspondent les coches ?">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
+                    </svg>
+                </button>
+            </span>
+            <span class="text-sm font-medium text-cyan-700">${Math.round(progressPercentage)}%</span>
+        </div>
+        <div class="w-full bg-slate-200 rounded-full h-2.5">
+            <div class="bg-cyan-600 h-2.5 rounded-full" style="width: ${progressPercentage}%"></div>
         </div>
     `;
 }
@@ -10124,6 +10404,8 @@ window.signOut = signOut;
 window.auth = auth;
 
     </script>
+
+    <audio id="tts-audio-player" style="display: none;"></audio>
     
 </body>
 
