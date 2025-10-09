@@ -315,7 +315,41 @@ Ta réponse doit être **UNIQUEMENT un objet JSON valide**.
 }
 `;
 
-// MODIFIEZ VOTRE FONCTION generateContent POUR UTILISER LA NOUVELLE FONCTION INTERNE
+const MONTHLY_ANALYSIS_PROMPT_TEMPLATE = `
+# Rôle et Identité
+Tu es "OrIA", le coach IA bienveillant de l'application "OrIAntation". Tu analyses l'évolution de la réflexion d'un(e) élève sur le dernier mois.
+
+# Règle de Ton (NON NÉGOCIABLE)
+Tu dois **impérativement et exclusivement utiliser le tutoiement ("tu")**. N'utilise JAMAIS le vouvoiement ("vous").
+
+# Contexte de l'Élève
+- Son Prénom : {firstName}
+- **Son Journal (Mois Précédent)** : {journalAncien}
+- **Son Journal (Aujourd'hui)** : {journalActuel}
+
+# Ta Mission
+Compare les deux versions du journal et rédige un rapport de coaching personnalisé qui met en lumière 3 à 4 changements significatifs. Ne te contente pas de lister les différences ; interprète-les pour donner du sens à l'évolution de l'élève.
+
+# Structure de Sortie OBLIGATOIRE (utilise ce format Markdown)
+
+### 📈 Ta Progression en Chiffres
+*Analyse ici l'évolution des XP et des étapes complétées. Sois encourageant et factuel.*
+*Exemple : "Bravo, ce mois-ci tu as gagné +150 XP en complétant les étapes 'Portfolio' et 'Fact Checking' ! Tu as clairement accéléré sur la construction de ton projet."*
+
+### 🧭 Un Nouvel Horizon ?
+*Repère ici un changement majeur dans les explorations (nouveaux métiers, nouvelles formations). Pose une question ouverte pour l'inviter à réfléchir à ce changement.*
+*Exemple : "Le mois dernier, tes explorations se concentraient sur l'art. OrIA a remarqué que tu as ajouté deux formations en informatique. Qu'est-ce qui a déclenché ce nouvel intérêt pour le numérique ?"*
+
+### 💡 La Compétence Révélée
+*Analyse les nouvelles entrées (portfolio, bilan de stage, etc.) pour identifier une compétence qui a émergé ce mois-ci. Valorise cet atout.*
+*Exemple : "En analysant ton nouveau bilan de stage, la compétence 'Travail en équipe' est clairement apparue. C'est un atout majeur pour les métiers de la gestion de projet que tu explores."*
+
+### ❓ La Zone d'Hésitation (Optionnel)
+*Si tu repères une piste ajoutée puis supprimée, ou une contradiction, utilise-la comme un point de discussion positif. C'est une information utile, pas un échec.*
+*Exemple : "J'ai vu que tu avais ajouté puis supprimé le métier 'architecte'. C'est très utile ! Qu'est-ce qui t'a fait douter dans cette piste ?"*
+`;
+
+
 exports.generateContent = functions
     .region("europe-west3")
     .runWith({ timeoutSeconds: 300 })
@@ -980,3 +1014,115 @@ exports.generateSpeech = functions.region("europe-west3").https.onCall(async (da
     throw new functions.https.HttpsError("internal", "Erreur lors de la génération de l'audio.");
   }
 });
+
+/**
+ * Cloud Function programmée pour sauvegarder un snapshot du journal de chaque élève.
+ * S'exécute le 1er de chaque mois à 3h00 du matin.
+ */
+exports.snapshotMonthlyJournals = functions
+    .region("europe-west3")
+    .pubsub.schedule('1 of month 03:00')
+    .timeZone('Europe/Paris')
+    .onRun(async (context) => {
+        console.log('Début de la sauvegarde mensuelle des journaux.');
+        const db = admin.firestore();
+        const usersSnapshot = await db.collection('users').where('role', '==', 'eleve').get();
+
+        if (usersSnapshot.empty) {
+            console.log('Aucun élève trouvé. Opération terminée.');
+            return null;
+        }
+
+        const snapshotPromises = usersSnapshot.docs.map(async (userDoc) => {
+            const userData = userDoc.data();
+            if (userData.journal) {
+                const snapshotDate = new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
+                const snapshotRef = db.collection('users').doc(userDoc.id).collection('journal_snapshots').doc(snapshotDate);
+                
+                try {
+                    await snapshotRef.set({
+                        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                        snapshotData: userData.journal
+                    });
+                    console.log(`Snapshot créé pour l'utilisateur ${userDoc.id}`);
+                } catch (error) {
+                    console.error(`Erreur lors de la création du snapshot pour ${userDoc.id}:`, error);
+                }
+            }
+        });
+
+        await Promise.all(snapshotPromises);
+        console.log('Sauvegarde mensuelle des journaux terminée.');
+        return null;
+    });
+
+/**
+ * Cloud Function appelable pour générer l'analyse d'évolution mensuelle.
+ */
+exports.generateMonthlyAnalysis = functions
+    .region("europe-west3")
+    .runWith({ timeoutSeconds: 300, memory: "1GB" })
+    .https.onCall(async (data, context) => {
+        if (!context.auth) {
+            throw new functions.https.HttpsError('unauthenticated', 'Authentification requise.');
+        }
+
+        const userId = context.auth.uid;
+        const db = admin.firestore();
+        const userRef = db.doc(`users/${userId}`);
+
+        try {
+            // 1. Récupérer le journal actuel et les infos de l'utilisateur
+            const userDoc = await userRef.get();
+            if (!userDoc.exists) {
+                throw new functions.https.HttpsError('not-found', 'Utilisateur non trouvé.');
+            }
+            const userData = userDoc.data();
+            const journalActuel = userData.journal;
+            const firstName = userData.firstName || 'l\'élève';
+
+            // 2. Récupérer le snapshot le plus récent
+            const snapshotQuery = userRef.collection('journal_snapshots')
+                .orderBy('__name__', 'desc') // Trie par nom de document (YYYY-MM-DD), du plus récent au plus ancien
+                .limit(1);
+            
+            const snapshotResult = await snapshotQuery.get();
+            if (snapshotResult.empty) {
+                throw new functions.https.HttpsError('not-found', 'Aucun historique de journal trouvé pour la comparaison.');
+            }
+            const journalAncien = snapshotResult.docs[0].data().snapshotData;
+            
+            // 3. Simplifier les journaux pour le prompt (pour économiser des tokens)
+            const simplifyJournal = (journal) => {
+                return {
+                    xp: journal.xp || 0,
+                    level: journal.level || 1,
+                    archetype: journal.step0?.archetype?.titre,
+                    metiers_explores: (journal.step1?.metiers || []).map(m => m.nom),
+                    formations_explorees: (journal.step3?.formations || []).map(f => f.nom),
+                    competences_portfolio: (journal.step10?.experiences || []).length,
+                    bilan_stage: journal.step13?.bilan_ressenti,
+                };
+            };
+
+            // 4. Construire le prompt et appeler l'IA
+            const prompt = MONTHLY_ANALYSIS_PROMPT_TEMPLATE
+                .replace('{firstName}', firstName)
+                .replace('{journalAncien}', JSON.stringify(simplifyJournal(journalAncien), null, 2))
+                .replace('{journalActuel}', JSON.stringify(simplifyJournal(journalActuel), null, 2));
+
+            const analysisResult = await internalCallOpenAI({
+                promptText: prompt,
+                model: 'gpt-4o'
+            });
+
+            return { success: true, analysis: analysisResult };
+
+        } catch (error) {
+            console.error("Erreur lors de la génération de l'analyse mensuelle:", error);
+            if (error instanceof functions.https.HttpsError) {
+                throw error;
+            }
+            throw new functions.https.HttpsError('internal', 'Une erreur interne est survenue lors de la génération de votre analyse.');
+        }
+    });
