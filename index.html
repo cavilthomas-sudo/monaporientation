@@ -1694,32 +1694,30 @@ function showVerificationView(user) {
 
     // ❗ CORRECTION : Le bouton "Renvoyer" appelle maintenant votre fonction Cloud pour envoyer l'email Brevo.
     authContainer.querySelector('#resendVerificationBtn').addEventListener('click', async () => {
-        const resendMessage = authContainer.querySelector('#resendMessage');
-        try {
-            const functionUrl = 'https://europe-west3-monapp0rientation.cloudfunctions.net/sendTransactionalEmail';
-            await fetch(functionUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    data: {
-                        templateId: 1, // ID du template de VÉRIFICATION
-                        toEmail: user.email,
-                        params: { firstName: user.displayName || ' ' } // On essaie de récupérer le prénom
-                    }
-                }),
-            });
-            resendMessage.textContent = "Un nouvel e-mail a été envoyé !";
-        } catch (error) {
-            console.error("Erreur lors du renvoi de l'email:", error);
-            resendMessage.textContent = "Erreur lors de l'envoi. Veuillez réessayer plus tard.";
-        }
-    });
+    const resendMessage = authContainer.querySelector('#resendMessage');
+    resendMessage.textContent = "Envoi en cours...";
+
+    try {
+        const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
+        const templateId = currentUserInfo.role === 'enseignant' ? 2 : 1; // On devine le rôle
+        
+        await sendEmail({
+            templateId: templateId,
+            toEmail: user.email,
+            params: { firstName: user.displayName || ' ' }
+        });
+
+        resendMessage.textContent = "Un nouvel e-mail a été envoyé !";
+    } catch (error) {
+        console.error("Erreur lors du renvoi de l'email:", error);
+        resendMessage.textContent = "Erreur lors de l'envoi. Veuillez réessayer plus tard.";
+    }
+});
     
-    authContainer.querySelector('#logoutFromVerificationBtn').addEventListener('click', () => {
-        // ✅ AJOUT : On arrête aussi le minuteur si l'utilisateur se déconnecte manuellement.
-        if (verificationTimer) clearInterval(verificationTimer);
-        signOut(auth);
-    });
+authContainer.querySelector('#logoutFromVerificationBtn').addEventListener('click', () => {
+    if (verificationTimer) clearInterval(verificationTimer);
+    signOut(auth);
+});
 }
 
 // AJOUT : Une fonction pour afficher une jolie modale d'information
@@ -1911,93 +1909,102 @@ const signupForm = document.getElementById('signupForm');
         // =======================================================================
 
         signupForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const role = e.target.dataset.role;
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const firstName = capitalizeWords(document.getElementById('firstName').value);
-            const lastName = capitalizeWords(document.getElementById('lastName').value);
+    e.preventDefault();
+    
+    // On désactive le bouton pour éviter les double-clics
+    const submitButton = e.target.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    submitButton.textContent = 'Création en cours...';
 
-            // Affiche l'écran de chargement pour le feedback utilisateur
-            authContainer.innerHTML = `
-                <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in text-center">
-                    <img src="logo_surprises.PNG" alt="Logo OrIAntation" class="mx-auto h-32 w-32 mb-4">
-                    <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Finalisation...</h2>
-                    <div class="loader mx-auto"></div>
-                </div>`;
-            
-            try {
-                // Étape 1 : Création de l'utilisateur avec le SDK Firebase client
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                const user = userCredential.user;
+    const authError = document.getElementById('authError');
+    authError.textContent = '';
+    
+    // --- 1. Récupération des données du formulaire ---
+    const role = e.target.dataset.role;
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const firstName = capitalizeWords(document.getElementById('firstName').value);
+    const lastName = capitalizeWords(document.getElementById('lastName').value);
 
-                // Étape 2 : Préparation des données pour la base de données
-                const userData = {
-                    firstName, lastName, email, role,
-                    gender: document.getElementById('gender').value,
-                    createdAt: new Date(),
-                    lastActivity: new Date(),
-                    journal: defaultData
-                };
-                
-                // Étape 3 : Logique pour l'établissement scolaire
-                if (role === 'eleve') {
-                    if (document.querySelector('input[name="school_method"]:checked').value === 'code') {
-                         const getSchool = httpsCallable(functions, 'getSchoolFromCode');
-                         const result = await getSchool({ code: document.getElementById('schoolCode').value });
-                         userData.schoolId = result.data.schoolId;
-                         userData.schoolName = result.data.schoolName;
-                         userData.classId = result.data.classId;
-                    } else {
-                        userData.schoolName = capitalizeWords(document.getElementById('schoolNameStudent').value);
-                        userData.schoolCity = capitalizeWords(document.getElementById('schoolCityStudent').value);
-                    }
-                } else { // Enseignant
-                    userData.schoolName = capitalizeWords(document.getElementById('schoolNameTeacher').value);
-                    userData.className = document.getElementById('className').value;
-                    userData.schoolCity = capitalizeWords(document.getElementById('schoolCityTeacher').value);
-                }
+    // --- Validation pour les enseignants ---
+    if (role === 'enseignant') {
+        const domain = email.split('@')[1];
+        if (!approvedTeacherDomains.includes(domain)) {
+            authError.textContent = "L'inscription pour les enseignants est réservée aux adresses e-mail académiques.";
+            submitButton.disabled = false;
+            submitButton.textContent = 'Créer mon compte';
+            return;
+        }
+    }
+    
+    try {
+        // --- 2. Création de l'utilisateur dans Firebase Auth ---
+        // C'est cette étape qui va déclencher le onAuthStateChanged
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
-                // Étape 4 : Enregistrement du profil dans Firestore
-                await setDoc(doc(db, "users", user.uid), userData);
-                
-                // Pour un enseignant, on lance la création de sa classe
-                if (role === 'enseignant') {
-                    const setupClass = httpsCallable(functions, 'setupTeacherClass');
-                    await setupClass({ schoolName: userData.schoolName, className: userData.className, schoolCity: userData.schoolCity });
-                }
-
-                // Étape 5 : Appel de votre fonction Cloud pour envoyer l'email (la méthode correcte)
-                const templateId = (role === 'eleve') ? 1 : 2;
-                const functionUrl = 'https://europe-west3-monapp0rientation.cloudfunctions.net/sendTransactionalEmail';
-                
-                await fetch(functionUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        data: {
-                            templateId: templateId,
-                            toEmail: email,
-                            params: { firstName: firstName }
-                        }
-                    }),
-                });
-                
-                // C'est tout ! Le listener `onAuthStateChanged` prend maintenant le relais
-                // et affichera la fenêtre de vérification que vous attendez.
-
-            } catch (error) {
-                console.error("Erreur d'inscription:", error);
-                let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
-                if (error.code === 'auth/email-already-in-use') {
-                    errorMessage = "Cette adresse e-mail est déjà utilisée.";
-                } else if (error.code && error.code.includes('not-found')) {
-                    errorMessage = "Le code d'établissement est invalide. Veuillez vérifier.";
-                }
-                renderSignupForm(role, errorMessage); // On réaffiche le formulaire en cas d'erreur
+        // --- 3. Préparation des données pour Firestore ---
+        const userData = {
+            firstName, lastName, email, role,
+            gender: document.getElementById('gender').value,
+            createdAt: new Date(),
+            lastActivity: new Date(),
+            journal: defaultData // Assurez-vous que defaultData est bien défini
+        };
+        
+        if (role === 'eleve') {
+            if (document.querySelector('input[name="school_method"]:checked').value === 'code') {
+                 const getSchool = httpsCallable(functions, 'getSchoolFromCode');
+                 const result = await getSchool({ code: document.getElementById('schoolCode').value });
+                 userData.schoolId = result.data.schoolId;
+                 userData.schoolName = result.data.schoolName;
+                 userData.classId = result.data.classId;
+            } else {
+                userData.schoolName = capitalizeWords(document.getElementById('schoolNameStudent').value);
+                userData.schoolCity = capitalizeWords(document.getElementById('schoolCityStudent').value);
             }
+        } else { // Enseignant
+            userData.schoolName = capitalizeWords(document.getElementById('schoolNameTeacher').value);
+            userData.className = document.getElementById('className').value;
+            userData.schoolCity = capitalizeWords(document.getElementById('schoolCityTeacher').value);
+        }
+
+        // --- 4. Enregistrement du profil dans Firestore ---
+        await setDoc(doc(db, "users", user.uid), userData);
+        
+        if (role === 'enseignant') {
+            const setupClass = httpsCallable(functions, 'setupTeacherClass');
+            await setupClass({ schoolName: userData.schoolName, className: userData.className, schoolCity: userData.schoolCity });
+        }
+
+        // --- 5. Appel de la Cloud Function pour envoyer l'e-mail de vérification ---
+        const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
+        const templateId = (role === 'eleve') ? 1 : 2;
+        await sendEmail({
+            templateId: templateId,
+            toEmail: email,
+            params: { firstName: firstName }
         });
+        
+        // --- C'est tout ! ---
+        // Le listener `onAuthStateChanged` va maintenant détecter le nouvel utilisateur non vérifié
+        // et affichera automatiquement la page de vérification. Il n'y a rien d'autre à faire ici.
+        // On laisse le bouton désactivé pour que l'utilisateur ne puisse pas re-cliquer pendant la transition.
+
+    } catch (error) {
+        console.error("Erreur d'inscription:", error);
+        let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
+        if (error.code === 'auth/email-already-in-use') {
+            errorMessage = "Cette adresse e-mail est déjà utilisée.";
+        } else if (error.code && (error.code.includes('not-found') || error.message.includes('code d\'établissement est invalide'))) {
+             errorMessage = "Le code d'établissement est invalide. Veuillez vérifier.";
+        }
+        
+        authError.textContent = errorMessage;
+        submitButton.disabled = false;
+        submitButton.textContent = 'Créer mon compte';
+    }
+});
     addVoiceDictationToInputs();
 }
 
