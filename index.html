@@ -1704,14 +1704,17 @@ function showVerificationView(user) {
         const userData = userDoc.data();
         const templateId = userData.role === 'enseignant' ? 2 : 1;
 
-        // On dépose la demande dans la file d'attente. C'est instantané.
-        await addDoc(collection(db, "mailQueue"), {
+        // --- LA NOUVELLE MÉTHODE (CORRECTE) ---
+        // On appelle directement la fonction Cloud, comme pour l'inscription.
+        const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
+        await sendEmail({
             templateId: templateId,
             toEmail: user.email,
             params: { firstName: userData.firstName || ' ' }
         });
 
         resendMessage.textContent = "Un nouvel e-mail a été envoyé !";
+
     } catch (error) {
         console.error("Erreur lors de la demande de renvoi:", error);
         resendMessage.textContent = "Erreur lors de la demande. Veuillez réessayer.";
@@ -1968,8 +1971,7 @@ signupForm.addEventListener('submit', async (e) => {
         // --- ÉTAPE 3 : Enregistrement du profil dans Firestore ---
         await setDoc(doc(db, "users", user.uid), userData);
         
-        // --- ÉTAPE 4 (CORRIGÉE) : Appel de votre fonction Cloud pour l'envoi via Brevo ---
-        // On supprime l'ancienne méthode et on appelle directement la fonction qui envoie l'e-mail personnalisé.
+        // --- ÉTAPE 4 (LA CORRECTION DÉFINITIVE) : Appel direct à votre fonction Brevo ---
         const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
         await sendEmail({
             templateId: templateId,
@@ -1977,18 +1979,14 @@ signupForm.addEventListener('submit', async (e) => {
             params: { firstName: userData.firstName || ' ' }
         });
 
-        // --- SUPPRESSION DE L'ANCIENNE MÉTHODE ---
-        // await sendEmailVerification(user); // On supprime cette ligne !
-
-        // La suite est gérée automatiquement : onAuthStateChanged va maintenant 
-        // détecter l'utilisateur non vérifié et afficher la bonne page.
+        // La suite est gérée automatiquement par Firebase
 
     } catch (error) {
         console.error("Erreur d'inscription:", error);
         let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
         if (error.code === 'auth/email-already-in-use') {
             errorMessage = "Cette adresse e-mail est déjà utilisée.";
-        } else if (error.code === 'functions/not-found' || error.message.includes('getSchoolFromCode')) {
+        } else if (error.message.includes('getSchoolFromCode')) {
             errorMessage = "Le code d'établissement est invalide. Veuillez vérifier.";
         }
         
