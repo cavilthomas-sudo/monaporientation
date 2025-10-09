@@ -329,6 +329,7 @@
        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, deleteUser, sendEmailVerification, applyActionCode, confirmPasswordReset } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, query, where, getDocs, limit, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";     
+       import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1913,6 +1914,7 @@ const signupForm = document.getElementById('signupForm');
 // =======================================================================
 // REMPLACEZ VOTRE ÉCOUTEUR D'ÉVÉNEMENT EXISTANT PAR CE BLOC UNIQUE ET FINAL
 // =======================================================================
+// DANS index.html, REMPLACEZ L'ÉCOUTEUR D'ÉVÉNEMENT EXISTANT PAR CE BLOC :
 signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
