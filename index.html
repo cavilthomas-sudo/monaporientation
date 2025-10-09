@@ -1902,71 +1902,83 @@ function renderSignupForm(role, errorMessage = '') {
 // =======================================================================
 
 const signupForm = document.getElementById('signupForm');
+// =======================================================================
+// DANS LA FONCTION renderSignupForm, REMPLACEZ UNIQUEMENT L'ÉCOUTEUR D'ÉVÉNEMENT
+// =======================================================================
+
 signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
-    // On récupère les données AVANT de changer l'écran
+
+    // ▼▼▼ CORRECTION MAJEURE : ON RÉCUPÈRE TOUTES LES DONNÉES AVANT TOUT CHANGEMENT VISUEL ▼▼▼
     const role = e.target.dataset.role;
-    const emailForDisplay = document.getElementById('email').value;
-    const passwordForLogin = document.getElementById('password').value;
+    const isStudent = role === 'eleve';
 
-    // On sauvegarde les données au cas où il faudrait réafficher le formulaire
-    signupFormData = {
-        firstName: document.getElementById('firstName')?.value || '',
-        lastName: document.getElementById('lastName')?.value || '',
-        schoolName: (role === 'eleve' ? document.getElementById('schoolNameStudent')?.value : document.getElementById('schoolNameTeacher')?.value) || '',
-        gender: document.getElementById('gender')?.value || '',
-        email: emailForDisplay || ''
-    };
+    // Données communes
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const firstName = capitalizeWords(document.getElementById('firstName').value);
+    const lastName = capitalizeWords(document.getElementById('lastName').value);
+    const gender = document.getElementById('gender').value;
 
-    // ▼▼▼ LA VOICI : VOTRE FENÊTRE. ELLE S'AFFICHE IMMÉDIATEMENT ▼▼▼
+    // Données spécifiques (initialisées)
+    let schoolInfo = {};
+    
+    // On sauvegarde les données pour un éventuel "Réessayer"
+    signupFormData = { firstName, lastName, gender, email };
+
+    if (isStudent) {
+        const schoolMethod = document.querySelector('input[name="school_method"]:checked').value;
+        schoolInfo.method = schoolMethod;
+        if (schoolMethod === 'code') {
+            schoolInfo.code = document.getElementById('schoolCode').value.toUpperCase().trim();
+            signupFormData.schoolCode = schoolInfo.code;
+        } else {
+            schoolInfo.schoolName = capitalizeWords(document.getElementById('schoolNameStudent').value.trim());
+            schoolInfo.schoolCity = capitalizeWords(document.getElementById('schoolCityStudent').value.trim());
+            signupFormData.schoolName = schoolInfo.schoolName;
+            signupFormData.schoolCity = schoolInfo.schoolCity;
+        }
+    } else { // Enseignant
+        schoolInfo.schoolName = capitalizeWords(document.getElementById('schoolNameTeacher').value.trim());
+        schoolInfo.className = document.getElementById('className').value.trim();
+        schoolInfo.schoolCity = capitalizeWords(document.getElementById('schoolCityTeacher').value.trim());
+        signupFormData.schoolName = schoolInfo.schoolName;
+        signupFormData.className = schoolInfo.className;
+        signupFormData.schoolCity = schoolInfo.schoolCity;
+    }
+    // ▲▲▲ FIN DE LA RÉCUPÉRATION DES DONNÉES ▲▲▲
+
+    // Maintenant que TOUT est sauvegardé, on peut afficher la fenêtre d'attente
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in text-center">
             <img src="logo_surprises.PNG" alt="Logo OrIAntation" class="mx-auto h-32 w-32 mb-4">
-            <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Vérifiez votre adresse e-mail</h2>
-            <p class="text-slate-600 mb-6">Un e-mail de vérification est en cours d'envoi à <strong>${emailForDisplay}</strong>. Pensez à vérifier vos spams.</p>
+            <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Finalisation de l'inscription...</h2>
+            <p class="text-slate-600 mb-6">Envoi de l'e-mail de vérification à <strong>${email}</strong>...</p>
             <div class="loader mx-auto"></div>
-            <p class="text-sm text-slate-500 mt-4">Vous serez redirigé automatiquement...</p>
         </div>
     `;
 
     try {
-        // On prépare les données complètes à envoyer au serveur
+        // On construit l'objet à envoyer au serveur avec les variables déjà récupérées
         const formData = {
-            email: emailForDisplay,
-            password: passwordForLogin,
-            firstName: capitalizeWords(signupFormData.firstName),
-            lastName: capitalizeWords(signupFormData.lastName),
-            gender: signupFormData.gender,
+            email: email,
+            password: password,
+            firstName: firstName,
+            lastName: lastName,
+            gender: gender,
             role: role,
-            schoolInfo: {}
+            schoolInfo: schoolInfo
         };
 
-        if (role === 'eleve') {
-            const schoolMethod = document.querySelector('input[name="school_method"]:checked').value;
-            formData.schoolInfo.method = schoolMethod;
-            if (schoolMethod === 'code') {
-                formData.schoolInfo.code = document.getElementById('schoolCode').value.toUpperCase().trim();
-            } else {
-                formData.schoolInfo.schoolName = capitalizeWords(document.getElementById('schoolNameStudent').value.trim());
-                formData.schoolInfo.schoolCity = capitalizeWords(document.getElementById('schoolCityStudent').value.trim());
-            }
-        } else { // Enseignant
-            formData.schoolInfo.schoolName = capitalizeWords(document.getElementById('schoolNameTeacher').value.trim());
-            formData.schoolInfo.className = document.getElementById('className').value.trim();
-            formData.schoolInfo.schoolCity = capitalizeWords(document.getElementById('schoolCityTeacher').value.trim());
-        }
-        
-        // ▼▼▼ LA CORRECTION DU BUG CORS EST ICI. C'EST LA SEULE FAÇON CORRECTE D'APPELER LA FONCTION SERVEUR. ▼▼▼
+        // On appelle la fonction serveur (cette partie est correcte)
         const createUser = httpsCallable(functions, 'createUserAndProfile');
         await createUser(formData);
-        // ▲▲▲ FIN DE LA CORRECTION ▲▲▲
         
-        // Si tout a réussi, on connecte l'utilisateur. onAuthStateChanged prendra le relais.
-        await signInWithEmailAndPassword(auth, formData.email, formData.password);
+        // Si ça réussit, on connecte l'utilisateur
+        await signInWithEmailAndPassword(auth, email, password);
 
     } catch (error) {
-        // En cas d'échec, on réaffiche le formulaire avec les données et le message d'erreur
+        // En cas d'échec, on réaffiche le formulaire avec les données pré-remplies et l'erreur
         console.error("Erreur lors de l'inscription :", error);
         renderSignupForm(role, error.message);
     } 
