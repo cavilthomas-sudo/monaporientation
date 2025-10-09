@@ -1658,6 +1658,8 @@ function showLoginView() {
 // AJOUT : Nouvelle fonction pour afficher la page de vérification
 // ✅ VERSION FINALE AVEC LOGO ET BOUTONS CORRIGÉS
 
+// DANS index.html, REMPLACEZ LA FONCTION showVerificationView PAR CELLE-CI :
+
 function showVerificationView(user) {
     authContainer.style.display = 'block';
     mainApp.style.display = 'none';
@@ -1677,55 +1679,59 @@ function showVerificationView(user) {
         </div>
     `;
 
-    // Le minuteur intelligent, maintenant simplifié
     verificationTimer = setInterval(async () => {
         if (auth.currentUser) {
             await auth.currentUser.reload();
             if (auth.currentUser.emailVerified) {
-                // ✅ LA CORRECTION EST ICI :
-                // On arrête tout et on recharge simplement la page.
                 clearInterval(verificationTimer);
                 window.location.reload(); 
             }
         }
     }, 3000);
-
-
-    // ❗ CORRECTION : Le bouton "Renvoyer" appelle maintenant votre fonction Cloud pour envoyer l'email Brevo.
-    authContainer.querySelector('#resendVerificationBtn').addEventListener('click', async () => {
-    const resendMessage = authContainer.querySelector('#resendMessage');
-    resendMessage.textContent = "Préparation de l'envoi...";
-
-    try {
-        // On récupère le rôle de l'utilisateur pour choisir le bon template
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (!userDoc.exists()) {
-            throw new Error("Profil utilisateur introuvable.");
-        }
-        const userData = userDoc.data();
-        const templateId = userData.role === 'enseignant' ? 2 : 1;
-
-        // --- LA NOUVELLE MÉTHODE (CORRECTE) ---
-        // On appelle directement la fonction Cloud, comme pour l'inscription.
-        const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
-        await sendEmail({
-            templateId: templateId,
-            toEmail: user.email,
-            params: { firstName: userData.firstName || ' ' }
-        });
-
-        resendMessage.textContent = "Un nouvel e-mail a été envoyé !";
-
-    } catch (error) {
-        console.error("Erreur lors de la demande de renvoi:", error);
-        resendMessage.textContent = "Erreur lors de la demande. Veuillez réessayer.";
-    }
-});
     
-authContainer.querySelector('#logoutFromVerificationBtn').addEventListener('click', () => {
-    if (verificationTimer) clearInterval(verificationTimer);
-    signOut(auth);
-});
+    authContainer.querySelector('#resendVerificationBtn').addEventListener('click', async () => {
+        const resendMessage = authContainer.querySelector('#resendMessage');
+        resendMessage.textContent = "Préparation de l'envoi...";
+
+        try {
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            
+            // ==================== MODIFICATION ICI ====================
+            // Si le profil n'existe pas, on affiche un message clair au lieu de planter.
+            if (!userDoc.exists()) {
+                resendMessage.classList.remove('text-green-600');
+                resendMessage.classList.add('text-red-500');
+                resendMessage.textContent = "Votre inscription est incomplète. Veuillez vous déconnecter, puis vous réinscrire.";
+                return; // On arrête l'exécution de la fonction ici.
+            }
+            // ==========================================================
+
+            const userData = userDoc.data();
+            const templateId = userData.role === 'enseignant' ? 2 : 1;
+
+            const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
+            await sendEmail({
+                templateId: templateId,
+                toEmail: user.email,
+                params: { firstName: userData.firstName || ' ' }
+            });
+
+            resendMessage.classList.remove('text-red-500');
+            resendMessage.classList.add('text-green-600');
+            resendMessage.textContent = "Un nouvel e-mail a été envoyé !";
+
+        } catch (error) {
+            console.error("Erreur lors de la demande de renvoi:", error);
+            resendMessage.classList.remove('text-green-600');
+            resendMessage.classList.add('text-red-500');
+            resendMessage.textContent = "Une erreur est survenue lors de la demande. Veuillez réessayer.";
+        }
+    });
+    
+    authContainer.querySelector('#logoutFromVerificationBtn').addEventListener('click', () => {
+        if (verificationTimer) clearInterval(verificationTimer);
+        signOut(auth);
+    });
 }
 
 // AJOUT : Une fonction pour afficher une jolie modale d'information
