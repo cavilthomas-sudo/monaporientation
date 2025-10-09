@@ -1906,7 +1906,11 @@ const signupForm = document.getElementById('signupForm');
 // DANS LA FONCTION renderSignupForm, REMPLACEZ UNIQUEMENT L'ÉCOUTEUR D'ÉVÉNEMENT
 // =======================================================================
 
-signupForm.addEventListener('submit', async (e) => {
+// =======================================================================
+        // == REMPLACEZ VOTRE ÉCOUTEUR D'ÉVÉNEMENT EXISTANT PAR CE BLOC UNIQUE ==
+        // =======================================================================
+
+        signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const authError = document.getElementById('authError');
             authError.textContent = '';
@@ -1921,7 +1925,7 @@ signupForm.addEventListener('submit', async (e) => {
             const lastName = capitalizeWords(document.getElementById('lastName').value);
             const gender = document.getElementById('gender').value;
 
-            // Logique pour valider l'email académique pour les enseignants
+            // Validation de l'email académique pour les enseignants
             if (!isStudent) {
                 const emailDomain = email.split('@')[1];
                 if (!approvedTeacherDomains.includes(emailDomain)) {
@@ -1930,7 +1934,7 @@ signupForm.addEventListener('submit', async (e) => {
                 }
             }
 
-            // Affichage de la fenêtre d'attente
+            // Affichage de la fenêtre d'attente pendant le processus
             authContainer.innerHTML = `
                 <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in text-center">
                     <img src="logo_surprises.PNG" alt="Logo OrIAntation" class="mx-auto h-32 w-32 mb-4">
@@ -1940,23 +1944,19 @@ signupForm.addEventListener('submit', async (e) => {
             `;
             
             try {
-                // 2. Création de l'utilisateur avec le SDK client (l'ancienne méthode qui fonctionne)
+                // 2. Création de l'utilisateur directement via le SDK client Firebase
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
 
-                // 3. Préparation des données pour Firestore
+                // 3. Préparation des données pour la base de données Firestore
                 const userData = {
-                    firstName,
-                    lastName,
-                    email,
-                    role,
-                    gender,
+                    firstName, lastName, email, role, gender,
                     createdAt: new Date(),
                     lastActivity: new Date(),
-                    journal: defaultData // Initialise avec un journal par défaut
+                    journal: defaultData
                 };
                 
-                // Logique pour l'établissement (simplifiée, car la logique complexe est gérée côté serveur)
+                // 4. Logique spécifique pour l'établissement de l'élève
                 if (isStudent) {
                     const schoolMethod = document.querySelector('input[name="school_method"]:checked').value;
                     if (schoolMethod === 'code') {
@@ -1966,45 +1966,54 @@ signupForm.addEventListener('submit', async (e) => {
                          userData.schoolName = result.data.schoolName;
                          userData.classId = result.data.classId;
                     } else {
+                        // Logique pour l'inscription par nom (si besoin)
                         userData.schoolName = capitalizeWords(document.getElementById('schoolNameStudent').value);
+                        userData.schoolCity = capitalizeWords(document.getElementById('schoolCityStudent').value);
                     }
-                } else { // Enseignant
-                    // Pour les enseignants, la configuration de la classe se fait après
+                } else { // Pour l'enseignant
                     userData.schoolName = capitalizeWords(document.getElementById('schoolNameTeacher').value);
                     userData.className = document.getElementById('className').value;
+                    userData.schoolCity = capitalizeWords(document.getElementById('schoolCityTeacher').value);
                 }
 
-                // 4. Enregistrement des données dans Firestore
+                // 5. Enregistrement des données de l'utilisateur dans Firestore
                 await setDoc(doc(db, "users", user.uid), userData);
                 
                 // Si c'est un enseignant, on appelle la fonction pour créer sa classe
                 if (role === 'enseignant') {
                     const setupClass = httpsCallable(functions, 'setupTeacherClass');
-                    await setupClass({
-                        schoolName: userData.schoolName,
-                        className: userData.className,
-                        schoolCity: capitalizeWords(document.getElementById('schoolCityTeacher').value)
-                    });
+                    await setupClass({ schoolName: userData.schoolName, className: userData.className, schoolCity: userData.schoolCity });
                 }
 
-                // 5. Appel de VOTRE fonction Cloud pour envoyer l'email via Brevo
+                // 6. *** LA CORRECTION CRUCIALE EST ICI ***
+                // Appel de votre fonction d'envoi d'e-mail existante avec `fetch` (la méthode correcte)
                 const templateId = (role === 'eleve') ? 1 : 2;
-                const sendEmailFunction = httpsCallable(functions, 'sendTransactionalEmail');
-                await sendEmailFunction({ templateId, toEmail: email, params: { firstName } });
-
-                // La suite est gérée automatiquement par onAuthStateChanged qui affichera la vue de vérification.
-                // Pas besoin de faire signIn manuellement ici.
+                const functionUrl = 'https://europe-west3-monapp0rientation.cloudfunctions.net/sendTransactionalEmail';
+                
+                await fetch(functionUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        data: { // L'enveloppe 'data' est cruciale, votre fonction backend l'attend
+                            templateId: templateId,
+                            toEmail: email,
+                            params: { firstName: firstName }
+                        }
+                    }),
+                });
+                
+                // À partir d'ici, tout est automatique. Le listener onAuthStateChanged
+                // va détecter le nouvel utilisateur non vérifié et afficher la bonne page.
 
             } catch (error) {
                 console.error("Erreur d'inscription:", error);
-                // On réaffiche le formulaire avec un message d'erreur clair
                 let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
                 if (error.code === 'auth/email-already-in-use') {
                     errorMessage = "Cette adresse e-mail est déjà utilisée.";
-                } else if (error.code === 'functions/not-found' || error.message.includes('INVALID_ARGUMENT')) {
+                } else if (error.code && error.code.includes('not-found')) {
                     errorMessage = "Le code d'établissement est invalide. Veuillez vérifier et réessayer.";
                 }
-                // On réaffiche le formulaire avec les données et l'erreur
+                // En cas d'erreur, on réaffiche le formulaire avec le message
                 renderSignupForm(role, errorMessage);
             }
         });
