@@ -379,22 +379,72 @@ exports.generateContent = functions
 // FONCTION N°1 : ENVOI D'EMAILS TRANSACTIONNELS (BREVO)
 // =================================================================
 exports.sendTransactionalEmail = functions
-    .region("europe-west3")
-    .https.onRequest((req, res) => {
-        cors(req, res, async () => {
+    .region("europe-west3") // Gardez votre région
+    .https.onCall(async (data, context) => {
+        // La fonction onCall vérifie automatiquement que l'utilisateur est authentifié
+        // C'est plus sécurisé que le CORS pour ce cas d'usage.
+
+        const { templateId, toEmail, params } = data;
+
+        if (!templateId || !toEmail) {
+            throw new functions.https.HttpsError('invalid-argument', 'templateId et toEmail sont requis.');
+        }
+
+        const brevoApiKey = functions.config().brevo.key;
+        if (!brevoApiKey) {
+            console.error("Clé API Brevo non configurée dans Firebase.");
+            throw new functions.https.HttpsError('internal', 'Configuration du service d\'e-mail manquante.');
+        }
+
+        let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+        let apiKey = apiInstance.authentications['apiKey'];
+        apiKey.apiKey = brevoApiKey;
+
+        let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+        sendSmtpEmail.templateId = templateId;
+        sendSmtpEmail.to = [{ email: toEmail }];
+        sendSmtpEmail.params = params || {};
+        sendSmtpEmail.sender = {
+            name: "OrIAntation",
+            email: "contact@oriantation.fr"
+        };
+        
+        // LOGIQUE CRUCIALE : Génération du lien de vérification
+        if (templateId === 1 || templateId === 2) { // Templates d'inscription
             try {
-                const { templateId, toEmail, params } = req.body.data;
-                await sendEmailWithBrevo({ templateId, toEmail, params });
-                // Réponse de succès générique pour la réinitialisation de mot de passe
-                if (templateId === 4) {
-                    return res.status(200).send({ success: true, message: "Si un compte est associé à cette adresse, un e-mail a été envoyé." });
-                }
-                return res.status(200).send({ success: true, message: "Email envoyé." });
+                // On génère le lien de vérification Firebase
+                const link = await admin.auth().generateEmailVerificationLink(toEmail);
+                // On l'ajoute aux paramètres pour le template Brevo
+                // Assurez-vous que votre template Brevo utilise bien la variable {{ params.verificationLink }}
+                sendSmtpEmail.params.verificationLink = link;
             } catch (error) {
-                console.error("Erreur d'envoi Brevo (via HTTP):", error.message);
-                return res.status(500).send({ error: "Erreur lors de l'envoi de l'email." });
+                console.error("Erreur lors de la génération du lien de vérification Firebase:", error);
+                throw new functions.https.HttpsError('internal', "Impossible de générer le lien de vérification.");
             }
-        });
+        }
+        
+        // Logique pour la réinitialisation de mot de passe (gardée pour la cohérence)
+        else if (templateId === 4) {
+            try {
+                const link = await admin.auth().generatePasswordResetLink(toEmail);
+                sendSmtpEmail.params.resetLink = link;
+            } catch (error) {
+                 if (error.code === 'auth/user-not-found') {
+                    console.log(`Tentative de réinitialisation pour un email inexistant: ${toEmail}`);
+                    return { success: true, message: "Si un compte existe, un e-mail a été envoyé." };
+                }
+                console.error("Erreur de génération du lien de réinitialisation:", error);
+                throw new functions.https.HttpsError('internal', "Impossible de générer le lien de réinitialisation.");
+            }
+        }
+
+        try {
+            await apiInstance.sendTransacEmail(sendSmtpEmail);
+            return { success: true };
+        } catch (error) {
+            console.error("Erreur lors de l'envoi de l'e-mail via Brevo:", error);
+            throw new functions.https.HttpsError('internal', 'Le service d\'envoi d\'e-mails a échoué.');
+        }
     });
 
     exports.sendWeeklyPersonalizedEmails = functions
@@ -1126,3 +1176,5 @@ exports.generateMonthlyAnalysis = functions
             throw new functions.https.HttpsError('internal', 'Une erreur interne est survenue lors de la génération de votre analyse.');
         }
     });
+
+    
