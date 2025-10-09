@@ -1931,7 +1931,7 @@ signupForm.addEventListener('submit', async (e) => {
     const firstName = capitalizeWords(document.getElementById('firstName').value);
     const lastName = capitalizeWords(document.getElementById('lastName').value);
 
-    // On prépare cette information maintenant pour l'utiliser plus tard
+    // On prépare l'ID du template Brevo en fonction du rôle
     const templateId = role === 'enseignant' ? 2 : 1;
 
     try {
@@ -1940,18 +1940,20 @@ signupForm.addEventListener('submit', async (e) => {
         const user = userCredential.user;
 
         // --- ÉTAPE 2 : Préparation des données pour Firestore ---
-        const userData = {};
-        userData.firstName = firstName;
-        userData.lastName = lastName;
-        userData.email = email;
-        userData.role = role;
-        userData.gender = document.getElementById('gender').value;
-        userData.createdAt = new Date();
-        userData.lastActivity = new Date();
-        userData.journal = defaultData;
+        const userData = {
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+            role: role,
+            gender: document.getElementById('gender').value,
+            createdAt: new Date(),
+            lastActivity: new Date(),
+            journal: defaultData // Assurez-vous que 'defaultData' est bien défini
+        };
 
         if (role === 'eleve') {
             if (document.querySelector('input[name="school_method"]:checked').value === 'code') {
+                 // On appelle la fonction backend pour valider le code et récupérer les infos
                  const getSchool = httpsCallable(functions, 'getSchoolFromCode');
                  const result = await getSchool({ code: document.getElementById('schoolCode').value });
                  userData.schoolId = result.data.schoolId;
@@ -1961,7 +1963,8 @@ signupForm.addEventListener('submit', async (e) => {
                 userData.schoolName = capitalizeWords(document.getElementById('schoolNameStudent').value);
                 userData.schoolCity = capitalizeWords(document.getElementById('schoolCityStudent').value);
             }
-        } else { // Enseignant
+        } else { // Si c'est un enseignant
+             // On appelle la fonction backend pour créer l'école, la classe et le code d'invitation
              const setupTeacher = httpsCallable(functions, 'setupTeacherClass');
              await setupTeacher({
                 schoolName: capitalizeWords(document.getElementById('schoolNameTeacher').value),
@@ -1970,26 +1973,31 @@ signupForm.addEventListener('submit', async (e) => {
              });
         }
 
-        // --- ÉTAPE 3 : Enregistrement du profil dans Firestore ---
+        // --- ÉTAPE 3 : Enregistrement du profil complet dans Firestore ---
         await setDoc(doc(db, "users", user.uid), userData);
         
-        // --- ÉTAPE 4 (LA CORRECTION DÉFINITIVE) : Appel direct à votre fonction Brevo ---
+        // --- ÉTAPE 4 (LA CORRECTION DÉFINITIVE) : Appel à votre fonction backend pour envoyer l'email ---
         const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
         await sendEmail({
             templateId: templateId,
             toEmail: user.email,
-            params: { firstName: userData.firstName || ' ' }
+            params: { firstName: userData.firstName || ' ' } // On passe le prénom pour la personnalisation
         });
 
-        // La suite est gérée automatiquement par Firebase
+        // À partir d'ici, tout est bon. Firebase détectera le nouvel utilisateur non vérifié
+        // et affichera automatiquement la page de vérification grâce à votre `onAuthStateChanged`.
 
     } catch (error) {
-        console.error("Erreur d'inscription:", error);
+        console.error("Erreur d'inscription détaillée:", error);
         let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
+        
+        // On affine les messages d'erreur pour l'utilisateur
         if (error.code === 'auth/email-already-in-use') {
-            errorMessage = "Cette adresse e-mail est déjà utilisée.";
-        } else if (error.message.includes('getSchoolFromCode')) {
-            errorMessage = "Le code d'établissement est invalide. Veuillez vérifier.";
+            errorMessage = "Cette adresse e-mail est déjà utilisée par un autre compte.";
+        } else if (error.code === 'functions/not-found' || (error.message && error.message.includes('getSchoolFromCode'))) {
+            errorMessage = "Le code d'établissement est invalide. Veuillez vérifier auprès de votre professeur.";
+        } else if (error.code === 'auth/weak-password') {
+            errorMessage = "Le mot de passe est trop faible. Il doit contenir au moins 6 caractères.";
         }
         
         authError.textContent = errorMessage;
