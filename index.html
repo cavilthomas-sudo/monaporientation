@@ -1912,81 +1912,63 @@ const signupForm = document.getElementById('signupForm');
 
         signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const authError = document.getElementById('authError');
-            authError.textContent = '';
-
+            
             const role = e.target.dataset.role;
-            const isStudent = role === 'eleve';
-
-            // 1. Récupération des données du formulaire
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const firstName = capitalizeWords(document.getElementById('firstName').value);
             const lastName = capitalizeWords(document.getElementById('lastName').value);
-            const gender = document.getElementById('gender').value;
 
-            // Validation de l'email académique pour les enseignants
-            if (!isStudent) {
-                const emailDomain = email.split('@')[1];
-                if (!approvedTeacherDomains.includes(emailDomain)) {
-                    authError.textContent = "Pour les enseignants, une adresse e-mail académique est requise.";
-                    return;
-                }
-            }
-
-            // Affichage de la fenêtre d'attente pendant le processus
+            // Affiche l'écran de chargement pour le feedback utilisateur
             authContainer.innerHTML = `
                 <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in text-center">
                     <img src="logo_surprises.PNG" alt="Logo OrIAntation" class="mx-auto h-32 w-32 mb-4">
-                    <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Finalisation de l'inscription...</h2>
+                    <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Finalisation...</h2>
                     <div class="loader mx-auto"></div>
-                </div>
-            `;
+                </div>`;
             
             try {
-                // 2. Création de l'utilisateur directement via le SDK client Firebase
+                // Étape 1 : Création de l'utilisateur avec le SDK Firebase client
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
 
-                // 3. Préparation des données pour la base de données Firestore
+                // Étape 2 : Préparation des données pour la base de données
                 const userData = {
-                    firstName, lastName, email, role, gender,
+                    firstName, lastName, email, role,
+                    gender: document.getElementById('gender').value,
                     createdAt: new Date(),
                     lastActivity: new Date(),
                     journal: defaultData
                 };
                 
-                // 4. Logique spécifique pour l'établissement de l'élève
-                if (isStudent) {
-                    const schoolMethod = document.querySelector('input[name="school_method"]:checked').value;
-                    if (schoolMethod === 'code') {
+                // Étape 3 : Logique pour l'établissement scolaire
+                if (role === 'eleve') {
+                    if (document.querySelector('input[name="school_method"]:checked').value === 'code') {
                          const getSchool = httpsCallable(functions, 'getSchoolFromCode');
                          const result = await getSchool({ code: document.getElementById('schoolCode').value });
                          userData.schoolId = result.data.schoolId;
                          userData.schoolName = result.data.schoolName;
                          userData.classId = result.data.classId;
                     } else {
-                        // Logique pour l'inscription par nom (si besoin)
                         userData.schoolName = capitalizeWords(document.getElementById('schoolNameStudent').value);
                         userData.schoolCity = capitalizeWords(document.getElementById('schoolCityStudent').value);
                     }
-                } else { // Pour l'enseignant
+                } else { // Enseignant
                     userData.schoolName = capitalizeWords(document.getElementById('schoolNameTeacher').value);
                     userData.className = document.getElementById('className').value;
                     userData.schoolCity = capitalizeWords(document.getElementById('schoolCityTeacher').value);
                 }
 
-                // 5. Enregistrement des données de l'utilisateur dans Firestore
+                // Étape 4 : Enregistrement du profil dans Firestore
                 await setDoc(doc(db, "users", user.uid), userData);
                 
-                // Si c'est un enseignant, on appelle la fonction pour créer sa classe
+                // Pour un enseignant, on lance la création de sa classe
                 if (role === 'enseignant') {
                     const setupClass = httpsCallable(functions, 'setupTeacherClass');
                     await setupClass({ schoolName: userData.schoolName, className: userData.className, schoolCity: userData.schoolCity });
                 }
 
-                // 6. *** LA CORRECTION CRUCIALE EST ICI ***
-                // Appel de votre fonction d'envoi d'e-mail existante avec `fetch` (la méthode correcte)
+                // Étape 5 : Appel de votre fonction Cloud pour envoyer l'email (la méthode correcte)
                 const templateId = (role === 'eleve') ? 1 : 2;
                 const functionUrl = 'https://europe-west3-monapp0rientation.cloudfunctions.net/sendTransactionalEmail';
                 
@@ -1994,7 +1976,7 @@ const signupForm = document.getElementById('signupForm');
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        data: { // L'enveloppe 'data' est cruciale, votre fonction backend l'attend
+                        data: {
                             templateId: templateId,
                             toEmail: email,
                             params: { firstName: firstName }
@@ -2002,8 +1984,8 @@ const signupForm = document.getElementById('signupForm');
                     }),
                 });
                 
-                // À partir d'ici, tout est automatique. Le listener onAuthStateChanged
-                // va détecter le nouvel utilisateur non vérifié et afficher la bonne page.
+                // C'est tout ! Le listener `onAuthStateChanged` prend maintenant le relais
+                // et affichera la fenêtre de vérification que vous attendez.
 
             } catch (error) {
                 console.error("Erreur d'inscription:", error);
@@ -2011,10 +1993,9 @@ const signupForm = document.getElementById('signupForm');
                 if (error.code === 'auth/email-already-in-use') {
                     errorMessage = "Cette adresse e-mail est déjà utilisée.";
                 } else if (error.code && error.code.includes('not-found')) {
-                    errorMessage = "Le code d'établissement est invalide. Veuillez vérifier et réessayer.";
+                    errorMessage = "Le code d'établissement est invalide. Veuillez vérifier.";
                 }
-                // En cas d'erreur, on réaffiche le formulaire avec le message
-                renderSignupForm(role, errorMessage);
+                renderSignupForm(role, errorMessage); // On réaffiche le formulaire en cas d'erreur
             }
         });
     addVoiceDictationToInputs();
