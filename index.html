@@ -1615,7 +1615,7 @@ function showLoginView() {
             <img src="logo.png" alt="Logo OrIAntation" class="mx-auto h-auto w-auto">
             <div class="p-4 bg-white text-OrIAntation-darkblue text-center mb-6">
                 <p class="text-sm text-slate-600">
-                    Tu te sens perdu ? dans le brouillard ? Noyé dans un océan d'informations ? Pas de panique, tu vas enfin pouvoir prendre les commandes de ton orientation ! Fais confiance à ton copilote OrIA pour te montrer des chemins de traverse que peu connaissent.
+                    Que tu te sentes perdu, noyé dans un océan d'informations ou bien que tu sois certain de ta destination, fais confiance à ton copilote OrIA pour te montrer des chemins de traverse que peu connaissent. C'est la garantie de ne rater aucune opportunité pour ton avenir !!
                 </p>
                 <p class="font-semibold text-OrIAntation-darkblue mt-2">Choisis ton cap avec notre boussole 2.0 !!</p>
             </div>
@@ -9253,6 +9253,14 @@ async function createUnifiedJournalView(userInfo, journalDataToDisplay, context)
     div.innerHTML += progressBarHTML;
 
     if (context === 'student') {
+        const analysisPanel = document.createElement('div');
+        analysisPanel.id = 'monthly-analysis-panel';
+        analysisPanel.className = 'my-8';
+        div.appendChild(analysisPanel);
+    }
+
+
+    if (context === 'student') {
         const shareToken = journalDataToDisplay.share_token || null;
         const shareLink = shareToken ? `${window.location.origin}${window.location.pathname}?share_id=${currentUserId}&token=${shareToken}` : '';
         const sharePanelEl = document.createElement('div');
@@ -9643,6 +9651,8 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
 
     // ---- Logique des événements ----
     const allEventListeners = () => {
+          checkForSnapshots();
+
         if (context === 'student') {
             const toggleShareBtn = div.querySelector('#toggle-share-btn');
             if (toggleShareBtn) {
@@ -9778,7 +9788,58 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
                 if (targetElement) { targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
             }
         });
+        
     };
+
+    const checkForSnapshots = async () => {
+        if (context !== 'student') return;
+
+        try {
+            const snapshotsRef = collection(db, 'users', currentUserId, 'journal_snapshots');
+            const q = query(snapshotsRef, limit(1));
+            const snapshot = await getDocs(q);
+            
+            const panel = div.querySelector('#monthly-analysis-panel');
+            if (panel && !snapshot.empty) {
+                panel.innerHTML = `
+                    <div class="bg-orange-50 p-6 rounded-lg border border-orange-200 text-center">
+                        <h2 class="text-xl font-bold text-orange-800 mb-2 flex items-center justify-center gap-2">🎬 Mon Évolution Mensuelle</h2>
+                        <p class="text-slate-600 text-sm mb-4 max-w-lg mx-auto">Compare ton journal d'aujourd'hui avec celui du mois dernier pour voir le film de ta réflexion.</p>
+                        <button id="launch-analysis-btn" class="bg-orange-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-orange-600 transition">
+                            🚀 Lancer mon Analyse d'Évolution
+                        </button>
+                    </div>
+                `;
+                
+                div.querySelector('#launch-analysis-btn').addEventListener('click', async () => {
+                    const title = "Analyse d'Évolution Mensuelle en cours...";
+                    const content = `<div class="text-center"><div class="loader"></div><p class="text-slate-500 mt-2">OrIA compare tes journaux... cette opération peut prendre un instant.</p></div>`;
+                    createSimpleModal(title, content);
+
+                    try {
+                        const generateAnalysis = httpsCallable(functions, 'generateMonthlyAnalysis');
+                        const result = await generateAnalysis();
+                        
+                        if (result.data.success) {
+                            createSimpleModal(
+                                "🎬 Ton Rapport d'Évolution",
+                                `<div class="prose prose-sm max-w-none">${marked.parse(result.data.analysis)}</div>`
+                            );
+                        } else {
+                            throw new Error(result.data.error || "L'analyse a échoué.");
+                        }
+                    } catch (error) {
+                        console.error("Erreur lors de l'appel de generateMonthlyAnalysis:", error);
+                        const errorMessage = error.message || "Désolé, une erreur est survenue lors de la génération de ton analyse. Réessaie plus tard.";
+                        createSimpleModal("Erreur", `<p class="text-red-500">${errorMessage}</p>`);
+                    }
+                });
+            }
+        } catch (error) {
+            console.error("Erreur lors de la vérification des snapshots:", error);
+        }
+    };
+
     allEventListeners();
     
     // ---- Restauration des variables globales ----
@@ -9788,18 +9849,7 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
     return div;
 }
 
-// ==============================================================================
-// CORRECTION DE LA LOGIQUE DES COCHES DE VALIDATION
-// Remplacez votre fonction isStepComplete existante par celle-ci.
-// ==============================================================================
 
-// ==============================================================================
-// CORRECTION FINALE DE LA LOGIQUE DES COCHES (AVEC RÉTROPLANNING)
-// ==============================================================================
-
-// ==============================================================================
-// FONCTION isStepComplete (LOGIQUE FINALE ET DÉFINITIVE v2)
-// ==============================================================================
 function isStepComplete(stepKey) {
     const data = journalData[stepKey];
     if (!data) return false;
@@ -9828,9 +9878,6 @@ function isStepComplete(stepKey) {
             }
         }
 
-// ==============================================================================
-// FONCTION createProgressBarHTML (LOGIQUE FINALE ET DÉFINITIVE)
-// ==============================================================================
 function createProgressBarHTML() {
     // On exclut les "non-étapes" du menu.
     const nonTrackableStepIds = ['journal', 'retroplanning']; 
