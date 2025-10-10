@@ -1839,11 +1839,10 @@ function showForgotPasswordView() {
 // DANS VOTRE <script type="module">, REMPLACEZ CE BLOC D'ÉCOUTEUR 'submit' EXISTANT PAR CELUI-CI :
 
 authContainer.addEventListener('submit', async (e) => {
-    // On vérifie que c'est bien le formulaire d'inscription qui a été soumis
     if (e.target && e.target.id === 'signupForm') {
         e.preventDefault();
         
-        const form = e.target;
+        const form = e.target; // 'form' est notre référence au formulaire soumis
         const submitButton = form.querySelector('button[type="submit"]');
         const authError = document.getElementById('authError');
         
@@ -1854,58 +1853,59 @@ authContainer.addEventListener('submit', async (e) => {
         authError.textContent = '';
         
         const role = form.dataset.role;
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
+        // On cherche 'email' et 'password' à l'intérieur du formulaire
+        const email = form.querySelector('#email').value;
+        const password = form.querySelector('#password').value;
 
         try {
             let schoolData = {};
-            // --- ÉTAPE 1 : Validation des données (AVANT de créer l'utilisateur) ---
+            
             if (role === 'eleve') {
                 const radioChoice = form.querySelector('input[name="school_method"]:checked');
                 if (!radioChoice) throw new Error("Veuillez choisir une méthode pour trouver votre lycée.");
                 
                 if (radioChoice.value === 'code') {
-                    const schoolCode = document.getElementById('schoolCode').value;
+                    // On cherche 'schoolCode' à l'intérieur du formulaire
+                    const schoolCode = form.querySelector('#schoolCode').value;
                     if (!schoolCode) throw new Error("Le code d'établissement est obligatoire.");
                     const getSchool = httpsCallable(functions, 'getSchoolFromCode');
                     const result = await getSchool({ code: schoolCode });
                     schoolData = result.data;
                 } else {
-                    schoolData.schoolName = capitalizeWords(document.getElementById('schoolNameStudent').value);
-                    schoolData.schoolCity = capitalizeWords(document.getElementById('schoolCityStudent').value);
+                    // On cherche les champs spécifiques à l'élève à l'intérieur du formulaire
+                    schoolData.schoolName = capitalizeWords(form.querySelector('#schoolNameStudent').value);
+                    schoolData.schoolCity = capitalizeWords(form.querySelector('#schoolCityStudent').value);
                     if (!schoolData.schoolName || !schoolData.schoolCity) throw new Error("Le nom et la ville du lycée sont obligatoires.");
                 }
             }
             
             submitButton.textContent = 'Création du compte...';
 
-            // --- ÉTAPE 2 : Création de l'utilisateur Auth (SEULEMENT SI la validation a réussi) ---
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
-            // --- ÉTAPE 3 : Création du profil Firestore ---
             const userProfile = {
-                firstName: capitalizeWords(document.getElementById('firstName').value),
-                lastName: capitalizeWords(document.getElementById('lastName').value),
+                firstName: capitalizeWords(form.querySelector('#firstName').value),
+                lastName: capitalizeWords(form.querySelector('#lastName').value),
                 email, role,
-                gender: document.getElementById('gender').value,
+                gender: form.querySelector('#gender').value,
                 createdAt: new Date(), lastActivity: new Date(),
                 journal: defaultData, ...schoolData 
             };
             await setDoc(doc(db, "users", user.uid), userProfile);
             
-            // Logique spécifique pour l'enseignant après la création du profil
             if (role === 'enseignant') {
-                const schoolName = capitalizeWords(document.getElementById('schoolNameTeacher').value);
-                const className = document.getElementById('className').value;
-                const schoolCity = capitalizeWords(document.getElementById('schoolCityTeacher').value);
+                // LA CORRECTION PRINCIPALE EST ICI : on utilise form.querySelector()
+                const schoolName = capitalizeWords(form.querySelector('#schoolNameTeacher').value);
+                const className = form.querySelector('#className').value;
+                const schoolCity = capitalizeWords(form.querySelector('#schoolCityTeacher').value);
+                
                 if (!schoolName || !className || !schoolCity) throw new Error("Tous les champs de l'établissement sont obligatoires.");
                 
                 const setupTeacher = httpsCallable(functions, 'setupTeacherClass');
                 await setupTeacher({ schoolName, className, schoolCity });
             }
 
-            // --- ÉTAPE 4 : Envoi de l'e-mail ---
             submitButton.textContent = 'Envoi de l\'e-mail...';
             const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
             await sendEmail({
@@ -1913,26 +1913,24 @@ authContainer.addEventListener('submit', async (e) => {
                 toEmail: user.email,
                 params: { firstName: userProfile.firstName || ' ' }
             });
-            // Si tout réussit, le onAuthStateChanged prendra le relais pour afficher la page de vérification.
 
         } catch (error) {
             console.error("Erreur d'inscription détaillée:", error);
             
             let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
-            if (error.code) { // Erreurs Firebase (Auth, Functions)
+            if (error.code) {
                 switch (error.code) {
                     case 'auth/email-already-in-use': errorMessage = "Cette adresse e-mail est déjà utilisée."; break;
                     case 'auth/weak-password': errorMessage = "Le mot de passe doit contenir au moins 6 caractères."; break;
                     case 'functions/not-found': errorMessage = "Le code d'établissement est invalide ou introuvable."; break;
-                    default: errorMessage = error.message; break; // Affiche les autres erreurs de la fonction cloud
+                    default: errorMessage = error.message; break;
                 }
-            } else if (error.message) { // Erreurs JavaScript personnalisées (ex: champs manquants)
+            } else if (error.message) {
                 errorMessage = error.message;
             }
             
             authError.textContent = errorMessage;
             
-            // Nettoyage de l'utilisateur orphelin si l'erreur survient après sa création
             const potentialOrphan = auth.currentUser;
             if (potentialOrphan && potentialOrphan.email === email && !potentialOrphan.emailVerified) {
                 await deleteUser(potentialOrphan).catch(delErr => console.error("Échec de la suppression de l'utilisateur orphelin:", delErr));
