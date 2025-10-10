@@ -1836,104 +1836,111 @@ function showForgotPasswordView() {
 
 
 
+// DANS VOTRE <script type="module">, REMPLACEZ CE BLOC D'ÉCOUTEUR 'submit' EXISTANT PAR CELUI-CI :
+
 authContainer.addEventListener('submit', async (e) => {
-        // On vérifie que c'est bien le formulaire d'inscription qui a été soumis
-        if (e.target && e.target.id === 'signupForm') {
-            e.preventDefault();
-            
-            const form = e.target;
-            const submitButton = form.querySelector('button[type="submit"]');
-            const authError = document.getElementById('authError');
-            
-            submitButton.disabled = true;
-            submitButton.textContent = 'Vérification...';
-            authError.textContent = '';
-            
-            const role = form.dataset.role;
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const firstName = capitalizeWords(document.getElementById('firstName').value);
-            const lastName = capitalizeWords(document.getElementById('lastName').value);
-            const templateId = role === 'enseignant' ? 2 : 1;
+    // On vérifie que c'est bien le formulaire d'inscription qui a été soumis
+    if (e.target && e.target.id === 'signupForm') {
+        e.preventDefault();
+        
+        const form = e.target;
+        const submitButton = form.querySelector('button[type="submit"]');
+        const authError = document.getElementById('authError');
+        
+        if (!submitButton || !authError) return;
 
-            try {
-                let schoolData = {};
-                // --- ÉTAPE 1 : Validation des données (AVANT de créer l'utilisateur) ---
-                if (role === 'eleve') {
-                    // La ligne qui causait l'erreur est maintenant protégée
-                    if (document.querySelector('input[name="school_method"]:checked').value === 'code') {
-                        const schoolCode = document.getElementById('schoolCode').value;
-                        if (!schoolCode) throw new Error("Le code d'établissement est obligatoire.");
-                        
-                        const getSchool = httpsCallable(functions, 'getSchoolFromCode');
-                        const result = await getSchool({ code: schoolCode });
-                        schoolData = result.data;
-                    } else {
-                        schoolData.schoolName = capitalizeWords(document.getElementById('schoolNameStudent').value);
-                        schoolData.schoolCity = capitalizeWords(document.getElementById('schoolCityStudent').value);
-                        if (!schoolData.schoolName || !schoolData.schoolCity) throw new Error("Le nom et la ville du lycée sont obligatoires.");
-                    }
+        submitButton.disabled = true;
+        submitButton.textContent = 'Vérification...';
+        authError.textContent = '';
+        
+        const role = form.dataset.role;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        try {
+            let schoolData = {};
+            // --- ÉTAPE 1 : Validation des données (AVANT de créer l'utilisateur) ---
+            if (role === 'eleve') {
+                const radioChoice = form.querySelector('input[name="school_method"]:checked');
+                if (!radioChoice) throw new Error("Veuillez choisir une méthode pour trouver votre lycée.");
+                
+                if (radioChoice.value === 'code') {
+                    const schoolCode = document.getElementById('schoolCode').value;
+                    if (!schoolCode) throw new Error("Le code d'établissement est obligatoire.");
+                    const getSchool = httpsCallable(functions, 'getSchoolFromCode');
+                    const result = await getSchool({ code: schoolCode });
+                    schoolData = result.data;
+                } else {
+                    schoolData.schoolName = capitalizeWords(document.getElementById('schoolNameStudent').value);
+                    schoolData.schoolCity = capitalizeWords(document.getElementById('schoolCityStudent').value);
+                    if (!schoolData.schoolName || !schoolData.schoolCity) throw new Error("Le nom et la ville du lycée sont obligatoires.");
                 }
-
-                submitButton.textContent = 'Création du compte...';
-
-                // --- ÉTAPE 2 : Création de l'utilisateur Auth (SEULEMENT SI la validation a réussi) ---
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                const user = userCredential.user;
-
-                // --- ÉTAPE 3 : Création du profil Firestore et logique post-création ---
-                const userProfile = {
-                    firstName, lastName, email, role,
-                    gender: document.getElementById('gender').value,
-                    createdAt: new Date(), lastActivity: new Date(), journal: defaultData,
-                    ...schoolData 
-                };
-                await setDoc(doc(db, "users", user.uid), userProfile);
-
-                if (role === 'enseignant') {
-                    const schoolName = capitalizeWords(document.getElementById('schoolNameTeacher').value);
-                    const className = document.getElementById('className').value;
-                    const schoolCity = capitalizeWords(document.getElementById('schoolCityTeacher').value);
-                    if (!schoolName || !className || !schoolCity) throw new Error("Tous les champs de l'établissement sont obligatoires.");
-                    
-                    const setupTeacher = httpsCallable(functions, 'setupTeacherClass');
-                    await setupTeacher({ schoolName, className, schoolCity });
-                }
-                
-                // --- ÉTAPE 4 : Envoi de l'e-mail de vérification ---
-                submitButton.textContent = 'Envoi de l\'e-mail...';
-                const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
-                await sendEmail({
-                    templateId: templateId,
-                    toEmail: user.email,
-                    params: { firstName: userProfile.firstName || ' ' }
-                });
-
-            } catch (error) {
-                console.error("Erreur d'inscription détaillée:", error);
-                
-                let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
-                if (error.code) { 
-                    switch (error.code) {
-                        case 'auth/email-already-in-use': errorMessage = "Cette adresse e-mail est déjà utilisée."; break;
-                        case 'auth/weak-password': errorMessage = "Le mot de passe doit contenir au moins 6 caractères."; break;
-                        case 'functions/not-found': errorMessage = "Le code d'établissement est invalide ou introuvable."; break;
-                        default: errorMessage = error.message; break;
-                    }
-                } else if (error.message) { errorMessage = error.message; }
-                
-                authError.textContent = errorMessage;
-                
-                if (auth.currentUser && !auth.currentUser.emailVerified) {
-                    await deleteUser(auth.currentUser).catch(delErr => console.error("Échec de la suppression de l'utilisateur orphelin:", delErr));
-                }
-
-                submitButton.disabled = false;
-                submitButton.textContent = 'Créer mon compte';
             }
-        }
-    });
+            
+            submitButton.textContent = 'Création du compte...';
 
+            // --- ÉTAPE 2 : Création de l'utilisateur Auth (SEULEMENT SI la validation a réussi) ---
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // --- ÉTAPE 3 : Création du profil Firestore ---
+            const userProfile = {
+                firstName: capitalizeWords(document.getElementById('firstName').value),
+                lastName: capitalizeWords(document.getElementById('lastName').value),
+                email, role,
+                gender: document.getElementById('gender').value,
+                createdAt: new Date(), lastActivity: new Date(),
+                journal: defaultData, ...schoolData 
+            };
+            await setDoc(doc(db, "users", user.uid), userProfile);
+            
+            // Logique spécifique pour l'enseignant après la création du profil
+            if (role === 'enseignant') {
+                const schoolName = capitalizeWords(document.getElementById('schoolNameTeacher').value);
+                const className = document.getElementById('className').value;
+                const schoolCity = capitalizeWords(document.getElementById('schoolCityTeacher').value);
+                if (!schoolName || !className || !schoolCity) throw new Error("Tous les champs de l'établissement sont obligatoires.");
+                
+                const setupTeacher = httpsCallable(functions, 'setupTeacherClass');
+                await setupTeacher({ schoolName, className, schoolCity });
+            }
+
+            // --- ÉTAPE 4 : Envoi de l'e-mail ---
+            submitButton.textContent = 'Envoi de l\'e-mail...';
+            const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
+            await sendEmail({
+                templateId: (role === 'enseignant' ? 2 : 1),
+                toEmail: user.email,
+                params: { firstName: userProfile.firstName || ' ' }
+            });
+            // Si tout réussit, le onAuthStateChanged prendra le relais pour afficher la page de vérification.
+
+        } catch (error) {
+            console.error("Erreur d'inscription détaillée:", error);
+            
+            let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
+            if (error.code) { 
+                switch (error.code) {
+                    case 'auth/email-already-in-use': errorMessage = "Cette adresse e-mail est déjà utilisée."; break;
+                    case 'auth/weak-password': errorMessage = "Le mot de passe doit contenir au moins 6 caractères."; break;
+                    case 'functions/not-found': errorMessage = "Le code d'établissement est invalide ou introuvable."; break;
+                    default: errorMessage = error.message; break;
+                }
+            } else if (error.message) { errorMessage = error.message; }
+            
+            authError.textContent = errorMessage;
+            
+            // Nettoyage de l'utilisateur orphelin si l'erreur survient après sa création
+            const potentialOrphan = auth.currentUser;
+            if (potentialOrphan && potentialOrphan.email === email && !potentialOrphan.emailVerified) {
+                await deleteUser(potentialOrphan).catch(delErr => console.error("Échec de la suppression de l'utilisateur orphelin:", delErr));
+            }
+
+            submitButton.disabled = false;
+            submitButton.textContent = 'Créer mon compte';
+        }
+    }
+});
 
     // =============================================================
     // MODIFICATION MAJEURE : La fonction renderSignupForm se contente
