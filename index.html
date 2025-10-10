@@ -2354,42 +2354,58 @@ async function saveData(context = {}) {
             };
             
             async function loadData() {
-            if (!currentUserId) return;
-            const userDocRef = doc(db, "users", currentUserId);
-            const docSnap = await getDoc(userDocRef);
-            let data = docSnap.exists() ? docSnap.data() : {};
-            
-            userGradeLevel = data.gradeLevel || null;
-            currentUserInfo = {
-                firstName: data.firstName || '',
-                lastName: data.lastName || '',
-                schoolName: data.schoolName || '',
-                gender: data.gender || 'autre',// <-- AJOUTEZ CETTE LIGNE (avec une valeur par défaut)
-                role: data.role || 'eleve' // ✅ AJOUT : On charge le rôle (par défaut "eleve")
+    if (!currentUserId) return;
 
+    const userDocRef = doc(db, "users", currentUserId);
+    let docSnap;
+    let attempts = 0;
 
-            };
-
-        
-            const loadedJournal = data.journal || {};
-            
-            journalData = {};
-            for (const key in defaultData) {
-        // On ajoute une condition spéciale pour les tableaux (Array)
-        if (Array.isArray(defaultData[key])) {
-            journalData[key] = loadedJournal[key] || defaultData[key];
+    // Boucle de nouvelle tentative pour contrer le délai de synchronisation
+    while (attempts < 3) {
+        docSnap = await getDoc(userDocRef);
+        if (docSnap.exists()) {
+            console.log("Document utilisateur trouvé !");
+            break; // On a trouvé le document, on sort de la boucle
         }
-        // La logique existante pour les objets
-        else if (loadedJournal[key] && typeof defaultData[key] === 'object' && defaultData[key] !== null) {
-            journalData[key] = { ...defaultData[key], ...loadedJournal[key] };
-        } 
-        // La logique par défaut pour le reste
-        else {
-             journalData[key] = loadedJournal[key] || defaultData[key];
-        }
+        // Si non trouvé, on attend un peu et on réessaie
+        attempts++;
+        console.warn(`Document utilisateur non trouvé, tentative ${attempts}...`);
+        // On attend 500ms avant la prochaine tentative
+        await new Promise(resolve => setTimeout(resolve, 500)); 
     }
     
-    // Cette vérification supplémentaire est une bonne pratique
+    // Si après 3 tentatives le document n'existe toujours pas, on s'arrête là.
+    if (!docSnap || !docSnap.exists()) {
+        console.error("Impossible de charger les données de l'utilisateur après plusieurs tentatives.");
+        // Pour éviter de rester bloqué, on déconnecte l'utilisateur pour qu'il puisse retenter.
+        signOut(auth);
+        return;
+    }
+
+    // Le reste de la fonction est identique à avant
+    let data = docSnap.data();
+    
+    userGradeLevel = data.gradeLevel || null;
+    currentUserInfo = {
+        firstName: data.firstName || '',
+        lastName: data.lastName || '',
+        schoolName: data.schoolName || '',
+        gender: data.gender || 'autre',
+        role: data.role || 'eleve'
+    };
+
+    const loadedJournal = data.journal || {};
+    journalData = {};
+    for (const key in defaultData) {
+        if (Array.isArray(defaultData[key])) {
+            journalData[key] = loadedJournal[key] || defaultData[key];
+        } else if (loadedJournal[key] && typeof defaultData[key] === 'object' && defaultData[key] !== null) {
+            journalData[key] = { ...defaultData[key], ...loadedJournal[key] };
+        } else {
+            journalData[key] = loadedJournal[key] || defaultData[key];
+        }
+    }
+
     if (!Array.isArray(journalData.radar_history)) {
         journalData.radar_history = [];
     }
@@ -2398,7 +2414,6 @@ async function saveData(context = {}) {
     }
     
     checkBadges();
-
 }
 
 
