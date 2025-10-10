@@ -608,36 +608,30 @@ function extractJsonFromString(str) {
         return; 
     }
 
-    // Priorité 2 : Si c'est un lien de VÉRIFICATION D'EMAIL
 if (mode === 'verifyEmail' && actionCode) {
+    // On pose un verrou global pour être absolument certain que ce code ne s'exécute qu'une seule fois.
+    if (window.verificationEnCours) {
+        return;
+    }
+    window.verificationEnCours = true;
+
     try {
         await applyActionCode(auth, actionCode);
         
-        // SUCCÈS : On affiche le message et on ajoute un ID "verrou" pour marquer la page.
+        // SUCCÈS : On affiche le message de succès.
         document.body.innerHTML = `
-            <div id="verification-success" style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
+            <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
                 <h1 style="font-size: 1.875rem; font-weight: bold; color: #1A3263;">Vérification réussie ! ✅</h1>
-                <p style="color: #4A5568; margin-top: 1rem;">
-                    Parfait ! Vous pouvez fermer cet onglet. L'application principale va se mettre à jour.
-                </p>
+                <p style="color: #4A5568; margin-top: 1rem;">L'application va se mettre à jour...</p>
             </div>`;
         
-        // On laisse à l'utilisateur le temps de lire, puis on ferme la fenêtre.
+        // On ferme la fenêtre TRÈS VITE (1.5 seconde) pour prendre de vitesse le message d'erreur.
         setTimeout(() => { 
             window.close(); 
-        }, 3500); 
+        }, 1500); 
 
     } catch (error) {
-        // -- DÉBUT DE LA CORRECTION DANS LE BLOC D'ERREUR --
-        // On vérifie si le message de succès n'est PAS déjà affiché avant de faire quoi que ce soit.
-        if (document.getElementById('verification-success')) {
-            // Si le succès est déjà affiché, c'est la 2ème exécution. On l'ignore silencieusement.
-            console.warn("Deuxième tentative de vérification bloquée.");
-            return; 
-        }
-        // -- FIN DE LA CORRECTION --
-
-        // Si c'est une vraie erreur (le succès n'a jamais été affiché), on montre le message d'échec.
+        // En cas de VRAI échec, on affiche l'erreur. Le verrou empêchera ce code de s'exécuter si le succès a déjà été affiché.
         console.error("Erreur de vérification:", error);
         document.body.innerHTML = `
             <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
@@ -1447,33 +1441,32 @@ function initializeNormalAppFlow() {
 
 // REMPLACEZ VOTRE FONCTION onAuthStateChanged PAR CETTE VERSION FINALE
 
-onIdTokenChanged(auth, async user => {
+onAuthStateChanged(auth, async user => {
 
     const appLoader = document.getElementById('appLoader');
     const authContainer = document.getElementById('authContainer');
     const mainApp = document.getElementById('mainApp');
     
-    // On s'assure que les conteneurs sont bien cachés au début
-    if(authContainer) authContainer.style.display = 'none';
-    if(mainApp) mainApp.style.display = 'none';
-    if(appLoader) appLoader.style.display = 'flex'; // On montre le chargement
-
     if (user) {
-        // Un utilisateur est détecté, on force la mise à jour de son statut
         await user.reload();
 
         if (user.emailVerified || IS_DEV_MODE) {
-            // L'utilisateur est connecté ET vérifié.
+            // L'utilisateur est connecté et vérifié.
+            
+            // On définit l'ID utilisateur globalement.
             currentUserId = user.uid;
             
-            await loadData(); // On attend que les données soient chargées
+            // On attend que les données soient ENTIÈREMENT chargées AVANT de continuer.
+            await loadData();
 
-            // Maintenant, on peut afficher l'application en toute sécurité.
+            // Maintenant que les données sont chargées et que les variables globales sont prêtes,
+            // on peut afficher l'application en toute sécurité.
             if(appLoader) appLoader.style.display = 'none';
+            if(authContainer) authContainer.style.display = 'none';
             if(mainApp) mainApp.style.display = 'block';
             document.body.classList.add('logged-in');
 
-            // Le reste de la logique s'exécute sans risque.
+            // Le reste de la logique peut maintenant s'exécuter sans risque.
             addVoiceDictationToInputs();
             setupPushNotifications();
             
@@ -1485,7 +1478,7 @@ onIdTokenChanged(auth, async user => {
                 await setDoc(userDocRef, { lastLoginSchoolYear: currentSchoolYear }, { merge: true });
 
                 if (!userGradeLevel) {
-                    showGradeSelectionView(); // La redirection finale souhaitée !
+                    showGradeSelectionView(); // C'est ici que vous arriverez !
                 } else {
                     showMenuAndWelcomeCheck();
                 }
@@ -1504,6 +1497,7 @@ onIdTokenChanged(auth, async user => {
         journalData = {};
         
         if(appLoader) appLoader.style.display = 'none';
+        if(mainApp) mainApp.style.display = 'none';
         if(authContainer) authContainer.style.display = 'block';
         document.body.classList.remove('logged-in');
         
