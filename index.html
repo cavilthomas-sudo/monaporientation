@@ -604,23 +604,44 @@ function extractJsonFromString(str) {
     }
 
     // Priorité 2 : Si c'est un lien de VÉRIFICATION D'EMAIL
-    if (mode === 'verifyEmail' && actionCode) {
-        try {
-            await applyActionCode(auth, actionCode);
-            // Succès ! On affiche un message puis on redirige vers l'application.
-            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;"><h1 style="font-size: 1.875rem; font-weight: bold; color: #1A3263;">Vérification réussie ! ✅</h1><p style="color: #4A5568; margin-top: 1rem;">Votre compte est maintenant activé. Redirection en cours...</p></div>`;
-            // On attend 2.5 secondes pour que l'utilisateur lise, puis on recharge la page à sa racine.
-            setTimeout(() => {
-                window.location.href = window.location.pathname;
-            }, 2500);
-        } catch (error) {
-            // Erreur ! Le lien est probablement expiré. On affiche un message et on ferme.
-            console.error("Erreur de vérification:", error);
-            document.body.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;"><h1 style="font-size: 1.875rem; font-weight: bold; color: #991B1B;">Erreur</h1><p style="color: #4A5568; margin-top: 1rem;">Ce lien de vérification est invalide ou a déjà été utilisé. Cet onglet va se fermer.</p></div>`;
-            setTimeout(() => { window.close(); }, 4000);
+   if (mode === 'verifyEmail' && actionCode) {
+    try {
+        await applyActionCode(auth, actionCode);
+        // SUCCÈS : On affiche un message final clair et on ferme l'onglet.
+        document.body.innerHTML = `
+            <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
+                <h1 style="font-size: 1.875rem; font-weight: bold; color: #1A3263;">Vérification réussie ! ✅</h1>
+                <p style="color: #4A5568; margin-top: 1rem;">Vous pouvez fermer cet onglet. L'application va se mettre à jour automatiquement.</p>
+            </div>`;
+        
+        // On laisse à l'utilisateur le temps de lire, puis on ferme la fenêtre.
+        setTimeout(() => { 
+            window.close(); 
+        }, 3000); 
+
+    } catch (error) {
+        // ÉCHEC : On affiche un message d'erreur clair et on ferme l'onglet.
+        console.error("Erreur de vérification:", error);
+        let errorMessage = "Ce lien est invalide ou a déjà été utilisé.";
+        
+        // On gère spécifiquement l'erreur "lien déjà utilisé" qui causait le bug visuel
+        if (error.code === 'auth/invalid-action-code') {
+            errorMessage = "Ce lien de vérification a déjà été utilisé ou a expiré.";
         }
-        return; // On arrête l'exécution ici pour ne pas lancer le flux normal.
+
+        document.body.innerHTML = `
+            <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
+                <h1 style="font-size: 1.875rem; font-weight: bold; color: #991B1B;">Échec de la vérification</h1>
+                <p style="color: #4A5568; margin-top: 1rem;">${errorMessage}</p>
+            </div>`;
+
+        setTimeout(() => { 
+            window.close(); 
+        }, 4000);
     }
+    // On s'assure d'arrêter toute autre exécution de script sur cette page.
+    return;
+}
 
     // Priorité 3 : Si c'est un lien de RÉINITIALISATION DE MOT DE PASSE
     if (mode === 'resetPassword' && actionCode) {
@@ -1420,8 +1441,7 @@ function initializeNormalAppFlow() {
 
 // REMPLACEZ VOTRE FONCTION onAuthStateChanged PAR CETTE VERSION FINALE
 
-onAuthStateChanged(auth, user => {
-
+onAuthStateChanged(auth, async user => { 
     if (isNewUserFlow) {
         return;
     }
@@ -1430,6 +1450,7 @@ onAuthStateChanged(auth, user => {
     const floatingBackBtn = document.getElementById('floatingBackBtn');
     
     if (user) {
+        await user.reload();
         if (user.emailVerified || IS_DEV_MODE) {
             if (IS_DEV_MODE) { console.log('%c⚠️ MODE DÉVELOPPEUR ACTIF : Vérification d\'email contournée.', 'color: orange; font-weight: bold;'); }
             
