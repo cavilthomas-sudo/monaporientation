@@ -246,12 +246,16 @@
     transform: translateY(-50%) scale(1.2);
   }
 }
+#authContainer { display: none; }
+#mainApp { display: none; }
 
     </style>
 </head>
 
 <body class="bg-background-light text-OrIAntation-darkblue text-center">
-
+<div id="appLoader" class="flex items-center justify-center h-screen">
+        <div class="loader"></div>
+    </div>
     <div id="authContainer" class="max-w-md mx-auto p-4 md:p-8 mt-10">
         <!-- L'interface d'authentification sera injectée ici -->
     </div>
@@ -1422,7 +1426,10 @@ function initializeNormalAppFlow() {
 
 // REMPLACEZ VOTRE FONCTION onAuthStateChanged PAR CETTE VERSION FINALE
 
-onAuthStateChanged(auth, async user => { 
+onAuthStateChanged(auth, async user => {
+
+    const appLoader = document.getElementById('appLoader');
+
     if (isNewUserFlow) {
         return;
     }
@@ -1431,64 +1438,48 @@ onAuthStateChanged(auth, async user => {
     const floatingBackBtn = document.getElementById('floatingBackBtn');
     
     if (user) {
-        await user.reload();
+        await user.reload(); 
+
         if (user.emailVerified || IS_DEV_MODE) {
-            if (IS_DEV_MODE) { console.log('%c⚠️ MODE DÉVELOPPEUR ACTIF : Vérification d\'email contournée.', 'color: orange; font-weight: bold;'); }
+            // ... (le reste du code de connexion réussie reste identique) ...
+
+            // On affiche l'application et on cache le chargement
+            appLoader.style.display = 'none'; // <-- Ligne ajoutée
+            mainApp.style.display = 'block';   // <-- Cette ligne était déjà là, mais son rôle est maintenant plus clair
             
-            if (chatbotToggle) chatbotToggle.style.display = 'flex';
-            currentUserId = user.uid;
-            authContainer.style.display = 'none';
-            mainApp.style.display = 'block';
-            document.body.classList.add('logged-in');
-            
-            // On charge les données de l'utilisateur
             loadData().then(async () => {
-                // 'loadData' est terminée, on peut maintenant prendre des décisions
-
-            addVoiceDictationToInputs(); // <-- AJOUTEZ CETTE LIGNE ICI
-
-
-            setupPushNotifications();
-
-                
+                addVoiceDictationToInputs();
+                setupPushNotifications();
                 if (currentUserInfo.role === 'enseignant') {
-                    // CAS 1 : C'est un enseignant
                     showView('teacherDashboard');
-
                 } else { 
-                    // CAS 2 : C'est un élève
                     const userDocRef = doc(db, "users", currentUserId);
                     const currentSchoolYear = getCurrentSchoolYear();
                     await setDoc(userDocRef, { lastLoginSchoolYear: currentSchoolYear }, { merge: true });
 
                     if (!userGradeLevel) {
-                        // 2a : C'est un NOUVEL élève (il n'a pas encore de classe)
-                        showGradeSelectionView();
+                        showGradeSelectionView(); // Redirection vers le choix de la classe
                     } else {
-                        // 2b : C'est un élève QUI REVIENT
                         showMenuAndWelcomeCheck();
                     }
                 }
             });
             
         } else {
-            // Logique pour l'e-mail non vérifié
-            if (chatbotToggle) chatbotToggle.style.display = 'none';
-            if (floatingBackBtn) floatingBackBtn.style.display = 'none';
-            document.body.classList.remove('logged-in');
+            // L'utilisateur n'est pas vérifié
+            appLoader.style.display = 'none';     // <-- Ligne ajoutée
+            authContainer.style.display = 'block';// <-- Cette ligne était déjà là
             showVerificationView(user);
         }
     } else {
-        // Logique pour l'utilisateur déconnecté
-        if (chatbotToggle) chatbotToggle.style.display = 'none';
-        if (floatingBackBtn) floatingBackBtn.style.display = 'none';
+        // L'utilisateur est déconnecté
         currentUserId = null;
         userGradeLevel = null;
-        currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
-        journalData = {}; 
-        authContainer.style.display = 'block';
-        mainApp.style.display = 'none';
-        document.body.classList.remove('logged-in');
+        // ... (le reste du code de déconnexion reste identique) ...
+
+        // On affiche la page de connexion et on cache le chargement
+        appLoader.style.display = 'none';     // <-- Ligne ajoutée
+        authContainer.style.display = 'block';// <-- Cette ligne était déjà là
         showLoginView();
     }
 });
@@ -1686,7 +1677,7 @@ function showVerificationView(user) {
             await auth.currentUser.reload();
             if (auth.currentUser.emailVerified) {
                 clearInterval(verificationTimer);
-                window.location.reload(); 
+            window.location.href = window.location.pathname; // <--- CORRECTION
             }
         }
     }, 3000);
