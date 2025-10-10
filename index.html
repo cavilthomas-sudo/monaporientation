@@ -1429,57 +1429,63 @@ function initializeNormalAppFlow() {
 onAuthStateChanged(auth, async user => {
 
     const appLoader = document.getElementById('appLoader');
-
-    if (isNewUserFlow) {
-        return;
-    }
-    
-    const chatbotToggle = document.getElementById('chatbot-toggle');
-    const floatingBackBtn = document.getElementById('floatingBackBtn');
+    const authContainer = document.getElementById('authContainer');
+    const mainApp = document.getElementById('mainApp');
     
     if (user) {
-        await user.reload(); 
+        await user.reload();
 
         if (user.emailVerified || IS_DEV_MODE) {
-            // ... (le reste du code de connexion réussie reste identique) ...
-
-            // On affiche l'application et on cache le chargement
-            appLoader.style.display = 'none'; // <-- Ligne ajoutée
-            mainApp.style.display = 'block';   // <-- Cette ligne était déjà là, mais son rôle est maintenant plus clair
+            // L'utilisateur est connecté et vérifié.
             
-            loadData().then(async () => {
-                addVoiceDictationToInputs();
-                setupPushNotifications();
-                if (currentUserInfo.role === 'enseignant') {
-                    showView('teacherDashboard');
-                } else { 
-                    const userDocRef = doc(db, "users", currentUserId);
-                    const currentSchoolYear = getCurrentSchoolYear();
-                    await setDoc(userDocRef, { lastLoginSchoolYear: currentSchoolYear }, { merge: true });
+            // On définit l'ID utilisateur globalement.
+            currentUserId = user.uid;
+            
+            // On attend que les données soient ENTIÈREMENT chargées AVANT de continuer.
+            await loadData();
 
-                    if (!userGradeLevel) {
-                        showGradeSelectionView(); // Redirection vers le choix de la classe
-                    } else {
-                        showMenuAndWelcomeCheck();
-                    }
+            // Maintenant que les données sont chargées et que les variables globales sont prêtes,
+            // on peut afficher l'application en toute sécurité.
+            if(appLoader) appLoader.style.display = 'none';
+            if(authContainer) authContainer.style.display = 'none';
+            if(mainApp) mainApp.style.display = 'block';
+            document.body.classList.add('logged-in');
+
+            // Le reste de la logique peut maintenant s'exécuter sans risque.
+            addVoiceDictationToInputs();
+            setupPushNotifications();
+            
+            if (currentUserInfo.role === 'enseignant') {
+                showView('teacherDashboard');
+            } else {
+                const userDocRef = doc(db, "users", currentUserId);
+                const currentSchoolYear = getCurrentSchoolYear();
+                await setDoc(userDocRef, { lastLoginSchoolYear: currentSchoolYear }, { merge: true });
+
+                if (!userGradeLevel) {
+                    showGradeSelectionView(); // C'est ici que vous arriverez !
+                } else {
+                    showMenuAndWelcomeCheck();
                 }
-            });
-            
+            }
         } else {
-            // L'utilisateur n'est pas vérifié
-            appLoader.style.display = 'none';     // <-- Ligne ajoutée
-            authContainer.style.display = 'block';// <-- Cette ligne était déjà là
+            // L'utilisateur est connecté mais non vérifié.
+            if(appLoader) appLoader.style.display = 'none';
+            if(authContainer) authContainer.style.display = 'block';
             showVerificationView(user);
         }
     } else {
-        // L'utilisateur est déconnecté
+        // L'utilisateur est déconnecté.
         currentUserId = null;
         userGradeLevel = null;
-        // ... (le reste du code de déconnexion reste identique) ...
-
-        // On affiche la page de connexion et on cache le chargement
-        appLoader.style.display = 'none';     // <-- Ligne ajoutée
-        authContainer.style.display = 'block';// <-- Cette ligne était déjà là
+        currentUserInfo = { firstName: '', lastName: '', schoolName: '' };
+        journalData = {};
+        
+        if(appLoader) appLoader.style.display = 'none';
+        if(mainApp) mainApp.style.display = 'none';
+        if(authContainer) authContainer.style.display = 'block';
+        document.body.classList.remove('logged-in');
+        
         showLoginView();
     }
 });
