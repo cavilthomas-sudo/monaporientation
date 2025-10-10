@@ -1,7 +1,7 @@
 // sw.js - Version améliorée avec Stale-While-Revalidate
 
 // On incrémente la version pour déclencher la mise à jour
-const CACHE_VERSION = 'v64';
+const CACHE_VERSION = 'v69';
 const CACHE_NAME = `oriantation-cache-${CACHE_VERSION}`;
 
 // Vos fichiers essentiels restent les mêmes

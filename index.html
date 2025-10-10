@@ -304,9 +304,8 @@
 </footer>
 
     <!-- Chatbot Floating Icon -->
-<div id="chatbot-toggle" class="fixed bottom-6 right-6 bg-cyan-600 text-white w-16 h-16 rounded-full flex items-center justify-center cursor-pointer shadow-lg z-40" style="display: none;">
-    </div>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-8 h-8">
+<div id="chatbot-toggle" class="fixed bottom-6 right-6 bg-cyan-600 text-white w-16 h-16 rounded-full flex items-center justify-center cursor-pointer shadow-lg z-40">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-8 h-8">
         <path fill-rule="evenodd" d="M9.315 7.584C12.195 3.883 16.695 1.5 21.75 1.5a.75.75 0 0 1 .75.75c0 5.056-2.383 9.555-6.084 12.436A6.75 6.75 0 0 1 9.75 22.5a.75.75 0 0 1-.75-.75v-4.131A15.838 15.838 0 0 1 6.382 15H2.25a.75.75 0 0 1-.75-.75 6.75 6.75 0 0 1 7.815-6.666ZM15 6.75a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5Z" clip-rule="evenodd" />
         <path d="M5.26 17.242a.75.75 0 1 0-.897-1.203 5.243 5.243 0 0 0-2.05 5.022.75.75 0 0 0 .625.627 5.243 5.243 0 0 0 5.022-2.051.75.75 0 1 0-1.202-.897 3.744 3.744 0 0 1-3.008 1.51c0-1.23.592-2.323 1.51-3.008Z" />
     </svg>        
@@ -1342,8 +1341,7 @@ function createSimpleModal(title, contentHTML) {
 
 
         let cameFromLogin = false;
-        let cameFromAuth = false; // 👈 AJOUTEZ CETTE LIGNE
-        let authReturnView = ''; 
+        let authReturnView = '';
         let signupFormData = {}; // <-- JUSTE ICI
 
 
@@ -1392,6 +1390,7 @@ const backAction = cameFromLogin ? window.showSignupViewFromGuide : () => window
         if (cameFromAuth) {
             cameFromAuth = false;
             showSignupView();
+            
         } else {
             // NOUVELLE LOGIQUE ICI
             // On vérifie le rôle de l'utilisateur connecté
@@ -1624,6 +1623,9 @@ function showLoginView() {
         floatingBackBtn.style.display = 'none';
     }
 
+        document.getElementById('chatbot-toggle').style.display = 'none';
+
+
     authContainer.innerHTML = `
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in">
             <img src="logo.png" alt="Logo OrIAntation" class="mx-auto h-auto w-auto">
@@ -1678,6 +1680,9 @@ function showLoginView() {
 function showVerificationView(user) {
     authContainer.style.display = 'block';
     mainApp.style.display = 'none';
+
+        document.getElementById('chatbot-toggle').style.display = 'none';
+
 
     if (verificationTimer) clearInterval(verificationTimer);
 
@@ -1994,12 +1999,29 @@ authContainer.addEventListener('submit', async (e) => {
                 <select id="gender" class="w-full p-3 mb-3 border border-slate-300 rounded-lg bg-white" required><option value="" disabled selected>Je suis...</option><option value="homme">Un homme</option><option value="femme">Une femme</option><option value="autre">Autre / Préfère ne pas préciser</option></select>
                 <input id="email" type="email" placeholder="Adresse e-mail${isStudent ? '' : ' académique'}" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
                 <input id="password" type="password" placeholder="Mot de passe (6 caractères min.)" class="w-full p-3 mb-4 border border-slate-300 rounded-lg" required>
-                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4"><p class="text-sm text-slate-700 mb-2">En créant votre compte, vous acceptez la <button type="button" id="showPrivacyPolicyFromSignup" class="font-semibold text-primary-action hover:underline">Politique de Confidentialité</button> de l'application OrIAntation.</p><div class="flex items-start"><input type="checkbox" id="consentCheckbox" class="h-4 w-4 text-cyan-600 focus:ring-cyan-500 border-gray-300 rounded mt-1" required><label for="consentCheckbox" class="ml-2 block text-sm text-slate-700">J'ai lu et j'accepte la politique de confidentialité.</label></div></div>
+<div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4">
+    <p class="text-sm text-slate-700 mb-2">Avant de finaliser votre inscription, veuillez lire notre <button type="button" id="showPrivacyPolicyFromSignup" class="font-semibold text-primary-action hover:underline">Politique de Confidentialité</button>.</p>
+    <div class="flex items-start mt-3">
+        <input type="checkbox" id="consentCheckbox" class="h-4 w-4 text-cyan-600 focus:ring-cyan-500 border-gray-300 rounded mt-1" required>
+        <label for="consentCheckbox" class="ml-2 block text-sm text-slate-700 text-left">
+            Je reconnais avoir lu la Politique de Confidentialité et je consens explicitement au traitement de mes données personnelles (réponses au questionnaire, notes, etc.) dans le but d'obtenir des analyses et des conseils d'orientation personnalisés de la part de l'application OrIAntation.
+        </label>
+    </div>
+</div>
                 <button type="submit" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700">Créer mon compte</button>
             </form>
             <div class="text-center mt-4"><button id="back-to-choice-btn" class="text-sm font-semibold text-primary-action hover:underline">Retour au choix du profil</button></div>
             <p id="authError" class="text-red-500 text-center mt-4">${errorMessage}</p>
         </div>`;
+
+    const privacyBtn = document.getElementById('showPrivacyPolicyFromSignup');
+    if (privacyBtn) {
+        privacyBtn.addEventListener('click', () => {
+            // MODIFICATION ICI : On stocke le rôle exact au lieu d'un simple "true"
+            authReturnView = role; 
+            showView('privacy');
+        });
+    }
 
     if (isStudent) {
         const schoolCodeField = document.getElementById('school-code-field');
@@ -2693,7 +2715,7 @@ async function callOpenAI_API({ promptText, model = 'gpt-4o', isJson = false, wi
         loaderElement.innerHTML = `
             <div class="loader"></div>
             <p class="text-slate-500 font-semibold mt-2">Te voilà au cœur du réacteur...</p>
-            <p class="text-sm text-slate-400 mt-1">Analyse fondamentale en cours, cela peut prendre un instant...</p>
+            <p class="text-sm text-slate-400 mt-1">Analyse fondamentale en cours, cela peut prendre jusqu'à 2 minutes mais rassure toi tu retrouveras toute la réactivité que tu souhaites dans le reste de l'application 🚀 </p>
         `;
     }
 }
@@ -9062,15 +9084,7 @@ div.querySelector('#add-custom-event-btn').addEventListener('click', async () =>
         showInfoModal("Les données de votre profil sont en cours de chargement.");
         return;
     }
-    
-    // Message d'attente (inchangé)
-    retroplanningContent.innerHTML = `
-        <div class="text-center p-4">
-            <div class="loader"></div>
-            <p class="text-slate-500 font-semibold mt-2">OrIA est en train de construire ta feuille de route personnalisée...</p>
-            <p class="text-sm text-slate-400 mt-1">Cette opération peut prendre jusqu'à une minute.</p>
-        </div>
-    `;
+
     
     const masterTasks = retroplanningData[userGradeLevel];
     const profileSummary = getProfileSummary();
