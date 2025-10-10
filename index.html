@@ -1921,92 +1921,119 @@ const signupForm = document.getElementById('signupForm');
 // REMPLACEZ VOTRE ÉCOUTEUR D'ÉVÉNEMENT EXISTANT PAR CE BLOC UNIQUE ET FINAL
 // =======================================================================
 // DANS index.html, REMPLACEZ L'ÉCOUTEUR D'ÉVÉNEMENT EXISTANT PAR CE BLOC :
+// =======================================================================
+// DANS index.html, REMPLACEZ L'ÉCOUTEUR D'ÉVÉNEMENT EXISTANT PAR CE BLOC
+// =======================================================================
 signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const submitButton = e.target.querySelector('button[type="submit"]');
+    const authError = document.getElementById('authError');
+    
+    // --- Initialisation de l'interface ---
     submitButton.disabled = true;
     submitButton.textContent = 'Création en cours...';
-
-    const authError = document.getElementById('authError');
     authError.textContent = '';
     
+    // --- Collecte des données du formulaire ---
     const role = e.target.dataset.role;
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     const firstName = capitalizeWords(document.getElementById('firstName').value);
     const lastName = capitalizeWords(document.getElementById('lastName').value);
-
-    // On prépare l'ID du template Brevo en fonction du rôle
     const templateId = role === 'enseignant' ? 2 : 1;
 
     try {
-        // --- ÉTAPE 1 : Création de l'utilisateur dans Firebase Auth ---
+        // --- ÉTAPE 1 : Validation des données spécifiques au rôle ---
+        let schoolData = {};
+        if (role === 'eleve') {
+            if (document.querySelector('input[name="school_method"]:checked').value === 'code') {
+                const schoolCode = document.getElementById('schoolCode').value;
+                if (!schoolCode) throw new Error("Le code d'établissement est obligatoire.");
+                
+                const getSchool = httpsCallable(functions, 'getSchoolFromCode');
+                const result = await getSchool({ code: schoolCode });
+                schoolData = result.data; // Contient schoolId, schoolName, classId
+            } else {
+                schoolData.schoolName = capitalizeWords(document.getElementById('schoolNameStudent').value);
+                schoolData.schoolCity = capitalizeWords(document.getElementById('schoolCityStudent').value);
+                if (!schoolData.schoolName || !schoolData.schoolCity) throw new Error("Le nom et la ville du lycée sont obligatoires.");
+            }
+        } else { // Enseignant
+            const schoolName = capitalizeWords(document.getElementById('schoolNameTeacher').value);
+            const className = document.getElementById('className').value;
+            const schoolCity = capitalizeWords(document.getElementById('schoolCityTeacher').value);
+            if (!schoolName || !className || !schoolCity) throw new Error("Tous les champs de l'établissement sont obligatoires.");
+            
+            // Les données pour la fonction backend
+            schoolData = { schoolName, className, schoolCity };
+        }
+
+        // --- ÉTAPE 2 : Création de l'utilisateur dans Firebase Auth ---
+        // C'est l'étape qui fonctionnait déjà, mais qui créait un orphelin.
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        // --- ÉTAPE 2 : Préparation des données pour Firestore ---
-        const userData = {
-            firstName: firstName,
-            lastName: lastName,
-            email: email,
-            role: role,
+        // --- ÉTAPE 3 : Appel des fonctions Backend pour créer les structures (classe, etc.) ---
+        // Cette étape se produit AVANT de sauvegarder le profil final de l'utilisateur.
+        if (role === 'enseignant') {
+            const setupTeacher = httpsCallable(functions, 'setupTeacherClass');
+            // La fonction `setupTeacherClass` met à jour le profil du prof avec classId etc.
+            // donc on n'a pas besoin de récupérer son résultat directement ici.
+            await setupTeacher(schoolData);
+        }
+
+        // --- ÉTAPE 4 : Préparation et Enregistrement du profil dans Firestore ---
+        // Maintenant que toutes les infos sont validées et créées, on assemble le profil.
+        const userProfile = {
+            firstName,
+            lastName,
+            email,
+            role,
             gender: document.getElementById('gender').value,
             createdAt: new Date(),
             lastActivity: new Date(),
-            journal: defaultData // Assurez-vous que 'defaultData' est bien défini
+            journal: defaultData, // Assurez-vous que 'defaultData' est bien défini
+            ...schoolData // On fusionne les données de l'école (schoolId, classId, etc.)
         };
-
-        if (role === 'eleve') {
-            if (document.querySelector('input[name="school_method"]:checked').value === 'code') {
-                 // On appelle la fonction backend pour valider le code et récupérer les infos
-                 const getSchool = httpsCallable(functions, 'getSchoolFromCode');
-                 const result = await getSchool({ code: document.getElementById('schoolCode').value });
-                 userData.schoolId = result.data.schoolId;
-                 userData.schoolName = result.data.schoolName;
-                 userData.classId = result.data.classId;
-            } else {
-                userData.schoolName = capitalizeWords(document.getElementById('schoolNameStudent').value);
-                userData.schoolCity = capitalizeWords(document.getElementById('schoolCityStudent').value);
-            }
-        } else { // Si c'est un enseignant
-             // On appelle la fonction backend pour créer l'école, la classe et le code d'invitation
-             const setupTeacher = httpsCallable(functions, 'setupTeacherClass');
-             await setupTeacher({
-                schoolName: capitalizeWords(document.getElementById('schoolNameTeacher').value),
-                className: document.getElementById('className').value,
-                schoolCity: capitalizeWords(document.getElementById('schoolCityTeacher').value)
-             });
-        }
-
-        // --- ÉTAPE 3 : Enregistrement du profil complet dans Firestore ---
-        await setDoc(doc(db, "users", user.uid), userData);
         
-        // --- ÉTAPE 4 (LA CORRECTION DÉFINITIVE) : Appel à votre fonction backend pour envoyer l'email ---
+        // On enregistre le document dans Firestore. C'est l'étape qui échouait.
+        await setDoc(doc(db, "users", user.uid), userProfile, { merge: true });
+        
+        // --- ÉTAPE 5 : Appel à la fonction Backend pour l'envoi de l'e-mail de vérification ---
+        // C'est la deuxième étape cruciale qui était manquante.
         const sendEmail = httpsCallable(functions, 'sendTransactionalEmail');
         await sendEmail({
             templateId: templateId,
             toEmail: user.email,
-            params: { firstName: userData.firstName || ' ' } // On passe le prénom pour la personnalisation
+            params: { firstName: userProfile.firstName || ' ' }
         });
 
-        // À partir d'ici, tout est bon. Firebase détectera le nouvel utilisateur non vérifié
-        // et affichera automatiquement la page de vérification grâce à votre `onAuthStateChanged`.
+        // Si tout s'est bien passé, on ne fait rien de plus.
+        // L'observateur `onAuthStateChanged` détectera le nouvel utilisateur non vérifié et affichera la bonne page.
 
     } catch (error) {
         console.error("Erreur d'inscription détaillée:", error);
-        let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
         
-        // On affine les messages d'erreur pour l'utilisateur
-        if (error.code === 'auth/email-already-in-use') {
-            errorMessage = "Cette adresse e-mail est déjà utilisée par un autre compte.";
-        } else if (error.code === 'functions/not-found' || (error.message && error.message.includes('getSchoolFromCode'))) {
-            errorMessage = "Le code d'établissement est invalide. Veuillez vérifier auprès de votre professeur.";
-        } else if (error.code === 'auth/weak-password') {
-            errorMessage = "Le mot de passe est trop faible. Il doit contenir au moins 6 caractères.";
+        // On donne un feedback clair à l'utilisateur
+        let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
+        if (error.code) { // Erreurs Firebase
+            switch (error.code) {
+                case 'auth/email-already-in-use':
+                    errorMessage = "Cette adresse e-mail est déjà utilisée par un autre compte."; break;
+                case 'auth/weak-password':
+                    errorMessage = "Le mot de passe est trop faible (6 caractères minimum)."; break;
+                case 'functions/not-found':
+                case 'functions/invalid-argument':
+                    errorMessage = "Le code d'établissement est invalide. Veuillez vérifier."; break;
+            }
+        } else if (error.message) { // Erreurs personnalisées
+            errorMessage = error.message;
         }
         
         authError.textContent = errorMessage;
+        
+        // Réactivation du bouton en cas d'erreur
         submitButton.disabled = false;
         submitButton.textContent = 'Créer mon compte';
     }

@@ -7,11 +7,7 @@ const axios = require("axios");
 const SibApiV3Sdk = require('@getbrevo/brevo');
 const cors = require('cors')({origin: true});
 const webpush = require('web-push');
-const puppeteer = require("puppeteer");
-const runtimeOpts = {
-  timeoutSeconds: 120,
-  memory: "1GB",
-};
+
 
 
 
@@ -54,63 +50,6 @@ function extractJsonFromString(str) {
         return null;
     }
 }
-
-exports.generatePdf = functions
-  .runWith(runtimeOpts)
-  .https.onCall(async (data, context) => {
-    // 1. Récupération des données envoyées par le frontend
-    const journalHtml = data.html;
-    const printCss = data.css;
-
-    if (!journalHtml || !printCss) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "La fonction doit être appelée avec du contenu HTML et CSS."
-      );
-    }
-
-    let browser = null;
-    try {
-      // 2. Lancement de Puppeteer
-      browser = await puppeteer.launch({
-        headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      });
-
-      const page = await browser.newPage();
-
-      // 3. Injection du HTML et du CSS dans la page virtuelle
-      await page.setContent(journalHtml, { waitUntil: "networkidle0" });
-      await page.addStyleTag({ content: printCss });
-
-      // 4. Génération du PDF
-      const pdfBuffer = await page.pdf({
-        format: "A4",
-        printBackground: true,
-        margin: {
-          top: "15mm",
-          right: "15mm",
-          bottom: "15mm",
-          left: "15mm",
-        },
-      });
-
-      // 5. Envoi du PDF au format Base64 (facile à gérer côté client)
-      return { pdf: pdfBuffer.toString("base64") };
-
-    } catch (error) {
-      console.error("Erreur Puppeteer:", error);
-      throw new functions.https.HttpsError(
-        "internal",
-        "Erreur lors de la génération du PDF.",
-        error.message
-      );
-    } finally {
-      if (browser) {
-        await browser.close();
-      }
-    }
-  });
 /**
  * Envoie une notification push à un utilisateur via ses abonnements enregistrés.
  * C'est la version finale, robuste et fonctionnelle.
@@ -379,20 +318,39 @@ exports.generateContent = functions
 // FONCTION N°1 : ENVOI D'EMAILS TRANSACTIONNELS (BREVO)
 // =================================================================
 exports.sendTransactionalEmail = functions
-    .region("europe-west3") // Gardez votre région
+    .region("europe-west3")
     .https.onCall(async (data, context) => {
-        // La fonction onCall vérifie automatiquement que l'utilisateur est authentifié
-        // C'est plus sécurisé que le CORS pour ce cas d'usage.
-
+        // La fonction onCall est plus sécurisée pour ce cas d'usage.
         const { templateId, toEmail, params } = data;
 
         if (!templateId || !toEmail) {
             throw new functions.https.HttpsError('invalid-argument', 'templateId et toEmail sont requis.');
         }
 
+        // Logique de génération de lien spécifique au template
+        let finalParams = params || {};
+        try {
+            if (templateId === 1 || templateId === 2) { // Inscription
+                const link = await admin.auth().generateEmailVerificationLink(toEmail);
+                finalParams.verificationLink = link;
+            } else if (templateId === 4) { // Mot de passe oublié
+                const link = await admin.auth().generatePasswordResetLink(toEmail);
+                finalParams.resetLink = link;
+            }
+        } catch (error) {
+            // Si l'utilisateur n'existe pas pour un reset, on ne renvoie pas d'erreur pour des raisons de sécurité.
+            if (error.code === 'auth/user-not-found' && templateId === 4) {
+                console.log(`Tentative de réinitialisation pour un email inexistant: ${toEmail}`);
+                return { success: true, message: "Si un compte existe, un e-mail a été envoyé." };
+            }
+            console.error(`Erreur de génération de lien pour ${toEmail} (template ${templateId}):`, error);
+            throw new functions.https.HttpsError('internal', "Impossible de générer le lien de sécurité.");
+        }
+
+        // Configuration et envoi via Brevo
         const brevoApiKey = functions.config().brevo.key;
         if (!brevoApiKey) {
-            console.error("Clé API Brevo non configurée dans Firebase.");
+            console.error("Clé API Brevo non configurée.");
             throw new functions.https.HttpsError('internal', 'Configuration du service d\'e-mail manquante.');
         }
 
@@ -403,40 +361,8 @@ exports.sendTransactionalEmail = functions
         let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
         sendSmtpEmail.templateId = templateId;
         sendSmtpEmail.to = [{ email: toEmail }];
-        sendSmtpEmail.params = params || {};
-        sendSmtpEmail.sender = {
-            name: "OrIAntation",
-            email: "contact@oriantation.fr"
-        };
-        
-        // LOGIQUE CRUCIALE : Génération du lien de vérification
-        if (templateId === 1 || templateId === 2) { // Templates d'inscription
-            try {
-                // On génère le lien de vérification Firebase
-                const link = await admin.auth().generateEmailVerificationLink(toEmail);
-                // On l'ajoute aux paramètres pour le template Brevo
-                // Assurez-vous que votre template Brevo utilise bien la variable {{ params.verificationLink }}
-                sendSmtpEmail.params.verificationLink = link;
-            } catch (error) {
-                console.error("Erreur lors de la génération du lien de vérification Firebase:", error);
-                throw new functions.https.HttpsError('internal', "Impossible de générer le lien de vérification.");
-            }
-        }
-        
-        // Logique pour la réinitialisation de mot de passe (gardée pour la cohérence)
-        else if (templateId === 4) {
-            try {
-                const link = await admin.auth().generatePasswordResetLink(toEmail);
-                sendSmtpEmail.params.resetLink = link;
-            } catch (error) {
-                 if (error.code === 'auth/user-not-found') {
-                    console.log(`Tentative de réinitialisation pour un email inexistant: ${toEmail}`);
-                    return { success: true, message: "Si un compte existe, un e-mail a été envoyé." };
-                }
-                console.error("Erreur de génération du lien de réinitialisation:", error);
-                throw new functions.https.HttpsError('internal', "Impossible de générer le lien de réinitialisation.");
-            }
-        }
+        sendSmtpEmail.params = finalParams;
+        sendSmtpEmail.sender = { name: "OrIAntation", email: "contact@oriantation.fr" };
 
         try {
             await apiInstance.sendTransacEmail(sendSmtpEmail);
@@ -446,7 +372,6 @@ exports.sendTransactionalEmail = functions
             throw new functions.https.HttpsError('internal', 'Le service d\'envoi d\'e-mails a échoué.');
         }
     });
-
     exports.sendWeeklyPersonalizedEmails = functions
     .region("europe-west3")
     .pubsub.schedule('every sunday 09:00')
@@ -887,10 +812,7 @@ exports.getSchoolAnalytics = functions
 exports.getSchoolFromCode = functions
     .region("europe-west3")
     .https.onCall(async (data, context) => {
-
         const code = data.code.toUpperCase().trim();
-        console.log("Fonction getSchoolFromCode appelée avec le code :", code); // LOG 1
-
         if (!code) {
             throw new functions.https.HttpsError('invalid-argument', 'Le code est manquant.');
         }
@@ -898,33 +820,18 @@ exports.getSchoolFromCode = functions
         const codeRef = admin.firestore().doc(`inviteCodes/${code}`);
         const codeDoc = await codeRef.get();
 
-        console.log("Document de code trouvé :", codeDoc.exists); // LOG 2
-
         if (!codeDoc.exists) {
             throw new functions.https.HttpsError('not-found', 'Ce code d\'établissement est invalide.');
         }
 
-        const codeData = codeDoc.data();
-        console.log("Données du code :", JSON.stringify(codeData)); // LOG 3 : LE PLUS IMPORTANT
-
-        const schoolId = codeData.schoolId;
-        const classId = codeData.classId;
-
-        console.log("schoolId extrait :", schoolId); // LOG 4
-
+        const { schoolId, classId } = codeDoc.data();
         if (!schoolId || !classId) {
-            console.error("Données manquantes dans le code ! schoolId ou classId est vide.");
-            throw new functions.https.HttpsError('internal', 'Le code est mal configuré (données manquantes).');
+            throw new functions.https.HttpsError('internal', 'Le code est mal configuré.');
         }
 
-        const schoolRef = admin.firestore().doc(`schools/${schoolId}`);
-        const schoolDoc = await schoolRef.get();
-
-        console.log("Document d'école trouvé :", schoolDoc.exists); // LOG 5
-
+        const schoolDoc = await admin.firestore().doc(`schools/${schoolId}`).get();
         if (!schoolDoc.exists) {
-            console.error("L'établissement avec l'ID", schoolId, "n'a pas été trouvé dans la collection 'schools'.");
-            throw new functions.https.HttpsError('internal', 'Erreur interne, l\'établissement lié à ce code n\'a pas été trouvé.');
+            throw new functions.https.HttpsError('internal', 'L\'établissement lié à ce code est introuvable.');
         }
 
         return {
@@ -934,16 +841,16 @@ exports.getSchoolFromCode = functions
         };
     });
 
-    exports.setupTeacherClass = functions
+   exports.setupTeacherClass = functions
     .region("europe-west3")
     .https.onCall(async (data, context) => {
         if (!context.auth) {
-            throw new functions.https.HttpsError('unauthenticated', 'Authentification requise pour cette action.');
+            throw new functions.https.HttpsError('unauthenticated', 'Authentification requise.');
         }
 
         const { schoolName, className, schoolCity } = data;
         if (!schoolName || !className || !schoolCity) {
-            throw new functions.https.HttpsError('invalid-argument', 'Le nom de l\'établissement, le nom de la classe et la ville sont requis.');
+            throw new functions.https.HttpsError('invalid-argument', 'Les informations sur l\'établissement sont incomplètes.');
         }
         
         const teacherId = context.auth.uid;
@@ -951,49 +858,39 @@ exports.getSchoolFromCode = functions
         const teacherDoc = await teacherDocRef.get();
         
         if (!teacherDoc.exists) {
+            // Note: le document est créé côté client, mais on vérifie au cas où.
             throw new functions.https.HttpsError('not-found', 'Utilisateur enseignant non trouvé.');
         }
-        const teacherData = teacherDoc.data();
 
+        // Création d'IDs normalisés
         const normalizedSchool = schoolName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
         const normalizedCity = schoolCity.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-        const normalizedClass = className.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-        
         const finalSchoolId = `${normalizedSchool}-${normalizedCity}`;
-        const classId = `${finalSchoolId}-${normalizedClass}-${teacherId.substring(0, 4)}`;
+        const classId = `${finalSchoolId}-${className.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${teacherId.substring(0, 4)}`;
         
-        const teacherLastName = (teacherData.lastName || 'PROF').toUpperCase().substring(0, 5);
+        const teacherLastName = (teacherDoc.data().lastName || 'PROF').toUpperCase().substring(0, 5);
         const classCodePart = className.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 4);
         const inviteCode = `${teacherLastName}-${classCodePart}`;
 
-        // ** LA CORRECTION EST ICI **
-        // On crée une référence au document de l'école
+        // Utilisation d'une transaction pour garantir la cohérence des données
+        const batch = admin.firestore().batch();
+
+        // 1. Crée l'école si elle n'existe pas
         const schoolDocRef = admin.firestore().doc(`schools/${finalSchoolId}`);
+        batch.set(schoolDocRef, { name: schoolName, city: schoolCity, createdAt: new Date() }, { merge: true });
 
-        // On vérifie si l'école existe déjà et on la crée si besoin.
-        const schoolDoc = await schoolDocRef.get();
-        if (!schoolDoc.exists) {
-            await schoolDocRef.set({
-                name: schoolName,
-                city: schoolCity,
-                createdAt: new Date()
-            });
-        }
-        
-        await teacherDocRef.update({
-            classId: classId,
-            className: className
-        });
+        // 2. Met à jour le profil de l'enseignant avec les IDs de sa classe
+        batch.update(teacherDocRef, { classId: classId, className: className, schoolId: finalSchoolId, schoolName: schoolName });
 
-        await admin.firestore().doc(`inviteCodes/${inviteCode}`).set({
-            classId: classId,
-            schoolId: finalSchoolId,
-            teacherId: teacherId,
-            createdAt: new Date()
-        });
+        // 3. Crée le code d'invitation pour les élèves
+        const inviteCodeRef = admin.firestore().doc(`inviteCodes/${inviteCode}`);
+        batch.set(inviteCodeRef, { classId: classId, schoolId: finalSchoolId, teacherId: teacherId, createdAt: new Date() });
+
+        await batch.commit();
 
         return { success: true, inviteCode: inviteCode };
     });
+
 
     exports.savePushSubscription = functions
     .region("europe-west3")
