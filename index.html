@@ -331,7 +331,7 @@
     <!-- SDKs Firebase -->
     <script type="module">
        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-       import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, deleteUser, sendEmailVerification, applyActionCode, confirmPasswordReset } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+       import { getAuth, onAuthStateChanged, onIdTokenChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, deleteUser, sendEmailVerification, applyActionCode, confirmPasswordReset } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, query, where, getDocs, limit, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";     
        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
@@ -1447,32 +1447,33 @@ function initializeNormalAppFlow() {
 
 // REMPLACEZ VOTRE FONCTION onAuthStateChanged PAR CETTE VERSION FINALE
 
-onAuthStateChanged(auth, async user => {
+onIdTokenChanged(auth, async user => {
 
     const appLoader = document.getElementById('appLoader');
     const authContainer = document.getElementById('authContainer');
     const mainApp = document.getElementById('mainApp');
     
+    // On s'assure que les conteneurs sont bien cachés au début
+    if(authContainer) authContainer.style.display = 'none';
+    if(mainApp) mainApp.style.display = 'none';
+    if(appLoader) appLoader.style.display = 'flex'; // On montre le chargement
+
     if (user) {
+        // Un utilisateur est détecté, on force la mise à jour de son statut
         await user.reload();
 
         if (user.emailVerified || IS_DEV_MODE) {
-            // L'utilisateur est connecté et vérifié.
-            
-            // On définit l'ID utilisateur globalement.
+            // L'utilisateur est connecté ET vérifié.
             currentUserId = user.uid;
             
-            // On attend que les données soient ENTIÈREMENT chargées AVANT de continuer.
-            await loadData();
+            await loadData(); // On attend que les données soient chargées
 
-            // Maintenant que les données sont chargées et que les variables globales sont prêtes,
-            // on peut afficher l'application en toute sécurité.
+            // Maintenant, on peut afficher l'application en toute sécurité.
             if(appLoader) appLoader.style.display = 'none';
-            if(authContainer) authContainer.style.display = 'none';
             if(mainApp) mainApp.style.display = 'block';
             document.body.classList.add('logged-in');
 
-            // Le reste de la logique peut maintenant s'exécuter sans risque.
+            // Le reste de la logique s'exécute sans risque.
             addVoiceDictationToInputs();
             setupPushNotifications();
             
@@ -1484,7 +1485,7 @@ onAuthStateChanged(auth, async user => {
                 await setDoc(userDocRef, { lastLoginSchoolYear: currentSchoolYear }, { merge: true });
 
                 if (!userGradeLevel) {
-                    showGradeSelectionView(); // C'est ici que vous arriverez !
+                    showGradeSelectionView(); // La redirection finale souhaitée !
                 } else {
                     showMenuAndWelcomeCheck();
                 }
@@ -1503,7 +1504,6 @@ onAuthStateChanged(auth, async user => {
         journalData = {};
         
         if(appLoader) appLoader.style.display = 'none';
-        if(mainApp) mainApp.style.display = 'none';
         if(authContainer) authContainer.style.display = 'block';
         document.body.classList.remove('logged-in');
         
