@@ -609,22 +609,46 @@ function extractJsonFromString(str) {
     }
 
     // Priorité 2 : Si c'est un lien de VÉRIFICATION D'EMAIL
-  if (mode === 'verifyEmail' && actionCode) {
+if (mode === 'verifyEmail' && actionCode) {
     try {
         await applyActionCode(auth, actionCode);
-        // SUCCÈS : On ne modifie plus la page, on redirige IMMÉDIATEMENT.
-        window.location.href = window.location.pathname;
+        
+        // SUCCÈS : On affiche un message clair avec un compte à rebours.
+        document.body.innerHTML = `
+            <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
+                <h1 style="font-size: 1.875rem; font-weight: bold; color: #1A3263;">Vérification réussie ! ✅</h1>
+                <p style="color: #4A5568; margin-top: 1rem;">
+                    Parfait ! L'onglet principal de l'application va maintenant se mettre à jour.
+                </p>
+                <p style="color: #6B7280; margin-top: 2rem; font-size: 0.875rem;">
+                    Cette fenêtre se fermera automatiquement dans <span id="countdown" style="font-weight: bold;">6</span> secondes...
+                </p>
+            </div>`;
+        
+        // Logique du compte à rebours
+        let seconds = 6;
+        const countdownElement = document.getElementById('countdown');
+        const timer = setInterval(() => {
+            seconds--;
+            if (countdownElement) {
+                countdownElement.textContent = seconds;
+            }
+            if (seconds <= 0) {
+                clearInterval(timer);
+                window.close(); // On ferme la fenêtre à la fin du décompte.
+            }
+        }, 1000);
+
     } catch (error) {
-        // En cas de VRAI échec (lien expiré, etc.), on affiche l'erreur comme avant.
+        // Le bloc d'erreur ne change pas, il est déjà correct.
         console.error("Erreur de vérification:", error);
         document.body.innerHTML = `
             <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
                 <h1 style="font-size: 1.875rem; font-weight: bold; color: #991B1B;">Échec de la vérification</h1>
-                <p style="color: #4A5568; margin-top: 1rem;">Ce lien de vérification est invalide ou a déjà été utilisé.</p>
+                <p style="color: #4A5568; margin-top: 1rem;">Ce lien est invalide ou a déjà été utilisé.</p>
             </div>`;
         setTimeout(() => { window.close(); }, 4000);
     }
-    // On arrête impérativement l'exécution du script ici.
     return;
 }
 
