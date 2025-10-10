@@ -331,6 +331,7 @@
 import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, query, where, getDocs, limit, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";     
        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
+let verificationInProgress = false;
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -605,6 +606,11 @@ function extractJsonFromString(str) {
 
     // Priorité 2 : Si c'est un lien de VÉRIFICATION D'EMAIL
    if (mode === 'verifyEmail' && actionCode) {
+
+     if (verificationInProgress) {
+        return; // Si une vérification est déjà en cours, on ne fait absolument rien.
+    }
+
     try {
         await applyActionCode(auth, actionCode);
         // SUCCÈS : On affiche un message final clair et on ferme l'onglet.
