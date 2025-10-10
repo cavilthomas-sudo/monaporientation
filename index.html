@@ -605,47 +605,22 @@ function extractJsonFromString(str) {
     }
 
     // Priorité 2 : Si c'est un lien de VÉRIFICATION D'EMAIL
-   if (mode === 'verifyEmail' && actionCode) {
-
-     if (verificationInProgress) {
-        return; // Si une vérification est déjà en cours, on ne fait absolument rien.
-    }
-
+  if (mode === 'verifyEmail' && actionCode) {
     try {
         await applyActionCode(auth, actionCode);
-        // SUCCÈS : On affiche un message final clair et on ferme l'onglet.
-        document.body.innerHTML = `
-            <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
-                <h1 style="font-size: 1.875rem; font-weight: bold; color: #1A3263;">Vérification réussie ! ✅</h1>
-                <p style="color: #4A5568; margin-top: 1rem;">Vous pouvez fermer cet onglet. L'application va se mettre à jour automatiquement.</p>
-            </div>`;
-        
-        // On laisse à l'utilisateur le temps de lire, puis on ferme la fenêtre.
-        setTimeout(() => { 
-            window.close(); 
-        }, 3000); 
-
+        // SUCCÈS : On ne modifie plus la page, on redirige IMMÉDIATEMENT.
+        window.location.href = window.location.pathname;
     } catch (error) {
-        // ÉCHEC : On affiche un message d'erreur clair et on ferme l'onglet.
+        // En cas de VRAI échec (lien expiré, etc.), on affiche l'erreur comme avant.
         console.error("Erreur de vérification:", error);
-        let errorMessage = "Ce lien est invalide ou a déjà été utilisé.";
-        
-        // On gère spécifiquement l'erreur "lien déjà utilisé" qui causait le bug visuel
-        if (error.code === 'auth/invalid-action-code') {
-            errorMessage = "Ce lien de vérification a déjà été utilisé ou a expiré.";
-        }
-
         document.body.innerHTML = `
             <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
                 <h1 style="font-size: 1.875rem; font-weight: bold; color: #991B1B;">Échec de la vérification</h1>
-                <p style="color: #4A5568; margin-top: 1rem;">${errorMessage}</p>
+                <p style="color: #4A5568; margin-top: 1rem;">Ce lien de vérification est invalide ou a déjà été utilisé.</p>
             </div>`;
-
-        setTimeout(() => { 
-            window.close(); 
-        }, 4000);
+        setTimeout(() => { window.close(); }, 4000);
     }
-    // On s'assure d'arrêter toute autre exécution de script sur cette page.
+    // On arrête impérativement l'exécution du script ici.
     return;
 }
 
