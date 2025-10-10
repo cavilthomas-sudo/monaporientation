@@ -1940,60 +1940,62 @@ authContainer.addEventListener('submit', async (e) => {
     // maintenant d'afficher le HTML, sans attacher d'écouteur.
     // =============================================================
     function renderSignupForm(role, errorMessage = '') {
-        const isStudent = role === 'eleve';
-        const formTitle = isStudent ? "Inscription Élève" : "Inscription Enseignant";
+    const isStudent = role === 'eleve';
+    const formTitle = isStudent ? "Inscription Élève" : "Inscription Enseignant";
 
-        const studentFieldsHTML = `
-            <div id="student-school-container" class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-3">
-                <label class="block text-md font-medium text-slate-700 mb-2">Comment te rattacher à ton lycée ?</label>
-                <div class="flex gap-4 mb-2">
-                    <label class="flex items-center"><input type="radio" name="school_method" value="code" class="h-4 w-4 text-cyan-600" checked> <span class="ml-2 text-sm">Avec un code</span></label>
-                    <label class="flex items-center"><input type="radio" name="school_method" value="name" class="h-4 w-4 text-cyan-600"> <span class="ml-2 text-sm">Avec le nom</span></label>
-                </div>
-                <div id="school-code-field"><input id="schoolCode" type="text" placeholder="Code fourni par ton professeur" class="w-full p-3 border border-slate-300 rounded-lg"></div>
-                <div id="school-name-field" class="hidden"><input id="schoolNameStudent" type="text" placeholder="Nom complet de ton lycée" class="w-full p-3 border border-slate-300 rounded-lg"><input id="schoolCityStudent" type="text" placeholder="Ville de ton lycée (Ex: Orléans)" class="w-full p-3 mt-2 border border-slate-300 rounded-lg"></div>
-            </div>`;
+    const studentFieldsHTML = `
+        <div id="student-school-container" class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-3">
+            <label class="block text-md font-medium text-slate-700 mb-2">Comment te rattacher à ton lycée ?</label>
+            <div class="flex gap-4 mb-2">
+                <label class="flex items-center"><input type="radio" name="school_method" value="code" class="h-4 w-4 text-cyan-600" checked> <span class="ml-2 text-sm">Avec un code</span></label>
+                <label class="flex items-center"><input type="radio" name="school_method" value="name" class="h-4 w-4 text-cyan-600"> <span class="ml-2 text-sm">Avec le nom</span></label>
+            </div>
+            <div id="school-code-field"><input id="schoolCode" type="text" placeholder="Code fourni par ton professeur" class="w-full p-3 border border-slate-300 rounded-lg"></div>
+            <div id="school-name-field" class="hidden"><input id="schoolNameStudent" type="text" placeholder="Nom complet de ton lycée" class="w-full p-3 border border-slate-300 rounded-lg"><input id="schoolCityStudent" type="text" placeholder="Ville de ton lycée (Ex: Orléans)" class="w-full p-3 mt-2 border border-slate-300 rounded-lg"></div>
+        </div>`;
 
-        const teacherFieldsHTML = `
-            <div id="teacher-school-container" class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-3 space-y-3">
-                <div><label class="block text-md font-medium text-slate-700">Votre établissement</label><input id="schoolNameTeacher" type="text" placeholder="Nom complet de votre établissement" class="w-full p-3 mt-1 border border-slate-300 rounded-lg"></div>
-                <div><label class="block text-md font-medium text-slate-700">Ville de l'établissement</label><input id="schoolCityTeacher" type="text" placeholder="Ex: Orléans" class="w-full p-3 mt-1 border border-slate-300 rounded-lg"></div>
-                <div><label class="block text-md font-medium text-slate-700">Nom de votre classe</label><input id="className" type="text" placeholder="Ex: Première Générale 2" class="w-full p-3 mt-1 border border-slate-300 rounded-lg"></div>
-            </div>`;
+    const teacherFieldsHTML = `
+        <div id="teacher-school-container" class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-3 space-y-3">
+            <div><label class="block text-md font-medium text-slate-700">Votre établissement</label><input id="schoolNameTeacher" type="text" placeholder="Nom complet de votre établissement" class="w-full p-3 mt-1 border border-slate-300 rounded-lg"></div>
+            <div><label class="block text-md font-medium text-slate-700">Ville de l'établissement</label><input id="schoolCityTeacher" type="text" placeholder="Ex: Orléans" class="w-full p-3 mt-1 border border-slate-300 rounded-lg"></div>
+            <div><label class="block text-md font-medium text-slate-700">Nom de votre classe</label><input id="className" type="text" placeholder="Ex: Première Générale 2" class="w-full p-3 mt-1 border border-slate-300 rounded-lg"></div>
+        </div>`;
 
-        authContainer.innerHTML = `
-            <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in">
-                <h2 class="text-2xl font-bold text-center text-OrIAntation-darkblue mb-6">${formTitle}</h2>
-                <form id="signupForm" data-role="${role}">
-                    <input id="firstName" type="text" placeholder="Prénom" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
-                    <input id="lastName" type="text" placeholder="Nom" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
-                    ${isStudent ? studentFieldsHTML : teacherFieldsHTML}
-                    <select id="gender" class="w-full p-3 mb-3 border border-slate-300 rounded-lg bg-white" required><option value="" disabled selected>Je suis...</option><option value="homme">Un homme</option><option value="femme">Une femme</option><option value="autre">Autre / Préfère ne pas préciser</option></select>
-                    <input id="email" type="email" placeholder="Adresse e-mail${isStudent ? '' : ' académique'}" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
-                    <input id="password" type="password" placeholder="Mot de passe (6 caractères min.)" class="w-full p-3 mb-4 border border-slate-300 rounded-lg" required>
-                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4"><p class="text-sm text-slate-700 mb-2">En créant votre compte, vous acceptez la <button type="button" id="showPrivacyPolicyFromSignup" class="font-semibold text-primary-action hover:underline">Politique de Confidentialité</button> de l'application OrIAntation.</p><div class="flex items-start"><input type="checkbox" id="consentCheckbox" class="h-4 w-4 text-cyan-600 focus:ring-cyan-500 border-gray-300 rounded mt-1" required><label for="consentCheckbox" class="ml-2 block text-sm text-slate-700">J'ai lu et j'accepte la politique de confidentialité.</label></div></div>
-                    <button type="submit" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700">Créer mon compte</button>
-                </form>
-                <div class="text-center mt-4"><button id="back-to-choice-btn" class="text-sm font-semibold text-primary-action hover:underline">Retour au choix du profil</button></div>
-                <p id="authError" class="text-red-500 text-center mt-4">${errorMessage}</p>
-            </div>`;
+    // Cette fonction ne fait plus qu'afficher le HTML. Elle n'ajoute plus d'écouteur "submit".
+    authContainer.innerHTML = `
+        <div class="bg-white p-8 rounded-2xl shadow-lg border border-border-subtle fade-in">
+            <h2 class="text-2xl font-bold text-center text-OrIAntation-darkblue mb-6">${formTitle}</h2>
+            <form id="signupForm" data-role="${role}">
+                <input id="firstName" type="text" placeholder="Prénom" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
+                <input id="lastName" type="text" placeholder="Nom" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
+                ${isStudent ? studentFieldsHTML : teacherFieldsHTML}
+                <select id="gender" class="w-full p-3 mb-3 border border-slate-300 rounded-lg bg-white" required><option value="" disabled selected>Je suis...</option><option value="homme">Un homme</option><option value="femme">Une femme</option><option value="autre">Autre / Préfère ne pas préciser</option></select>
+                <input id="email" type="email" placeholder="Adresse e-mail${isStudent ? '' : ' académique'}" class="w-full p-3 mb-3 border border-slate-300 rounded-lg" required>
+                <input id="password" type="password" placeholder="Mot de passe (6 caractères min.)" class="w-full p-3 mb-4 border border-slate-300 rounded-lg" required>
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4"><p class="text-sm text-slate-700 mb-2">En créant votre compte, vous acceptez la <button type="button" id="showPrivacyPolicyFromSignup" class="font-semibold text-primary-action hover:underline">Politique de Confidentialité</button> de l'application OrIAntation.</p><div class="flex items-start"><input type="checkbox" id="consentCheckbox" class="h-4 w-4 text-cyan-600 focus:ring-cyan-500 border-gray-300 rounded mt-1" required><label for="consentCheckbox" class="ml-2 block text-sm text-slate-700">J'ai lu et j'accepte la politique de confidentialité.</label></div></div>
+                <button type="submit" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700">Créer mon compte</button>
+            </form>
+            <div class="text-center mt-4"><button id="back-to-choice-btn" class="text-sm font-semibold text-primary-action hover:underline">Retour au choix du profil</button></div>
+            <p id="authError" class="text-red-500 text-center mt-4">${errorMessage}</p>
+        </div>`;
 
-        // Logique pour afficher/cacher les champs en fonction du choix du radio
-        if (isStudent) {
-            const schoolCodeField = document.getElementById('school-code-field');
-            const schoolNameField = document.getElementById('school-name-field');
-            document.getElementsByName('school_method').forEach(radio => {
-                radio.addEventListener('change', (e) => {
-                    schoolCodeField.classList.toggle('hidden', e.target.value !== 'code');
-                    schoolNameField.classList.toggle('hidden', e.target.value !== 'name');
-                });
+    if (isStudent) {
+        const schoolCodeField = document.getElementById('school-code-field');
+        const schoolNameField = document.getElementById('school-name-field');
+        document.getElementsByName('school_method').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                schoolCodeField.classList.toggle('hidden', e.target.value !== 'code');
+                schoolNameField.classList.toggle('hidden', e.target.value !== 'name');
             });
-        }
-
-        document.getElementById('back-to-choice-btn').addEventListener('click', showSignupView);
-        document.getElementById('showPrivacyPolicyFromSignup').addEventListener('click', () => { /* ... votre logique existante ... */ });
-        addVoiceDictationToInputs();
+        });
     }
+
+    document.getElementById('back-to-choice-btn').addEventListener('click', showSignupView);
+    // document.getElementById('showPrivacyPolicyFromSignup').addEventListener('click', ...);
+
+    // On appelle la fonction pour la dictée vocale ici, c'est le bon endroit.
+    addVoiceDictationToInputs();
+}
 
 
 // Nouvelle fonction principale qui affiche l'écran de choix
