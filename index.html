@@ -1919,14 +1919,16 @@ authContainer.addEventListener('submit', async (e) => {
             console.error("Erreur d'inscription détaillée:", error);
             
             let errorMessage = "Une erreur est survenue. Veuillez réessayer.";
-            if (error.code) { 
+            if (error.code) { // Erreurs Firebase (Auth, Functions)
                 switch (error.code) {
                     case 'auth/email-already-in-use': errorMessage = "Cette adresse e-mail est déjà utilisée."; break;
                     case 'auth/weak-password': errorMessage = "Le mot de passe doit contenir au moins 6 caractères."; break;
                     case 'functions/not-found': errorMessage = "Le code d'établissement est invalide ou introuvable."; break;
-                    default: errorMessage = error.message; break;
+                    default: errorMessage = error.message; break; // Affiche les autres erreurs de la fonction cloud
                 }
-            } else if (error.message) { errorMessage = error.message; }
+            } else if (error.message) { // Erreurs JavaScript personnalisées (ex: champs manquants)
+                errorMessage = error.message;
+            }
             
             authError.textContent = errorMessage;
             
