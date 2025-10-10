@@ -613,34 +613,31 @@ if (mode === 'verifyEmail' && actionCode) {
     try {
         await applyActionCode(auth, actionCode);
         
-        // SUCCÈS : On affiche un message clair avec un compte à rebours.
+        // SUCCÈS : On affiche le message et on ajoute un ID "verrou" pour marquer la page.
         document.body.innerHTML = `
-            <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
+            <div id="verification-success" style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
                 <h1 style="font-size: 1.875rem; font-weight: bold; color: #1A3263;">Vérification réussie ! ✅</h1>
                 <p style="color: #4A5568; margin-top: 1rem;">
-                    Parfait ! L'onglet principal de l'application va maintenant se mettre à jour.
-                </p>
-                <p style="color: #6B7280; margin-top: 2rem; font-size: 0.875rem;">
-                    Cette fenêtre se fermera automatiquement dans <span id="countdown" style="font-weight: bold;">6</span> secondes...
+                    Parfait ! Vous pouvez fermer cet onglet. L'application principale va se mettre à jour.
                 </p>
             </div>`;
         
-        // Logique du compte à rebours
-        let seconds = 6;
-        const countdownElement = document.getElementById('countdown');
-        const timer = setInterval(() => {
-            seconds--;
-            if (countdownElement) {
-                countdownElement.textContent = seconds;
-            }
-            if (seconds <= 0) {
-                clearInterval(timer);
-                window.close(); // On ferme la fenêtre à la fin du décompte.
-            }
-        }, 1000);
+        // On laisse à l'utilisateur le temps de lire, puis on ferme la fenêtre.
+        setTimeout(() => { 
+            window.close(); 
+        }, 3500); 
 
     } catch (error) {
-        // Le bloc d'erreur ne change pas, il est déjà correct.
+        // -- DÉBUT DE LA CORRECTION DANS LE BLOC D'ERREUR --
+        // On vérifie si le message de succès n'est PAS déjà affiché avant de faire quoi que ce soit.
+        if (document.getElementById('verification-success')) {
+            // Si le succès est déjà affiché, c'est la 2ème exécution. On l'ignore silencieusement.
+            console.warn("Deuxième tentative de vérification bloquée.");
+            return; 
+        }
+        // -- FIN DE LA CORRECTION --
+
+        // Si c'est une vraie erreur (le succès n'a jamais été affiché), on montre le message d'échec.
         console.error("Erreur de vérification:", error);
         document.body.innerHTML = `
             <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; text-align: center; padding: 20px; font-family: sans-serif;">
