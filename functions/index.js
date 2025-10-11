@@ -679,27 +679,37 @@ return {
 });
 
 // Fonction pour voir le journal d'un élève
-exports.getStudentJournal = functions.region("europe-west3").https.onCall(async (data, context) => {
-    if (!context.auth) { throw new functions.https.HttpsError('unauthenticated', 'Authentification requise.'); }
-    const teacherId = context.auth.uid;
-    const { studentId } = data;
-    if (!studentId) { throw new functions.https.HttpsError('invalid-argument', 'L\'ID de l\'élève est manquant.'); }
-    const teacherDoc = await admin.firestore().doc(`users/${teacherId}`).get();
-    const teacherData = teacherDoc.data();
-    if (!teacherData || teacherData.role !== 'enseignant' || !teacherData.classId) {
-        throw new functions.https.HttpsError('permission-denied', 'Vos droits sont insuffisants.');
+exports.getStudentJournal = functions.region('europe-west3').https.onCall(async (data, context) => {
+    // ESPION N°1 : La fonction a-t-elle été appelée ?
+    console.log("Fonction getStudentJournal appelée avec les données :", data);
+
+    // Vérification de l'authentification
+    if (!context.auth) {
+        console.error("Erreur : Appel non authentifié.");
+        throw new functions.https.HttpsError('unauthenticated', 'La requête doit être authentifiée.');
     }
-    const studentDoc = await admin.firestore().doc(`users/${studentId}`).get();
-    const studentData = studentDoc.data();
-    if (!studentData || studentData.classId !== teacherData.classId) {
-        throw new functions.https.HttpsError('permission-denied', 'Vous ne pouvez pas accéder aux données de cet élève.');
+    console.log("Appel authentifié par l'UID :", context.auth.uid);
+
+    const studentId = data.studentId;
+    if (!studentId) {
+        console.error("Erreur : studentId manquant dans la requête.");
+        throw new functions.https.HttpsError('invalid-argument', 'L\'ID de l\'élève est requis.');
     }
-    return {
-        firstName: studentData.firstName || 'N/A',
-        schoolName: studentData.schoolName || 'N/A',
-        gradeLevel: studentData.gradeLevel || 'N/A',
-        journal: studentData.journal || {}
-    };
+
+    try {
+        const studentDoc = await admin.firestore().collection('users').doc(studentId).get();
+        if (!studentDoc.exists) {
+            console.warn("Avertissement : Document non trouvé pour l'élève ID :", studentId);
+            throw new functions.https.HttpsError('not-found', 'Aucun élève trouvé avec cet ID.');
+        }
+
+        console.log("Document de l'élève trouvé, renvoi des données.");
+        return studentDoc.data();
+
+    } catch (error) {
+        console.error("Erreur Firestore dans getStudentJournal :", error);
+        throw new functions.https.HttpsError('internal', 'Erreur lors de la lecture de la base de données.');
+    }
 });
 
 // REMPLACEZ VOTRE FONCTION getSchoolAnalytics EXISTANTE PAR CELLE-CI

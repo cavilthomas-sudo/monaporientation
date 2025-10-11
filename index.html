@@ -328,6 +328,8 @@
     </form>
 </div>
 
+<img id="app-logo" src="logo.png" style="display: none;" alt="Logo de l'application">
+
     <!-- SDKs Firebase -->
     <script type="module">
        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -336,6 +338,11 @@ import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, query, where,
        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
 let verificationInProgress = false;
+let textBeforeDictation = '';    // Mémorise le texte présent avant de commencer à dicter
+let sessionFinalTranscript = ''; // Mémorise le texte final de la session de dictée en cours
+let isImpersonatingStudent = false; // Pour savoir si le prof est en "mode élève"
+let originalTeacherData = null; // Pour sauvegarder les données du prof
+
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -349,35 +356,39 @@ if (SpeechRecognition) {
     recognition.continuous = true;  // L'écoute ne s'arrête pas après une phrase.
     recognition.interimResults = true; // Affiche les résultats au fur et à mesure.
 
-    recognition.onresult = (event) => {
-        let final_transcript = '';
-        let interim_transcript = '';
+  recognition.onresult = (event) => {
+    let interim_transcript = '';
 
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-                final_transcript += event.results[i][0].transcript;
-            } else {
-                interim_transcript += event.results[i][0].transcript;
-            }
+    // On parcourt uniquement les nouveaux résultats depuis le dernier événement
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const transcript_part = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+            // On ajoute la nouvelle partie finalisée au texte de notre session
+            sessionFinalTranscript += transcript_part;
+        } else {
+            interim_transcript += transcript_part;
         }
-        
-        // Affiche la transcription en temps réel dans le champ
-        if (activeDictationInput && interim_transcript) {
-            activeDictationInput.value = final_transcript + interim_transcript;
-        }
+    }
 
-        // Une fois que l'utilisateur a fini de parler, on envoie la question
-        if (activeDictationInput && final_transcript) {
-            activeDictationInput.value = final_transcript.trim();
-            // Simule l'envoi du formulaire de chat si c'est bien ce champ qui est actif
-            if (activeDictationInput.id === 'simulation-input') {
-                const form = activeDictationInput.closest('form');
-                if (form) {
-                    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-                }
-            }
-        }
-    };
+    // On applique les commandes vocales sur le texte final de la session
+    let processed_session_transcript = sessionFinalTranscript
+        .replace(/\bva à la ligne\b/gi, '\n')
+        .replace(/\bnouvelle ligne\b/gi, '\n')
+        .replace(/\bnouveau paragraphe\b/gi, '\n\n')
+        .replace(/\s*\bpoint\b/gi, '. ')
+        .replace(/\s*\bvirgule\b/gi, ', ')
+        .replace(/\s*\bpoint d'interrogation\b/gi, '? ')
+        .replace(/\s*\bpoint d'exclamation\b/gi, '! ');
+
+    if (activeDictationInput) {
+        // La valeur affichée est toujours la somme de :
+        // 1. Ce qui était là avant + 2. Le texte final de la session + 3. Le texte provisoire actuel
+        activeDictationInput.value = textBeforeDictation + processed_session_transcript + interim_transcript;
+
+        // Fait défiler le textarea vers le bas si le contenu dépasse
+        activeDictationInput.scrollTop = activeDictationInput.scrollHeight;
+    }
+};
 
     recognition.onerror = (event) => {
         console.error("Erreur de reconnaissance vocale : ", event.error);
@@ -420,19 +431,26 @@ function addVoiceDictationToInputs() {
         wrapper.appendChild(micBtn);
 
         micBtn.addEventListener('click', () => {
-            if (isConversationModeActive) {
-                // Si on clique alors que c'est actif, on arrête tout.
-                isConversationModeActive = false;
-                recognition.stop();
-                micBtn.classList.remove('is-listening');
-            } else {
-                // Si on clique alors que c'est inactif, on démarre.
-                isConversationModeActive = true;
-                activeDictationInput = input;
-                recognition.start();
-                micBtn.classList.add('is-listening');
-            }
-        });
+    // Si on clique alors que c'est actif, on arrête tout.
+    if (micBtn.classList.contains('is-listening')) {
+        isConversationModeActive = false;
+        recognition.stop();
+        micBtn.classList.remove('is-listening');
+    } 
+    // Si on clique alors que c'est inactif, on démarre.
+    else {
+        isConversationModeActive = true;
+        activeDictationInput = input;
+        
+        // On mémorise le texte déjà présent et on réinitialise la session
+        const currentText = activeDictationInput.value;
+        textBeforeDictation = (currentText.length > 0 && !/\s$/.test(currentText)) ? currentText + ' ' : currentText;
+        sessionFinalTranscript = '';
+
+        recognition.start();
+        micBtn.classList.add('is-listening');
+    }
+});
     });
 }
 
@@ -1370,40 +1388,45 @@ function createSimpleModal(title, contentHTML) {
         const floatingBackBtn = document.getElementById('floatingBackBtn'); // AJOUTEZ CETTE LIGNE
 
 floatingBackBtn.addEventListener('click', () => {
-    // Si on est sur la page du guide, on applique la logique spéciale
-    if (currentViewName === 'guide') {
-const backAction = cameFromLogin ? window.showSignupViewFromGuide : () => window.showView('menu');
-        backAction();
+    // --- NOUVELLE LOGIQUE PRIORITAIRE ---
+    // On vérifie d'abord le rôle de l'utilisateur.
+
+    // CAS N°1 : L'utilisateur est un enseignant et n'est PAS en mode "Vue Élève".
+    if (currentUserInfo.role === 'enseignant' && !isImpersonatingStudent) {
+        // Pour un enseignant, le bouton retour ramène TOUJOURS au tableau de bord.
+        // Cela couvre le cas où il est dans le guide ou dans le journal d'un élève.
+        showView('teacherDashboard');
     } 
-    // Cas 2 : On est sur la vue du journal d'un élève (en tant qu'enseignant)
-    else if (currentViewName === 'teacherStudentJournal') {
-        showView('teacherDashboard'); // On retourne au tableau de bord enseignant
-    }
-    // Cas 3 : On est sur la politique de confidentialité
-    else if (currentViewName === 'privacy') {
-        // On s'assure que les bonnes sections de la page sont visibles
-        document.getElementById('mainApp').style.display = 'none';
-        document.getElementById('authContainer').style.display = 'block';
-        document.querySelector('footer').style.display = 'block';
+    // CAS N°2 : L'utilisateur est un élève OU un enseignant en mode "Vue Élève".
+    else {
+        // On applique la logique de navigation standard de l'élève, que vous aviez déjà.
         
-        // Si on vient de la page d'inscription (drapeau `cameFromAuth`)
-        if (cameFromAuth) {
-            cameFromAuth = false;
-            showSignupView();
+        // Si on est sur la page du guide...
+        if (currentViewName === 'guide') {
+            // ...on retourne soit à l'inscription (si on vient de s'inscrire), soit au menu.
+            const backAction = cameFromLogin ? window.showSignupViewFromGuide : () => window.showView('menu');
+            backAction();
+        } 
+        // Si on est sur la politique de confidentialité...
+        else if (currentViewName === 'privacy') {
+            // On s'assure que les bonnes sections de la page sont visibles
+            document.getElementById('mainApp').style.display = 'none';
+            document.getElementById('authContainer').style.display = 'block';
+            document.querySelector('footer').style.display = 'block';
             
-        } else {
-            // NOUVELLE LOGIQUE ICI
-            // On vérifie le rôle de l'utilisateur connecté
-            if (currentUserInfo.role === 'enseignant') {
-                showView('teacherDashboard'); // Si c'est un prof, on retourne à son tableau de bord
+            // Si on vient de la page d'inscription...
+            if (cameFromAuth) {
+                cameFromAuth = false;
+                showSignupView();
             } else {
-                showView('menu'); // Sinon (si c'est un élève), on retourne au menu
+                // Sinon (si on était connecté), on retourne au menu principal.
+                showView('menu');
             }
         }
-    }
-    // Cas par défaut : Pour toutes les autres pages, on retourne au menu principal
-    else {
-        showView('menu');
+        // Cas par défaut pour un élève (ou un prof en mode démo) : retourner au menu principal.
+        else {
+            showView('menu');
+        }
     }
 });
 
@@ -2390,6 +2413,120 @@ async function saveData(context = {}) {
 
 
             };
+
+
+// REMPLACEZ VOTRE VARIABLE const demoJournalData EXISTANTE PAR CELLE-CI :
+
+const demoJournalData = {
+    "radar_history": [],
+    "discussion_points": "",
+    "tutorial_mission_3_shown": false,
+    "chatbot_saves": [],
+    "step6": {
+        "motivations": "",
+        "formation": "",
+        "structure": ""
+    },
+    "step7": {
+        "reflexions": "",
+        "scores": {},
+        "domaine": ""
+    },
+    "step4": { // Corrigé pour utiliser une structure de tableau
+        "themes": []
+    },
+    "step5": { // Corrigé pour utiliser une structure de tableau
+        "articles": []
+    },
+    "step10": { // Corrigé pour utiliser une structure de tableau
+        "experiences": []
+    },
+    "step9": {
+        "planb_chat_history": [],
+        "formation_reve": "",
+        "reussite_conseils": "",
+        "reussite_type": ""
+    },
+    "step2": { // Corrigé pour utiliser une structure de tableau
+        "combinations": []
+    },
+    "chatbot_last_interaction": 1759727407001,
+    "step3": {
+        "formations": []
+    },
+    "step0": {
+        "test_interets": "",
+        "test_motivation": "",
+        "test_personnalite": "",
+        "analyse_tests_croisee": "",
+        "q30": "artistique", "q11": "assertif", "q10": "extraversion", "q13": "synthese", "q12": "reactif", "q15": "realiste", "q14": "pratique", "q17": "entreprenant", "q16": "artistique", "q19": "conventionnel", "q18": "social", "q1": "autonomie", "q2": "maitrise", "q3": "creer", "q4": "variete", "q5": "expertise", "q6": "passion", "q7": "transmettre", "q8": "ouverture", "q9": "consciencieux", "q20": "artistique", "q22": "realiste", "q21": "investigatif", "q24": "artistique", "q23": "investigatif", "q26": "realiste", "q25": "investigatif", "q28": "investigatif", "q27": "artistique", "q29": "social",
+        "analysis_timestamp": 1759727990764,
+        "riasecScores": { "A": 8, "R": 4, "C": 2, "S": 3, "E": 4, "I": 7 },
+        "analysis": "1.  **Synthèse de ton profil :** Tu es une personne exploratrice, curieuse, créative et très technique, qui aime comprendre en profondeur, tester de nouvelles méthodes et garder la main sur la manière de travailler. Tu es organisé(e), tu planifies, tout en aimant la variété et les imprévus. Tu sais prendre la parole et convaincre, tu aimes former les autres et tu analyses finement les problèmes. Vouloir être médecin ou travailler dans le médical colle très bien à ton profil: rigueur scientifique, gestes techniques, situations variées et dimension humaine forte.\n\n2.  **Tes atouts et Pistes de Réflexion :**\n- Tes atouts\n  - Sens technique et précision du geste: tu aimes maîtriser et construire concrètement.\n  - Esprit scientifique: tu apprécies les sujets complexes et l'analyse de données.\n  - Créativité et sens de l'originalité: tu sais proposer des approches nouvelles.\n  - Organisation: tu planifies et ranges, ce qui est précieux pour des études exigeantes.\n  - Communication et pédagogie: tu animes, tu expliques, tu défends des idées, utile en soin comme en équipe.\n- Pistes de développement\n  - Gestion du stress avant les oraux/évaluations: instaure une petite routine (respiration 3-3-6, fiches mémo, répétitions chronométrées) pour transformer le trac en énergie.\n  - Endurance et régularité: les études de santé sont longues. Mets en place un plan de travail hebdomadaire réaliste (révisions actives, entraînements réguliers).\n  - Confirmation du rapport au soin: vérifie que le contact avec des patient(e)s et la confrontation à l'urgence te conviennent vraiment. Tu peux t'appuyer sur des témoignages et des rencontres pour te projeter.\n\n3.  **Les Environnements Faits pour toi :**\n- Ce qui te convient: des environnements dynamiques, à la fois techniques et humains, où tu peux raisonner vite, apprendre en continu et pratiquer des gestes précis. Tu t'épanouis quand tu as de l'autonomie, des défis scientifiques et un cadre organisé.\n- Domaines/secteurs à explorer\n  1) Soins et médecine\n     - Idées de métiers: médecin (généraliste, urgences, chirurgie), sage-femme, infirmier(ère), manipulateur/rice en électroradiologie médicale.\n  2) Technologies et ingénierie de la santé\n     - Idées de métiers: ingénieur(e) biomédical(e), concepteur/rice de dispositifs médicaux, ingénieur(e) en imagerie, technicien(ne) R&D.\n  3) Recherche, pharmacie et santé publique\n     - Idées de métiers: pharmacien(ne), chercheur/se en neurosciences, biostatisticien(ne), épidémiologiste.\n\n4.  **Actions concrètes dans l'app OrIAntation :**\n- Étape \"Les Fondations avec l'Onisep\": cherche \"médecin\", \"sage-femme\", \"infirmier(ère)\", \"manipulateur/rice radio\", \"ingénieur(e) biomédical(e)\".\n- Étape \"Le Catalogue Parcoursup\": explore PASS/L.AS, IFSI (infirmier/ère), IFMEM (manip radio), BUT Génie biologique.",
+        "archetype": {
+            "titre": "Le/La Visionnaire Curieux/se de la Précision",
+            "description": "Tu explores les mondes de l'art et de la science avec une créativité débordante et une soif insatiable de connaissances. Tu combines habilement ton esprit analytique et ta capacité à réaliser des idées novatrices.",
+            "icone": "🎨"
+        },
+        "situation": "je voudrais être médecin ou travailler dans le médical"
+    },
+    "tutorial_mission_1_shown": true,
+    "tutorial_mission_2_shown": true,
+    "step1": {
+        "metiers": [{
+            "nom": "médecin généraliste",
+            "notes": "Parcours long mais très varié, contact humain important.",
+            "analyses": {
+                "debouches": "1. **Les Débuts :** Au commencement de la carrière de médecin généraliste, tu travailleras probablement en tant qu'associé(e) dans un cabinet médical ou en tant que remplaçant(e). Tu seras amené(e) à prendre en charge une grande variété de patient(e)s de tous âges.\n\n2. **L'Évolution :** Tu pourrais envisager d'ouvrir ton propre cabinet ou de te spécialiser davantage, par exemple en médecine du sport ou en gériatrie.\n\n3. **Le Conseil du Coach (pour toi) :** Le métier de médecin généraliste résonne particulièrement bien avec ton profil, car il te permet d'explorer et de comprendre en profondeur des cas variés, tout en appliquant tes compétences en analyse scientifique et tes talents de communicateur/rice."
+            }
+        }]
+    },
+    "fil_rouge": "**Titre du Projet** : Cap Santé & Innovation: mon chemin d'explorateur/rice curieux/se et précis/e.\n\n**Tes Super-Pouvoirs** : Tes trois super‑pouvoirs ressortent nettement: une rigueur scientifique avec un esprit d'analyse affûté; une précision technique remarquable; et une vraie aisance à l'oral avec une fibre pédagogique.\n\n**Ton Terrain de Jeu Idéal** : Tu t'épanouiras dans des lieux où la science rencontre l'humain et l'action: un cadre organisé, rythmé par des exercices pratiques et des situations réelles. Que ce soit en PASS/L.AS, en IFSI ou en BUT orienté santé/biomédical.\n\n**Tes Prochaines Aventures** : Voici 3 pistes cohérentes : 1) Imagerie médicale et radiothérapie. 2) Périnatalité et santé des femmes. 3) Santé publique et biostatistiques.",
+    "tutorial_next_step": "",
+    "tutorial_completed": true,
+    "step11": {
+        "jpo_ecole": "", "evenements": [], "structures": [], "location": "", "jpo_questions": "",
+        "salon_preparation": "Pour ta visite au Salon des Grandes Écoles de Nantes, voici un plan d'action en trois points :\n\n1. **Objectif Principal : Clarification et Confirmation de Ta Voie en Santé**\nProfite de ce salon pour clarifier et confirmer si l'un de ces rôles (médecin, sage-femme, ingénieur(e) biomédical(e), etc.) résonne réellement avec tes aspirations profondes.\n\n2. **Stands à Ne Pas Manquer :**\n   - Écoles de Santé et Paramédicales (PASS/L.AS, IFSI, IFMEM).\n   - Écoles d'Ingénieurs avec des spécialités biomédicales (Polytech, INSA, UTC).\n\n3. **La Question Qui Fait la Différence :**\n   Pour tirer le meilleur parti de chaque stand, pose la question suivante : \"Comment cette formation intègre-t-elle des expériences pratiques pour préparer efficacement aux carrières dans le domaine de la santé ?\"",
+        "salon_nom": "Salon des Grandes Écoles de Nantes"
+    },
+    "earned_badges": ["pilote", "connecteur"],
+    "level": 4,
+    "step13": {
+        "bilans": [],
+        "hypotheses": [{
+            "titre": "centre équestre",
+            "ville": "auray",
+            "notes": "j'aime les animaux, je fais de l'équitation depuis 10 ans et j'aimerais devenir vétérinaire équin",
+            "lieux_suggeres": "",
+            "modele_contact": "Objet : Demande de stage en équitation\n\nBonjour [Nom du destinataire],\n\nJe m'appelle [Ton nom], et je suis élève en classe de Seconde. Passionné(e) par les animaux et pratiquant l'équitation depuis dix ans, je suis à la recherche d'un stage d'observation dans le domaine équestre. Ce secteur m'attire car il me permettrait de combiner ma passion et mon désir de précision technique. J'espère approfondir mes connaissances des soins aux chevaux pour étoffer mon projet de devenir vétérinaire équin.\n\n--- Conseil du Coach ---\nN'oublie pas de te renseigner sur l'entreprise avant d'envoyer ton mail !"
+        }]
+    },
+    "step8": {
+        "contacts": [{
+            "nom": "Cabinet Eric Richard Avocats",
+            "search_link": "https://www.google.com/search?q=Cabinet+Eric+Richard+Avocats+Auray",
+            "type": "externe",
+            "statut": "a_contacter"
+        }],
+        "preparations": [{
+            "pro": "avocat",
+            "question": "quelles sont les difficultés de votre métier ?",
+            "suggestions": "1. Quelles compétences clés sont nécessaires pour réussir en tant qu'avocat(e) ?\n2. Pouvez-vous décrire une journée type dans votre vie professionnelle ?\n3. Quels conseils donneriez-vous à un(e) jeune étudiant(e) intéressé(e) par une carrière juridique ?"
+        }]
+    },
+    "retroplanning": {
+        "rawText": {
+            "conseilReussiteEpreuves": "Pour préparer au mieux tes épreuves du bac de Français et de mathématiques, adopte une routine régulière. Pour le Français, habitue-toi à lire et analyser chaque texte. Pour les mathématiques, pratique régulièrement en résolvant des exercices variés. Mets en place un plan de travail hebdomadaire pour ne rien laisser au hasard.",
+            "conseilGeneralOrientation": "En première, pour te préparer à une carrière dans la santé, opte pour des spécialités scientifiques comme Physique-Chimie, SVT et Maths. Utilise le 'Simulateur de spécialités Horizons21' pour tester différentes combinaisons.",
+            "conseilAbandonSpecialite": "Pour déterminer quelle spécialité abandonner, commence par une auto-évaluation. Liste tes spécialités et réfléchis à celles qui t'apportent le plus de plaisir. Utilise le simulateur Horizons21 pour évaluer les horizons que chaque spécialité ouvre."
+        },
+        "tasks": [
+            { "month": "Septembre", "tasks": [{ "text": "Prendre ses marques au lycée, identifier ses points forts et ses difficultés.", "completed": false }] },
+            { "month": "Octobre", "tasks": [{ "text": "Explorer 2 ou 3 secteurs d'activité via l'étape 'Les Fondations'.", "completed": false }] }
+        ]
+    },
+    "xp": 670
+};
             
             async function loadData() {
     if (!currentUserId) return;
@@ -2632,6 +2769,10 @@ function isStepStarted(stepKey) {
 function showMenuAndWelcomeCheck() {
     showView('menu'); // Affiche le menu principal
 
+    if (isImpersonatingStudent) {
+        return;
+    }
+
     const nextStepId = journalData.tutorial_next_step;
     const isTutorialDone = journalData.tutorial_completed;
 
@@ -2688,8 +2829,19 @@ function showGradeSelectionView() {
 
     mainApp.querySelectorAll('.grade-btn').forEach(button => {
     button.addEventListener('click', async (e) => {
-        userGradeLevel = e.target.dataset.grade; 
-        await saveData(); 
+
+        const selectedGrade = e.target.dataset.grade;
+
+        // ▼▼▼ LA NOUVELLE LOGIQUE EST ICI ▼▼▼
+        if (isImpersonatingStudent) {
+            // Si on est en mode démo, on met juste à jour la classe et on rafraîchit le menu
+            userGradeLevel = selectedGrade;
+            showView('menu'); 
+            return; // On arrête l'exécution ici pour ne pas sauvegarder/recharger
+        }
+
+        userGradeLevel = selectedGrade;
+        await saveData();
         await loadData();
         showMenuAndWelcomeCheck(); // <-- APPEL CORRIGÉ
     });
@@ -2699,8 +2851,10 @@ function showGradeSelectionView() {
 
 async function callOpenAI_API({ promptText, model = 'gpt-4o', isJson = false, withPersona = false, promptId = null, loaderElement = null, isExpertCall = false, customLoaderHTML = null }) {
     let finalPrompt = promptText;
-    if (withPersona) { finalPrompt = `${PERSONA_IA}\n\n# Ta Mission Spécifique\n${promptText}`; }
-    finalPrompt = addGenderContextToPrompt(finalPrompt);
+    if (withPersona) {
+        let personaPrompt = `${PERSONA_IA}\n\n# Ta Mission Spécifique\n${promptText}`;
+        finalPrompt = addGenderContextToPrompt(personaPrompt);
+    }
     if (isJson) { finalPrompt += "\n\n# Format de Sortie OBLIGATOIRE\nTa réponse doit être uniquement un objet JSON valide..."; }
 
     const functionUrl = "https://europe-west3-monapp0rientation.cloudfunctions.net/generateContent";
@@ -2836,6 +2990,18 @@ function createMenuView() {
     const div = document.createElement('div');
     div.className = 'fade-in';
 
+    let impersonationBarHTML = '';
+    if (isImpersonatingStudent) {
+        impersonationBarHTML = `
+            <div id="impersonation-bar" class="bg-orange-500 text-white p-4 rounded-lg mb-8 text-center shadow-lg">
+                <p class="font-semibold">Vous êtes actuellement en mode "Vue Élève" (Démonstration).</p>
+                <button id="exit-impersonation-btn" class="mt-3 font-bold bg-white text-orange-600 py-2 px-4 rounded-md hover:bg-orange-100 transition">
+                    Retourner à mon tableau de bord
+                </button>
+            </div>
+        `;
+    }
+
     // --- 1. Logique pour le haut du menu (Données utilisateur, XP, Badges) ---
     const currentLevel = journalData.level || 1;
     const currentXp = journalData.xp || 0;
@@ -2859,16 +3025,6 @@ function createMenuView() {
         badgesHTML = `<div class="w-full h-full bg-cover bg-center bg-no-repeat rounded-full" style="background-image: url('logo_badges.png');"></div>`;
     }
 
-let teacherButtonHTML = '';
-if (currentUserInfo.role === 'enseignant') {
-    teacherButtonHTML = `
-        <div class="text-center mb-4">
-            <button onclick="showView('teacherDashboard')" class="bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 transition">
-                Accéder à mon Tableau de Bord Enseignant
-            </button>
-        </div>
-    `;
-}
 
     const levelDisplayHTML = `
     <div class="mb-10 bg-white p-6 rounded-2xl shadow-lg border border-border-subtle">
@@ -3005,10 +3161,10 @@ if (currentUserInfo.role === 'enseignant') {
             <div id="radarResult" class="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg text-slate-700 text-left hidden prose prose-sm max-w-none"></div>
         </div>
     `;
-    
-    div.innerHTML = teacherButtonHTML + levelDisplayHTML + `<div class="max-w-xl mx-auto my-8">${progressBarHTML}</div>` + guideCardHTML + menuGridHTML + radarHTML;
-    
-    setTimeout(() => {
+
+div.innerHTML = impersonationBarHTML + levelDisplayHTML + `<div class="max-w-xl mx-auto my-8">${progressBarHTML}</div>` + guideCardHTML + menuGridHTML + radarHTML;
+
+setTimeout(() => {
         const canvas = div.querySelector('#xp-chart');
         if (canvas) {
             const ctx = canvas.getContext('2d');
@@ -3181,6 +3337,22 @@ const sujet = result.split('\n')[0].replace(/\*\*/g, '').replace('La Piste Sugg�
         displayRadarResult('Surprise', sujet, result);
     });
 
+if (isImpersonatingStudent) {
+        const exitBtn = div.querySelector('#exit-impersonation-btn');
+        if (exitBtn) {
+            exitBtn.addEventListener('click', () => {
+                isImpersonatingStudent = false; // On désactive le mode simulation
+                if (originalTeacherData) {
+                    // On restaure les données originales de l'enseignant
+                    currentUserInfo = originalTeacherData.info;
+                    userGradeLevel = originalTeacherData.grade;
+                    journalData = originalTeacherData.journal;
+                }
+                showView('teacherDashboard'); // On affiche le tableau de bord
+            });
+        }
+    }
+
     div.querySelectorAll('.js-logout').forEach(button => {
         button.addEventListener('click', async () => { await signOut(auth); });
     });
@@ -3248,6 +3420,12 @@ function createTeacherDashboardView() {
                 Guide d'utilisation
             </button>
             <span class="text-slate-400">|</span>
+            
+            <button id="view-as-student-btn" class="text-sm text-cyan-700 hover:underline transition">
+                Voir la vue élève
+            </button>
+            <span class="text-slate-400">|</span>
+
             <button onclick="signOut(auth)" class="text-sm text-slate-500 hover:text-red-600 hover:underline transition">
                 Se déconnecter
             </button>
@@ -3380,6 +3558,8 @@ ${studentsToRender.map(student => {
 `;
         contentDiv.innerHTML = tableHTML;
     };
+
+    
 
     const getSchoolData = httpsCallable(functions, 'getSchoolDashboardData');
     getSchoolData().then(result => {
@@ -3571,7 +3751,6 @@ showAnalyticsBtn.addEventListener('click', async () => {
         }
     });
 
-    // ... dans createTeacherDashboardView
     div.addEventListener('click', async (e) => {
         const viewJournalButton = e.target.closest('.view-journal-btn');
         if (viewJournalButton) {
@@ -3579,33 +3758,36 @@ showAnalyticsBtn.addEventListener('click', async () => {
             mainApp.innerHTML = '<div class="loader"></div>';
             
             try {
-                const getStudentJournal = httpsCallable(functions, 'getStudentJournal');
-                const studentResult = await getStudentJournal({ studentId: studentId });
-                const studentData = studentResult.data;
+    const getStudentJournal = httpsCallable(functions, 'getStudentJournal');
+    const studentResult = await getStudentJournal({ studentId: studentId });
+    const studentData = studentResult.data;
 
-                const userInfo = {
-                    firstName: studentData.firstName,
-                    lastName: '', // Le nom de famille n'est pas nécessaire pour la vue prof
-                    schoolName: studentData.schoolName,
-                    gradeLevel: studentData.gradeLevel
-                };
+    // ▼▼▼▼▼▼ ESPION N°1 : Affiche les données brutes reçues ▼▼▼▼▼▼
+    console.log('Données BRUTES reçues de la fonction :', studentData);
 
-                currentViewName = 'teacherStudentJournal'; // ✅ AJOUTEZ CETTE LIGNE ICI
+    const userInfo = {
+        id: studentId,
+        firstName: studentData.firstName,
+        lastName: '', 
+        schoolName: studentData.schoolName,
+        gradeLevel: studentData.gradeLevel
+    };
 
-                // On appelle la nouvelle fonction unifiée avec le contexte "teacher"
-                const pageElement = await createUnifiedJournalView(userInfo, studentData.journal, 'teacher');
-                
-                mainApp.innerHTML = '';
-                mainApp.appendChild(pageElement);
-                document.getElementById('floatingBackBtn').style.display = 'flex';
+    currentViewName = 'teacherStudentJournal';
+    const pageElement = await createUnifiedJournalView(userInfo, studentData.journal, 'teacher');
+    
+    mainApp.innerHTML = '';
+    mainApp.appendChild(pageElement);
+    document.getElementById('floatingBackBtn').style.display = 'flex';
 
-            } catch (error) {
-                console.error("Erreur lors de la récupération du journal:", error);
-                createSimpleModal("Erreur", "<p>Impossible de charger le journal de cet élève.</p>");
-                showView('teacherDashboard');
-            }
+} catch (error) {
+    // ▼▼▼▼▼▼ ESPION N°2 : S'il y a une erreur APRES l'appel, on la verra ici ▼▼▼▼▼▼
+    console.error('ERREUR CÔTÉ CLIENT (dans le .catch) :', error);
+
+    createSimpleModal("Erreur", "<p>Impossible de charger le journal de cet élève.</p>");
+    showView('teacherDashboard');
+}
         }
-        
     });
     div.addEventListener('click', (e) => {
     const indicator = e.target.closest('.status-indicator');
@@ -3645,6 +3827,30 @@ showAnalyticsBtn.addEventListener('click', async () => {
         createSimpleModal(modalTitle, modalContentHTML);
     }
 });
+
+div.querySelector('#view-as-student-btn').addEventListener('click', () => {
+       // 1. Sauvegarde des données originales de l'enseignant
+    originalTeacherData = {
+        info: { ...currentUserInfo },
+        grade: userGradeLevel,
+        journal: { ...journalData }
+    };
+
+    // 2. Activation du mode "simulation"
+    isImpersonatingStudent = true;
+
+    // 3. Chargement du profil de DÉMONSTRATION dans les variables globales
+    currentUserInfo = { firstName: 'Alex (Démo)', schoolName: 'Lycée Benjamin Franklin', role: 'eleve', gender: 'autre' };
+    userGradeLevel = 'premiere'; 
+
+    // ▼▼▼ LA MODIFICATION CLÉ EST ICI ▼▼▼
+    // On charge le journal pré-rempli au lieu d'un journal vide
+    journalData = JSON.parse(JSON.stringify(demoJournalData)); 
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    // 4. Affichage du menu principal de l'élève
+    showView('menu');
+    });
     
     return div;
 }
@@ -6053,36 +6259,50 @@ function createGuideView() {
     `;
     
     const dashboardEnseignantsHTML = `
-        <div class="guide-container">
-            <h2>Partie 2 : Maîtriser le Tableau de Bord Enseignant</h2>
-            <p>Votre tableau de bord est conçu pour vous donner une vision claire et rapide de l'activité de votre classe et vous permettre d'agir efficacement.</p>
-            <div class="etape">
-                <h4>Le Code d'Invitation</h4>
-                <p>Ce code est unique à votre classe. Partagez-le avec vos élèves lors de leur inscription pour qu'ils soient automatiquement rattachés à votre tableau de bord.</p>
-            </div>
-            <div class="etape">
-                <h4>Les Indicateurs Clés</h4>
-                <p>En haut de la page, trois statistiques vous donnent un aperçu instantané : le <strong>nombre d'élèves</strong>, la <strong>progression moyenne</strong> de la classe, et le nombre d'<strong>élèves "à suivre"</strong> (ceux dont l'activité est faible ou qui semblent bloqués).</p>
-            </div>
-            <div class="etape">
-                <h4>La Liste des Élèves</h4>
-                <p>Ce tableau vous permet de suivre chaque élève individuellement. Vous pouvez le trier par nom, progression ou dernière activité pour identifier rapidement les besoins. En cliquant sur <strong>"Voir le journal"</strong>, vous accédez à une vue détaillée de la réflexion de l'élève, parfaite pour préparer un entretien.</p>
-            </div>
-            <div class="etape">
-                <h4>Les Statistiques Détaillées de la Classe</h4>
-                <p>En cliquant sur ce bouton, vous ouvrez un panel d'analyse puissant avec quatre graphiques :</p>
+    <div class="guide-container">
+        <h2>Partie 2 : Maîtriser le Tableau de Bord Enseignant</h2>
+        <p>Votre tableau de bord est conçu pour vous donner une vision claire de l'activité de votre classe et vous permettre d'agir efficacement.</p>
+        
+        <div class="etape">
+            <h4>Le Code d'Invitation et les Indicateurs</h4>
+            <p>Utilisez le <strong>code d'invitation</strong> pour rattacher vos élèves à votre classe. Les indicateurs en haut de page (nombre d'élèves, progression, élèves à suivre) vous donnent un aperçu instantané de la dynamique du groupe.</p>
+        </div>
+        
+        <div class="etape">
+            <h4>La Liste des Élèves et le Carnet de Suivi Privé</h4>
+            <p>En cliquant sur <strong>"Voir le journal"</strong> pour un élève, vous ouvrez une vue complète qui combine le journal public de l'élève (sa vision) et votre <strong>Carnet de Suivi Privé</strong> (votre vision), un espace qui n'est visible que par vous.</p>
+            <div class="conseil-prof" style="font-style: normal;">
+                <h4 style="font-weight: bold; color: #3730A3; display:block;">Votre Carnet de Suivi contient :</h4>
                 <ul>
-                    <li><strong>Répartition de la Progression :</strong> Pour voir si votre classe est plutôt en phase de "Début", d'"Exploration" ou "Avancée".</li>
-                    <li><strong>Secteurs Populaires :</strong> Identifie les grands domaines (Santé, Informatique, Art...) qui attirent le plus vos élèves.</li>
-                    <li><strong>Métiers les Plus Explorés :</strong> Le top 5 des métiers spécifiques que vos élèves ont sauvegardés.</li>
-                    <li><strong>Niveaux de Formation Visés :</strong> Pour savoir si vos élèves s'orientent plutôt vers des études courtes, l'université ou les grandes écoles.</li>
+                    <li><strong>Observations générales :</strong> Un champ libre pour vos remarques sur le long terme.</li>
+                    <li><strong>Historique des entretiens :</strong> Ajoutez des comptes rendus datés pour chaque point avec l'élève. C'est le cœur de votre suivi structuré.</li>
                 </ul>
             </div>
         </div>
-    `;
+
+        <div class="etape">
+            <h4>Vos Assistants IA pour Gagner du Temps</h4>
+            <p>Votre carnet de suivi est enrichi d'outils d'IA conçus pour vous faire gagner un temps précieux :</p>
+            <div class="conseil-prof" style="font-style: normal;">
+                <ul>
+                    <li><strong>Synthèse Flash :</strong> Depuis la fenêtre d'entretien, obtenez un résumé instantané du journal de l'élève pour contextualiser votre échange.</li>
+                    <li><strong>Rédiger le Compte Rendu :</strong> Prenez des notes en vrac pendant l'entretien, et laissez l'IA les transformer en un paragraphe structuré et professionnel.</li>
+                    <li><strong>Préparer l'Entretien Parents :</strong> Générez une fiche de synthèse qui croise les données de l'élève et vos notes privées. Un document parfait pour structurer la discussion.</li>
+                    <li><strong>Exporter en PDF :</strong> Archivez vos notes ou la fiche de préparation pour les parents en un clic.</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="etape">
+            <h4>La Vue Élève (Mode Démonstration)</h4>
+            <p>Cliquez sur <strong>"Voir la vue élève"</strong> depuis votre tableau de bord pour naviguer dans l'application avec un profil de démonstration pré-rempli. C'est le meilleur moyen de comprendre les outils que vos élèves utilisent. Un bandeau orange vous permettra de revenir à votre tableau de bord à tout moment.</p>
+        </div>
+    </div>
+`;
+
 
 const seancesEnseignantsHTML = `
-        <h2>Partie 3 : 10 Idées de Séances Clés en Main (1h)</h2>
+        <h2>Partie 3 : 11 Idées de Séances Clés en Main (1h)</h2>
         <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg> Séance 1 : Scanner son Profil - Devenir l'Expert de soi-même</h4><p><strong>Classe Cible :</strong> Seconde (début d'année), Première.<br><strong>Objectif Pédagogique :</strong> Amener l'élève à identifier ses propres "données" (forces, motivations) et à acquérir un vocabulaire précis pour se décrire.<br><strong>Étape Utilisée :</strong> Mieux se connaître.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Introduction : "Votre orientation est un problème à résoudre. La première étape est de collecter les bonnes données sur vous-même." (10min). 2. Les élèves complètent le questionnaire pour générer leur profil de base (25min). 3. Discussion collective sur la signification des <strong>Archétypes</strong> et du <strong>graphique RIASEC</strong> comme outils d'analyse (15min).</div></div>
         <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" /></svg> Séance 2 : Le Simulateur Stratégique de Spécialités</h4><p><strong>Classe Cible :</strong> Seconde (2ème trimestre).<br><strong>Objectif Pédagogique :</strong> Utiliser la simulation pour prendre des décisions éclairées sur les spécialités.<br><strong>Étape Utilisée :</strong> Le simulateur de spécialités.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Rappel des enjeux (5min). 2. En binômes, les élèves testent 2 combinaisons, utilisent OrIA pour obtenir un <strong>témoignage d'étudiant</strong> et analysent le lien avec leur profil (30min). 3. Mise en commun : chaque binôme partage la combinaison la plus "inattendue" qu'il a trouvée (15min).</div></div>
         <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.07a2.25 2.25 0 0 1-2.25 2.25h-13.5a2.25 2.25 0 0 1-2.25-2.25v-4.07m18-4.32-7.5-5.25a2.25 2.25 0 0 0-2.013.003L2.25 9.83m18 4.32V9.83" /></svg> Séance 3 : Le Portfolio - Transformer l'Expérience en Compétence</h4><p><strong>Classe Cible :</strong> Première (fin d'année), Terminale.<br><strong>Objectif Pédagogique :</strong> Apprendre à l'élève à "extraire" et formuler des compétences à partir de son vécu (méthode STAR).<br><strong>Étape Utilisée :</strong> Mon Portfolio de Compétences.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Introduction : "Vos expériences sont des mines de compétences. Apprenons à les extraire." (10min). 2. Chaque élève choisit une expérience (stage, passion, projet...) et utilise l'<strong>Assistant de Portfolio</strong> pour la transformer en texte valorisé (30min). 3. Partage volontaire de 2-3 exemples pour montrer la transformation (10min).</div></div>
@@ -6093,6 +6313,8 @@ const seancesEnseignantsHTML = `
         <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="m15.75 15.75-2.489-2.489m0 0a3.375 3.375 0 1 0-4.773-4.773 3.375 3.375 0 0 0 4.774 4.774ZM21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> Séance 8 : Débloquer sa Réflexion - Le Radar</h4><p><strong>Classe Cible :</strong> Tous niveaux (particulièrement les élèves "perdus" ou "bloqués").<br><strong>Objectif Pédagogique :</strong> Utiliser la créativité de OrIA pour ouvrir de nouvelles pistes et relancer une dynamique de recherche.<br><strong>Étape Utilisée :</strong> Le Radar à Opportunités.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Discussion sur le droit d'être indécis (5min). 2. Chaque élève utilise le bouton "Me surprendre !" et note la suggestion de OrIA (20min). 3. En petits groupes, ils discutent de la pertinence (ou non) de la suggestion et de ce qu'elle révèle sur leur profil (25min).</div></div>
         <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.82m5.84-2.56a17.96 17.96 0 0 0-5.84-2.56m0 0A17.965 17.965 0 0 1 12 2.25a17.965 17.965 0 0 1 7.41 12.56m-7.41 0v4.82" /></svg> Séance 9 : Planifier son Année - Le Rétroplanning</h4><p><strong>Classe Cible :</strong> Tous niveaux (en début d'année).<br><strong>Objectif Pédagogique :</strong> Visualiser l'année à venir, dédramatiser les échéances et développer des compétences de planification.<br><strong>Étape Utilisée :</strong> Mon Rétroplanning.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Présentation des grandes échéances de l'année (10min). 2. Les élèves génèrent leur <strong>rétroplanning personnalisé</strong> et cochent les tâches déjà entamées (25min). 3. Discussion sur la tâche du mois qui leur semble la plus importante (15min).</div></div>
         <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" /></svg> Séance 10 : Stratégie "Plan B" - Gérer l'Incertitude</h4><p><strong>Classe Cible :</strong> Terminale.<br><strong>Objectif Pédagogique :</strong> Développer la résilience et la capacité à envisager des alternatives de manière constructive.<br><strong>Étape Utilisée :</strong> Anticiper la suite.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Discussion sur la gestion du stress et des réponses de Parcoursup (10min). 2. Les élèves utilisent la <strong>simulation de conversation "Plan B"</strong> pour réfléchir à des alternatives à leur vœu n°1 (35min). 3. Réflexion individuelle sur les pistes qui ont émergé (5min).</div></div>
+        <div class="etape"><h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 inline-block mr-2 align-middle"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487zm0 0L19.5 7.125" /></svg> Séance 11 : L'Entretien de Suivi Augmenté par l'IA</h4><p><strong>Classe Cible :</strong> Tous niveaux (en préparation d'entretiens individuels).<br><strong>Objectif Pédagogique :</strong> Mener un entretien de suivi individualisé ultra-efficace en moins de 15 minutes.<br><strong>Étape Utilisée :</strong> Carnet de Suivi Privé.</p><div class="conseil-prof"><strong>Déroulement :</strong> 1. Avant de recevoir l'élève, ouvrez son journal et cliquez sur "+ Ajouter un compte rendu" pour ouvrir la modale (2min). 2. Dans la modale, utilisez <strong>"Afficher la Synthèse Flash"</strong> pour avoir un aperçu immédiat des points clés à aborder. 3. Menez l'entretien en vous basant sur cette synthèse et en prenant des notes en vrac dans le champ "Compte rendu" (10min). 4. À la fin, utilisez <strong>"Rédiger le compte rendu ✨"</strong> pour formaliser vos notes en un clic avant de sauvegarder.</div></div>
+
     `;
     
 const partie4FonctionnalitesHTML_eleves = `
@@ -6125,7 +6347,7 @@ const partie4FonctionnalitesHTML_eleves = `
 `;
 
 const partie4FonctionnalitesHTML_parents = `
-    <h2>Partie 2 : Exploration Détaillée des Fonctionnalités</h2>
+    <h2>Partie 2 : Exploration Détaillée des Fonctionnalités pour vos enfants</h2>
     <p class="text-slate-600 mb-6 text-center">Le menu de votre enfant est organisé en deux grandes sections pour l'aider à naviguer : son Tableau de Bord personnel et son Parcours d'Orientation étape par étape.</p>
     <h3 class="centered-subtitle" style="font-size: 1.5em; color: #1A3263;">🚀 Le Tableau de Bord</h3>
     <p class="text-slate-600 mb-6 text-center">Ce sont ses outils centraux, qu'il/elle utilisera tout au long de son parcours pour suivre ses progrès, synthétiser ses idées et planifier ses actions.</p>
@@ -6154,7 +6376,7 @@ const partie4FonctionnalitesHTML_parents = `
 `;
 
 const partie4FonctionnalitesHTML_enseignants = `
-    <h2>Partie 3 : Exploration Détaillée des Fonctionnalités</h2>
+    <h2>Partie 3 : Exploration Détaillée des Fonctionnalités les élèves</h2>
     <p class="text-slate-600 mb-6 text-center">Le menu de l'élève est organisé en deux grandes sections : son Tableau de Bord personnel et son Parcours d'Orientation étape par étape.</p>
     <h3 class="centered-subtitle" style="font-size: 1.5em; color: #1A3263;">🚀 Le Tableau de Bord</h3>
     <p class="text-slate-600 mb-6 text-center">Ce sont les outils centraux de l'élève, conçus pour le suivi, la synthèse et la planification de sa démarche d'orientation.</p>
@@ -6209,8 +6431,8 @@ const partie4FonctionnalitesHTML_enseignants = `
             sections = [
                 { title: "🚀 Introduction : OrIA comme Boussole 2.0", content: introHTML, open: true },
                 { title: "👨👩👧 Devenir le 'Sparring Partner'de votre enfant", content: partie2ParentsHTML },
-                { title: "🧭 Exploration des Fonctionnalités", content: partie4FonctionnalitesHTML_parents },
-                { title: "📱 Installation de l'Application", content: installationHTML },
+                { title: "🧭 Exploration des Fonctionnalités pour vos enfants", content: partie4FonctionnalitesHTML_parents },
+                { title: "📱 Installation de l'Application sur le téléphone", content: installationHTML },
                 { title: "🔒 Technologie et Données Personnelles", content: partie5TechHTML }
             ];
             break;
@@ -6218,10 +6440,10 @@ const partie4FonctionnalitesHTML_enseignants = `
             sections = [
                 { title: "🚀 Introduction : OrIA comme Boussole 2.0", content: introHTML, open: true },
                 { title: "🧑🏫 Un Outil au Service du Parcours Avenir", content: partie3EnseignantsHTML },
-                { title: "📊 Maîtriser le Tableau de Bord Enseignant", content: dashboardEnseignantsHTML },
-                { title: "🧭 Exploration des Fonctionnalités", content: partie4FonctionnalitesHTML_enseignants },
-                { title: "💡 10 Idées de Séances Clés en Main", content: seancesEnseignantsHTML },
-                { title: "📱 Installation de l'Application", content: installationHTML },
+                { title: "📊 Maîtriser votre tableau de bord", content: dashboardEnseignantsHTML },
+                { title: "🧭 Exploration des Fonctionnalités pour vos élèves", content: partie4FonctionnalitesHTML_enseignants },
+                { title: "💡 11 Idées de Séances Clés en Main", content: seancesEnseignantsHTML },
+                { title: "📱 Installation de l'Application sur le téléphone", content: installationHTML },
                 { title: "🔒 Technologie et Données Personnelles", content: partie5TechHTML }
             ];
             break;
@@ -6231,7 +6453,7 @@ const partie4FonctionnalitesHTML_enseignants = `
                 { title: "🚀 Introduction : OrIA comme Boussole 2.0", content: introHTML, open: true },
                 { title: "🧑🎓 Ton QG d'Orientation", content: partie1ElevesHTML },
                 { title: "🧭 Exploration Détaillée des Fonctionnalités", content: partie4FonctionnalitesHTML_eleves },
-                { title: "📱 Installation de l'Application", content: installationHTML },
+                { title: "📱 Installation de l'Application sur le téléphone", content: installationHTML },
                 { title: "🔒 Technologie et Données Personnelles", content: partie5TechHTML }
             ];
             break;
@@ -9186,12 +9408,6 @@ async function createJournalView() {
 }
 
 
-// =================================================================================
-// FONCTION UNIFIÉE FINALE ET COMPLÈTE POUR L'AFFICHAGE DU JOURNAL
-// =================================================================================
-// =================================================================================
-// REMPLACEZ VOTRE FONCTION createUnifiedJournalView EXISTANTE PAR CE BLOC COMPLET
-// =================================================================================
 async function createUnifiedJournalView(userInfo, journalDataToDisplay, context) {
     // 1. Création du conteneur principal de la page
     const div = document.createElement('div');
@@ -9218,13 +9434,14 @@ async function createUnifiedJournalView(userInfo, journalDataToDisplay, context)
     div.appendChild(headerEl);
     div.innerHTML += progressBarHTML;
 
+  
     if (context === 'student') {
         const analysisPanel = document.createElement('div');
         analysisPanel.id = 'monthly-analysis-panel';
         analysisPanel.className = 'my-8';
         div.appendChild(analysisPanel);
-    }
 
+    }
 
     if (context === 'student') {
         const shareToken = journalDataToDisplay.share_token || null;
@@ -9615,10 +9832,21 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
         div.appendChild(deleteSection);
     }
 
+    if (context === 'teacher') {
+        const teacherNotesContainer = document.createElement('div');
+        teacherNotesContainer.id = 'teacher-notes-section';
+        teacherNotesContainer.className = 'mt-12 pt-8 border-t-4 border-orange-400';
+        div.appendChild(teacherNotesContainer);
+
+        // On passe l'ID de l'élève (qui doit être dans userInfo) à la nouvelle fonction
+        // ATTENTION : Assurez-vous que l'ID de l'élève est bien passé ici !
+renderTeacherNotesSection(teacherNotesContainer, userInfo, journalDataToDisplay);    }
+
     // ---- Logique des événements ----
     const allEventListeners = () => {
-          checkForSnapshots();
-
+if (context === 'student') {
+    checkForSnapshots();
+}
         if (context === 'student') {
             const toggleShareBtn = div.querySelector('#toggle-share-btn');
             if (toggleShareBtn) {
@@ -9708,6 +9936,7 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
                 });
             }
         }
+  
         journalContentDiv.addEventListener('click', async (e) => {
             const header = e.target.closest('.journal-section-header');
             const deleteBtn = e.target.closest('.delete-journal-entry');
@@ -9814,6 +10043,621 @@ else if (stepKey === 'step13' && isStepStarted(stepKey)) {
     
     return div;
 }
+
+// REMPLACEZ VOTRE FONCTION PAR CETTE VERSION FINALE ET COMPLÈTE
+async function renderTeacherNotesSection(container, userInfo, studentJournal) {
+    const teacherId = auth.currentUser.uid;
+    const studentId = userInfo.id;
+    const notesDocRef = doc(db, "users", teacherId, "studentNotes", studentId);
+
+    let notesData = { observationsGenerales: '', entretiens: [] };
+    try {
+        const docSnap = await getDoc(notesDocRef);
+        if (docSnap.exists()) {
+            notesData = { ...notesData, ...docSnap.data() };
+        }
+    } catch (error) {
+        console.error("Erreur de chargement des notes:", error);
+    }
+
+    // --- HTML de la section ---
+    container.innerHTML = `
+        <h2 class="text-2xl font-bold text-orange-600 mb-4 text-center">Mon Carnet de Suivi Privé</h2>
+        <p class="text-center text-sm text-slate-500 mb-6">(Visible uniquement par vous)</p>
+
+        <div class="mb-8">
+            <label for="observations-generales" class="block text-md font-medium text-slate-700 mb-2">Observations générales sur l'élève</label>
+            <textarea id="observations-generales" rows="5" class="w-full p-3 border rounded-lg" placeholder="Points forts, difficultés, évolution globale...">${notesData.observationsGenerales}</textarea>
+        </div>
+
+        <div>
+            <h3 class="text-xl font-bold text-OrIAntation-darkblue mb-4">Historique des entretiens</h3>
+            <div id="entretiens-list" class="space-y-4 mb-6"></div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <button type="button" id="add-entretien-btn" class="w-full bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition">+ Ajouter un compte rendu</button>
+                <button type="button" id="export-pdf-btn" class="w-full bg-cyan-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-cyan-700 transition flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clip-rule="evenodd" /></svg>
+                    Exporter en PDF
+                </button>
+                <button type="button" id="prepare-parent-meeting-btn" class="w-full bg-sky-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-sky-700 transition flex items-center justify-center gap-2">
+                    📄 Préparer l'entretien parents
+                </button>
+            </div>
+        </div>
+    `;
+
+    // --- Fonctions internes ---
+    const renderEntretiens = () => {
+        const listContainer = container.querySelector('#entretiens-list');
+        if (!notesData.entretiens || notesData.entretiens.length === 0) {
+            listContainer.innerHTML = `<p class="text-center text-slate-500 p-4 bg-background-light rounded-lg">Aucun entretien enregistré.</p>`;
+            return;
+        }
+        const sortedEntretiens = [...notesData.entretiens].sort((a, b) => new Date(b.date) - new Date(a.date));
+        listContainer.innerHTML = sortedEntretiens.map(entretien => `
+            <details class="bg-background-light rounded-lg border">
+                <summary class="p-3 font-semibold text-slate-700 cursor-pointer flex justify-between items-center">
+                    <span>Entretien du ${new Date(entretien.date).toLocaleDateString('fr-FR')}</span>
+                    <div>
+                        <button type="button" class="edit-entretien-btn text-sm text-cyan-600 hover:underline mr-4" data-id="${entretien.id}">Modifier</button>
+                        <button type="button" class="delete-entretien-btn text-sm text-red-600 hover:underline" data-id="${entretien.id}">Supprimer</button>
+                    </div>
+                </summary>
+                <div class="p-4 border-t prose prose-sm max-w-none">
+                    <p><strong>Sujets abordés :</strong> ${entretien.sujetsAbordes}</p>
+                    <p><strong>Compte rendu :</strong></p>
+                    <div class="whitespace-pre-wrap">${entretien.compteRendu}</div>
+                </div>
+            </details>
+        `).join('');
+    };
+    
+    const handleSaveEntretien = async (entretienData) => {
+        const existingIndex = notesData.entretiens.findIndex(e => e.id === entretienData.id);
+        if (existingIndex > -1) {
+            notesData.entretiens[existingIndex] = entretienData;
+        } else {
+            notesData.entretiens.push(entretienData);
+        }
+        await setDoc(notesDocRef, { entretiens: notesData.entretiens }, { merge: true });
+        renderEntretiens();
+    };
+
+    // --- Actions initiales ---
+    renderEntretiens();
+    addVoiceDictationToInputs();
+
+    // --- Gestion centralisée des événements ---
+    container.addEventListener('click', async (e) => {
+        const addBtn = e.target.closest('#add-entretien-btn');
+        const exportBtn = e.target.closest('#export-pdf-btn');
+        const parentMeetingBtn = e.target.closest('#prepare-parent-meeting-btn');
+        const editBtn = e.target.closest('.edit-entretien-btn');
+        const deleteBtn = e.target.closest('.delete-entretien-btn');
+
+        if (addBtn) {
+showMeetingModal(null, handleSaveEntretien, userInfo, studentJournal);
+        }
+
+       if (exportBtn) {
+    // Affiche la modale de choix au lieu de générer le PDF directement
+    showExportChoiceModal(userInfo, notesData);
+}
+
+
+        if (parentMeetingBtn) {
+            createSimpleModal("Préparation en cours...", `<div class="loader"></div><p class="text-center text-sm text-slate-500 mt-2">OrIA croise les données...</p>`);
+            const journalPublicEleve = journalData;
+            const notesPriveesProf = notesData;
+             const prompt = `
+    Agis comme un conseiller pédagogique principal et un expert en communication. Tu es chargé de rédiger une fiche de synthèse pour un entretien d'orientation tripartite (élève, parent, enseignant). Le document doit être factuel, approfondi, et servir de base de discussion constructive et professionnelle.
+
+    # Contexte Essentiel
+    - Le prénom de l'élève est : "${userInfo.firstName}"
+    - Le journal de l'élève (sa vision personnelle de sa progression) : ${JSON.stringify(journalPublicEleve)}
+    - Les notes privées de l'enseignant (sa vision et ses observations) : ${JSON.stringify(notesPriveesProf)}
+
+    # Règles de Rédaction (Impératif)
+    - Le ton doit être neutre, professionnel et collaboratif.
+    - N'utilise JAMAIS de phrases qui révèlent que tu es une IA. Ta réponse doit être indiscernable d'un rapport rédigé par un humain.
+    - Ta réponse doit commencer DIRECTEMENT par le premier titre, sans aucun préambule.
+    - Utilise impérativement le prénom de l'élève ("${userInfo.firstName}") dans tes analyses.
+
+    # Format de Sortie OBLIGATOIRE (utilise des titres en gras avec **)
+    
+    **Synthèse de la Démarche Actuelle de ${userInfo.firstName}**
+    (Rédige ici un paragraphe détaillé résumant la situation actuelle de l'élève. Croise les informations du journal et des notes du professeur pour donner une vue d'ensemble : où en est sa réflexion ? Quelles sont les pistes explorées ? Y a-t-il une cohérence ou des contradictions apparentes ?)
+
+    **Points d'Appui et Réussites Observées**
+    (Crée une liste à puces. Pour chaque point, ne te contente pas de lister une qualité, mais **illustre-la avec un exemple concret** tiré du journal ou des notes. Par exemple : "• Fait preuve d'initiative : ${userInfo.firstName} a exploré de manière autonome plusieurs métiers dans la section 'Fondations', ce qui montre sa proactivité.")
+
+    **Pistes de Réflexion et Questions Ouvertes**
+    (Crée une liste à puces de 2 ou 3 questions ouvertes et bienveillantes. Chaque question doit être basée sur une **analyse fine** : un décalage entre le profil de l'élève et ses choix, une compétence non exploitée, ou une contradiction entre les notes du professeur et le journal de l'élève. Par exemple : "• Les notes de l'enseignant mentionnent un intérêt pour la créativité, mais le journal se concentre sur des filières très structurées. Comment ${userInfo.firstName} envisage-t-il/elle de concilier ces deux aspects ?")
+
+    **Objectifs et Prochaines Étapes Proposées**
+    (Termine par une liste à puces d'actions concrètes, précises et collaboratives. Chaque étape doit être claire et mesurable. Par exemple : "• Organiser une rencontre avec un professionnel du secteur X via l'étape 'L'Entretien Professionnel' avant la fin du mois.")
+`;
+            
+            const prepSheet = await callOpenAI_API({ promptText: prompt, withPersona: false });
+            createSimpleModal("Fiche de Préparation - Entretien Parents", `<div class="prose prose-sm max-w-none text-left">${marked.parse(prepSheet)}</div>`);
+        }
+
+        if (editBtn) {
+            const entretienId = editBtn.dataset.id;
+            const entretienToEdit = notesData.entretiens.find(e => e.id === entretienId);
+showMeetingModal(entretienToEdit, handleSaveEntretien, userInfo, studentJournal);
+        }
+
+        if (deleteBtn) {
+            if (await showConfirmationModal("Êtes-vous sûr de vouloir supprimer ce compte rendu ?")) {
+                const entretienId = deleteBtn.dataset.id;
+                notesData.entretiens = notesData.entretiens.filter(e => e.id !== entretienId);
+                await setDoc(notesDocRef, { entretiens: notesData.entretiens }, { merge: true });
+                renderEntretiens();
+            }
+        }
+    });
+
+    container.addEventListener('blur', async (e) => {
+        if (e.target.id === 'observations-generales') {
+            notesData.observationsGenerales = e.target.value;
+            await setDoc(notesDocRef, { observationsGenerales: notesData.observationsGenerales }, { merge: true });
+        }
+    }, true);
+}
+
+async function generateParentMeetingPDF(studentInfo, prepSheetMarkdown) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+    // --- Configuration et Fonctions Utilitaires ---
+    const MARGIN = 20;
+    const PAGE_WIDTH = doc.internal.pageSize.getWidth();
+    let yPos = 0;
+
+    const addHeaderFooter = () => {
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+
+            // En-tête avec logo et titre
+            const img = document.getElementById('app-logo');
+            if (img) {
+                const imgWidth = 25;
+                const imgHeight = (img.naturalHeight / img.naturalWidth) * imgWidth;
+                doc.addImage(img, 'PNG', MARGIN, MARGIN - 7, imgWidth, imgHeight);
+            }
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(18);
+            doc.setTextColor('#1A3263');
+            const titleXOffset = MARGIN + 25 + 15;
+            doc.text('Fiche de Préparation - Entretien Parents', titleXOffset, MARGIN + 5);
+            doc.setDrawColor('#E2E8F0');
+            doc.line(MARGIN, MARGIN + 15, PAGE_WIDTH - MARGIN, MARGIN + 15);
+
+            // Pied de page
+            doc.setFont('helvetica', 'italic');
+            doc.setFontSize(8);
+            doc.setTextColor('#333333');
+            const footerText = `Document généré le ${new Date().toLocaleDateString('fr-FR')} - Page ${i} / ${pageCount}`;
+            doc.text(footerText, PAGE_WIDTH / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+        }
+        doc.setPage(pageCount);
+    };
+
+    const checkPageBreak = (heightNeeded) => {
+        if (yPos + heightNeeded > doc.internal.pageSize.getHeight() - MARGIN) {
+            doc.addPage();
+            yPos = MARGIN + 20;
+        }
+    };
+
+    // --- Construction du PDF ---
+    yPos = MARGIN + 30;
+
+    // Bloc d'information sur l'élève (amélioré)
+    const line1 = `Élève : ${studentInfo.firstName || 'N/A'}`;
+    const line2 = `Classe : ${studentInfo.gradeLevel || 'N/A'}`;
+    const line3 = `Lycée : ${studentInfo.schoolName || 'Non spécifié'}`;
+
+    const maxWidth = Math.max(doc.getTextWidth(line1), doc.getTextWidth(line2), doc.getTextWidth(line3));
+    const startX = (PAGE_WIDTH - maxWidth) / 2;
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(line1, startX, yPos);
+    yPos += 8;
+    
+    doc.setFont('helvetica', 'normal');
+    doc.text(line2, startX, yPos);
+    yPos += 7;
+    
+    doc.setFont('helvetica', 'italic');
+    doc.text(line3, startX, yPos);
+    yPos += 20;
+
+    // Contenu de la fiche généré par l'IA
+    const lines = prepSheetMarkdown.split('\n');
+    lines.forEach(line => {
+        line = line.trim();
+        if (!line) return;
+        checkPageBreak(12);
+        
+        if (line.startsWith('**')) {
+            yPos += 5;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.setTextColor('#0891b2');
+            const titleText = line.replace(/\*/g, '');
+            doc.text(titleText, MARGIN, yPos);
+            yPos += 4;
+            doc.setDrawColor('#E2E8F0');
+            doc.line(MARGIN, yPos, PAGE_WIDTH - MARGIN, yPos);
+            yPos += 8;
+        } else if (line.startsWith('- ') || line.startsWith('• ')) {
+            doc.setFont('times', 'normal');
+            doc.setFontSize(11);
+            doc.setTextColor('#333333');
+            const bulletText = doc.splitTextToSize(line.substring(2), PAGE_WIDTH - MARGIN * 2 - 5);
+            doc.setFillColor(100, 100, 100);
+            doc.circle(MARGIN + 2, yPos - 1.5, 1, 'F');
+            doc.text(bulletText, MARGIN + 5, yPos);
+            yPos += bulletText.length * 5 + 3;
+        } else {
+            doc.setFont('times', 'normal');
+            doc.setFontSize(11);
+            doc.setTextColor('#333333');
+            const textLines = doc.splitTextToSize(line, PAGE_WIDTH - MARGIN * 2);
+            doc.text(textLines, MARGIN, yPos);
+            yPos += textLines.length * 5 + 4;
+        }
+    });
+
+    // --- Finalisation ---
+    addHeaderFooter();
+    doc.save(`Fiche_Entretien_${studentInfo.firstName}.pdf`);
+}
+
+async function generateTeacherNotesPDF(studentInfo, notesData) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4'
+    });
+
+    // --- Configuration du document ---
+    const MARGIN = 20;
+    const PAGE_WIDTH = doc.internal.pageSize.getWidth();
+    const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+    let yPos = 0; // On commencera après l'en-tête
+
+    // --- Fonctions utilitaires internes ---
+    const addHeaderFooter = () => {
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        // En-tête
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.setTextColor('#1A3263'); // OrIAntation-darkblue
+        doc.text('Carnet de suivi orientation', PAGE_WIDTH / 2, MARGIN, { align: 'center' });
+
+        // ▼▼▼▼▼ AJOUT DU LOGO ICI ▼▼▼▼▼
+        // Assurez-vous que l'ID de l'image correspond à celui de votre balise <img> cachée
+        const img = document.getElementById('app-logo'); 
+        if (img) {
+            const imgWidth = 20; // Largeur du logo en mm
+            const imgHeight = (img.naturalHeight / img.naturalWidth) * imgWidth; // Calcul de la hauteur proportionnelle
+            const xOffset = MARGIN; // Position X (à gauche, avec la marge)
+            const yOffset = MARGIN / 2 - imgHeight / 2 + 5; // Position Y (centré verticalement dans l'espace de la marge supérieure)
+
+            doc.addImage(img, 'PNG', xOffset, yOffset, imgWidth, imgHeight);
+        }
+        // ▲▲▲▲▲ FIN DE L'AJOUT DU LOGO ▲▲▲▲▲
+
+
+        // Pied de page
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(8);
+        doc.setTextColor('#333333');
+        const footerText = `Document généré le ${new Date().toLocaleDateString('fr-FR')} - Page ${i} / ${pageCount}`;
+        doc.text(footerText, PAGE_WIDTH / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+    }
+    doc.setPage(pageCount); // Revenir à la page actuelle
+};
+
+    const checkPageBreak = (heightNeeded) => {
+        if (yPos + heightNeeded > doc.internal.pageSize.getHeight() - MARGIN) {
+            doc.addPage();
+            yPos = MARGIN + 10; // Réinitialiser yPos avec marge pour l'en-tête
+        }
+    };
+    
+    // --- Construction du PDF ---
+    yPos = MARGIN + 20; // Position de départ sous l'en-tête
+
+    // Informations sur l'élève
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text(`Élève : ${studentInfo.name || 'N/A'}`, PAGE_WIDTH / 2, yPos, { align: 'center' });
+    yPos += 8;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.text(`Classe : ${studentInfo.gradeLevel || 'N/A'}`, PAGE_WIDTH / 2, yPos, { align: 'center' });
+    yPos += 7;
+
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(10);
+    doc.text(studentInfo.schoolName || 'Lycée non spécifié', PAGE_WIDTH / 2, yPos, { align: 'center' });
+    yPos += 15;
+    
+    doc.setFont('times', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor('#333333');
+    const obsLines = doc.splitTextToSize(notesData.observationsGenerales || "Aucune observation générale.", CONTENT_WIDTH);
+    checkPageBreak(obsLines.length * 5);
+    doc.text(obsLines, MARGIN, yPos);
+    yPos += obsLines.length * 5 + 10;
+
+    // Historique des entretiens
+    if (notesData.entretiens && notesData.entretiens.length > 0) {
+        checkPageBreak(20);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor('#0891b2');
+        doc.text("Historique des Entretiens", MARGIN, yPos);
+        yPos += 5;
+        doc.line(MARGIN, yPos, PAGE_WIDTH - MARGIN, yPos);
+        yPos += 8;
+
+        const sortedEntretiens = [...notesData.entretiens].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        sortedEntretiens.forEach(entretien => {
+            checkPageBreak(30); // Espace minimum pour un entretien
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor('#1A3263');
+            doc.text(`Date : ${new Date(entretien.date).toLocaleDateString('fr-FR')}`, MARGIN, yPos);
+            yPos += 7;
+
+            doc.setFont('helvetica', 'italic');
+            doc.text(`Sujets abordés : ${entretien.sujetsAbordes}`, MARGIN, yPos);
+            yPos += 7;
+
+            doc.setFont('times', 'normal');
+            const crLines = doc.splitTextToSize(entretien.compteRendu || "Aucun compte rendu.", CONTENT_WIDTH - 5);
+            checkPageBreak(crLines.length * 5 + 10);
+            doc.text(crLines, MARGIN + 5, yPos);
+            yPos += crLines.length * 5 + 10;
+        });
+    }
+
+    // --- Finalisation et Sauvegarde ---
+    addHeaderFooter();
+    doc.save(`Carnet_Suivi_${studentInfo.name.replace(/ /g, '_')}.pdf`);
+}
+
+function showExportChoiceModal(userInfo, notesData) {
+    const modalId = 'export-choice-modal';
+    const existingModal = document.getElementById(modalId);
+    if (existingModal) existingModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = modalId;
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900 bg-opacity-60 fade-in';
+
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md text-center p-8">
+            <h2 class="text-2xl font-bold text-OrIAntation-darkblue mb-4">Que souhaitez-vous exporter ?</h2>
+            <p class="text-slate-600 mb-8">Choisissez le document à générer au format PDF.</p>
+            <div class="space-y-4">
+                <button id="export-notes-btn" class="w-full bg-cyan-600 text-white font-semibold py-3 rounded-lg hover:bg-cyan-700 transition flex items-center justify-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" /><path fill-rule="evenodd" d="M4 5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h4a1 1 0 100-2H7zm0 4a1 1 0 100 2h4a1 1 0 100-2H7z" clip-rule="evenodd" /></svg>
+                    Mon Carnet de Suivi Privé
+                </button>
+                <button id="export-prep-sheet-btn" class="w-full bg-sky-600 text-white font-semibold py-3 rounded-lg hover:bg-sky-700 transition flex items-center justify-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+                    La Fiche de Préparation (Entretien Parents)
+                </button>
+            </div>
+            <button id="export-modal-close" class="mt-8 text-sm text-slate-500 hover:underline">Annuler</button>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const closeModal = () => modal.remove();
+    modal.querySelector('#export-modal-close').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    // Action pour exporter le carnet de suivi
+    modal.querySelector('#export-notes-btn').addEventListener('click', () => {
+        generateTeacherNotesPDF({
+            name: userInfo.firstName,
+            gradeLevel: userInfo.gradeLevel,
+            schoolName: userInfo.schoolName
+        }, notesData);
+        closeModal();
+    });
+
+    // Action pour exporter la fiche de préparation
+    modal.querySelector('#export-prep-sheet-btn').addEventListener('click', async () => {
+        const btn = modal.querySelector('#export-prep-sheet-btn');
+        btn.innerHTML = `<div class="loader-small"></div> Analyse en cours...`; // Loader simple
+        btn.disabled = true;
+        
+        const journalPublicEleve = journalData;
+        const notesPriveesProf = notesData;
+        const prompt = `
+    Agis comme un conseiller pédagogique principal et un expert en communication. Tu es chargé de rédiger une fiche de synthèse pour un entretien d'orientation tripartite (élève, parent, enseignant). Le document doit être factuel, approfondi, et servir de base de discussion constructive et professionnelle.
+
+    # Contexte Essentiel
+    - Le prénom de l'élève est : "${userInfo.firstName}"
+    - Le journal de l'élève (sa vision personnelle de sa progression) : ${JSON.stringify(journalPublicEleve)}
+    - Les notes privées de l'enseignant (sa vision et ses observations) : ${JSON.stringify(notesPriveesProf)}
+
+    # Règles de Rédaction (Impératif)
+    - Le ton doit être neutre, professionnel et collaboratif.
+    - N'utilise JAMAIS de phrases qui révèlent que tu es une IA. Ta réponse doit être indiscernable d'un rapport rédigé par un humain.
+    - Ta réponse doit commencer DIRECTEMENT par le premier titre, sans aucun préambule.
+    - Utilise impérativement le prénom de l'élève ("${userInfo.firstName}") dans tes analyses.
+
+    # Format de Sortie OBLIGATOIRE (utilise des titres en gras avec **)
+    
+    **Synthèse de la Démarche Actuelle de ${userInfo.firstName}**
+    (Rédige ici un paragraphe détaillé résumant la situation actuelle de l'élève. Croise les informations du journal et des notes du professeur pour donner une vue d'ensemble : où en est sa réflexion ? Quelles sont les pistes explorées ? Y a-t-il une cohérence ou des contradictions apparentes ?)
+
+    **Points d'Appui et Réussites Observées**
+    (Crée une liste à puces. Pour chaque point, ne te contente pas de lister une qualité, mais **illustre-la avec un exemple concret** tiré du journal ou des notes. Par exemple : "• Fait preuve d'initiative : ${userInfo.firstName} a exploré de manière autonome plusieurs métiers dans la section 'Fondations', ce qui montre sa proactivité.")
+
+    **Pistes de Réflexion et Questions Ouvertes**
+    (Crée une liste à puces de 2 ou 3 questions ouvertes et bienveillantes. Chaque question doit être basée sur une **analyse fine** : un décalage entre le profil de l'élève et ses choix, une compétence non exploitée, ou une contradiction entre les notes du professeur et le journal de l'élève. Par exemple : "• Les notes de l'enseignant mentionnent un intérêt pour la créativité, mais le journal se concentre sur des filières très structurées. Comment ${userInfo.firstName} envisage-t-il/elle de concilier ces deux aspects ?")
+
+    **Objectifs et Prochaines Étapes Proposées**
+    (Termine par une liste à puces d'actions concrètes, précises et collaboratives. Chaque étape doit être claire et mesurable. Par exemple : "• Organiser une rencontre avec un professionnel du secteur X via l'étape 'L'Entretien Professionnel' avant la fin du mois.")
+`;
+
+        const prepSheet = await callOpenAI_API({ promptText: prompt, withPersona: false });
+
+        // On appelle la nouvelle fonction pour générer ce PDF spécifique
+        generateParentMeetingPDF(userInfo, prepSheet);
+        closeModal();
+    });
+}
+
+
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ AJOUTEZ AUSSI CETTE FONCTION À LA SUITE ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+function showMeetingModal(entretienData, onSaveCallback, userInfo, journalDataForSummary) {
+    const isEditing = entretienData !== null;
+    const modalId = 'meeting-modal';
+
+    // Supprime une modale existante pour éviter les doublons
+    const existingModal = document.getElementById(modalId);
+    if (existingModal) existingModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = modalId;
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900 bg-opacity-60 fade-in';
+
+    // --- Structure HTML complète de la modale ---
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+            <div class="flex items-center justify-between p-4 border-b bg-background-light rounded-t-lg">
+                <h3 class="font-bold text-OrIAntation-darkblue text-lg">${isEditing ? 'Modifier le compte rendu' : 'Ajouter un compte rendu'}</h3>
+                <button id="meeting-modal-close" class="text-slate-500 hover:text-OrIAntation-darkblue text-2xl">×</button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4">
+                <div>
+                    <label for="entretien-date" class="block text-md font-medium text-slate-700 mb-1">Date de l'entretien</label>
+                    <input type="date" id="entretien-date" class="w-full p-2 border rounded-lg" value="${isEditing ? entretienData.date : new Date().toISOString().split('T')[0]}">
+                </div>
+                <div>
+                    <label for="entretien-sujets" class="block text-md font-medium text-slate-700 mb-1">Sujets abordés</label>
+                    <input type="text" id="entretien-sujets" class="w-full p-2 border rounded-lg" placeholder="Ex: Spécialités, Grand Oral..." value="${isEditing ? (entretienData.sujetsAbordes || '') : ''}">
+                </div>
+
+                <div class="bg-background-light p-4 rounded-lg border">
+                    <button type="button" id="ai-flash-summary-btn" class="text-sm font-semibold text-teal-600 hover:underline">✨ Afficher la Synthèse Flash du journal de l'élève</button>
+                    <div id="flash-summary-result" class="hidden mt-3 pt-3 border-t prose prose-sm max-w-none text-left"></div>
+                </div>
+
+                <div>
+                    <label for="entretien-compte-rendu" class="block text-md font-medium text-slate-700 mb-1">Compte rendu / Notes brutes</label>
+                    <textarea id="entretien-compte-rendu" rows="8" class="w-full p-2 border rounded-lg" placeholder="Dictez ou écrivez vos notes, observations, prochaines étapes...">${isEditing ? (entretienData.compteRendu || '') : ''}</textarea>
+                </div>
+            </div>
+            <div class="p-4 border-t flex justify-end items-center gap-4 bg-background-light rounded-b-lg">
+                <button type="button" id="ai-write-btn" class="text-sm font-semibold text-cyan-600 hover:underline">Rédiger le compte rendu ✨</button>
+                <button id="save-entretien-btn" class="bg-cyan-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-cyan-700">Enregistrer</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    addVoiceDictationToInputs(); // Active la dictée vocale sur les nouveaux champs
+
+    // --- Gestion des événements de la modale ---
+    const closeModal = () => modal.remove();
+    modal.querySelector('#meeting-modal-close').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    // Événement pour le bouton "Enregistrer"
+    modal.querySelector('#save-entretien-btn').addEventListener('click', () => {
+        const newEntretienData = {
+            id: isEditing ? entretienData.id : Date.now().toString(),
+            date: modal.querySelector('#entretien-date').value,
+            sujetsAbordes: modal.querySelector('#entretien-sujets').value,
+            compteRendu: modal.querySelector('#entretien-compte-rendu').value
+        };
+        onSaveCallback(newEntretienData);
+        closeModal();
+    });
+
+    // Événement pour l'assistant de rédaction de compte rendu
+    modal.querySelector('#ai-write-btn').addEventListener('click', async () => {
+        const sujets = modal.querySelector('#entretien-sujets').value;
+        const notesBrutes = modal.querySelector('#entretien-compte-rendu').value;
+        if (!sujets || !notesBrutes) {
+            alert("Veuillez remplir les sujets abordés et vos notes.");
+            return;
+        }
+
+        const btn = modal.querySelector('#ai-write-btn');
+        btn.textContent = "Rédaction en cours...";
+        btn.disabled = true;
+
+        const prompt = `
+            Agis comme un assistant pédagogique expert, chargé de mettre en forme les notes d'un enseignant après un entretien avec un élève.
+            # Contexte Essentiel
+            - Le prénom de l'élève est : "${userInfo.firstName}"
+            - Les sujets abordés étaient : "${sujets}"
+            - Voici les notes brutes de l'enseignant : "${notesBrutes}"
+            # Ta Mission
+            Transforme ces notes en un compte rendu clair, structuré et professionnel.
+            # Règle de Sortie Absolue
+            Ta réponse doit commencer directement par le premier point ("Introduction"). N'ajoute AUCUNE phrase de préambule.
+            # Format de Sortie OBLIGATOIRE (utilise ce format Markdown)
+            **Introduction :** Rédige une phrase concise qui résume l'objet de l'entretien.
+            **Points Clés :** Crée une liste à puces (avec des tirets '-') qui détaille les observations principales.
+            **Prochaines Étapes :** Rédige un court paragraphe sur les actions à mener.
+            # Règle de Personnalisation
+            Utilise impérativement le prénom de l'élève ("${userInfo.firstName}").`;
+
+        const compteRenduRedige = await callOpenAI_API({ promptText: prompt });
+        const formattedText = compteRenduRedige.replace(/^- /gm, '• ');
+
+        modal.querySelector('#entretien-compte-rendu').value = formattedText;
+        btn.textContent = "Rédiger le compte rendu ✨";
+        btn.disabled = false;
+    });
+
+    // Événement pour la "Synthèse Flash"
+    modal.querySelector('#ai-flash-summary-btn').addEventListener('click', async () => {
+        const resultDiv = modal.querySelector('#flash-summary-result');
+        const btn = modal.querySelector('#ai-flash-summary-btn');
+        
+        if (!resultDiv.classList.contains('hidden')) {
+            resultDiv.classList.add('hidden');
+            btn.textContent = "✨ Afficher la Synthèse Flash du journal de l'élève";
+            return;
+        }
+
+        btn.textContent = "Analyse en cours...";
+        resultDiv.classList.remove('hidden');
+        resultDiv.innerHTML = `<div class="loader"></div>`;
+
+        const prompt = `Agis comme un conseiller d'orientation expert. Analyse ce journal de bord d'élève : ${JSON.stringify(journalDataForSummary)}. Rédige une "Synthèse Flash" en 3 points Markdown distincts : 1. **Cap Actuel** (métiers/formations explorés). 2. **Point de Blocage/Hésitation** (doutes ou contradictions). 3. **Prochaine Étape Suggérée** (une action à lui proposer).`;
+        
+        const summary = await callOpenAI_API({ promptText: prompt, withPersona: true });
+        
+        resultDiv.innerHTML = marked.parse(summary);
+        btn.textContent = "Masquer la Synthèse Flash";
+    });
+}
+
 
 
 function isStepComplete(stepKey) {
