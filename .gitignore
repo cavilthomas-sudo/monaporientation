@@ -1,3 +1,4 @@
 # Ignorer les clés de service Google
 serviceAccountKey.json
 ONISEP import/
+node_modules/
